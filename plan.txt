@@ -4,7 +4,7 @@ Goal:
 
 Preprocessing (on training data):
 - Merge the 2 mc datasets (shuffled, attention on the event ids)
-- Select only mc events with certain attributes (BKGCAT==0 or ==50, BPVIPCHI2<16, B_DIRA_OWNPC>0.9999)
+- Select only mc events with certain attributes (B_BKGCAT==0 or ==50, B_IPCHI2_OWNPV<16, B_DIRA_OWNPC>0.9999)
 - Select only relevant features
 - Generate extra features
 - save as new file (in /ceph/users/nguth/bachelor_project_data)
