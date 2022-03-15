@@ -20,7 +20,6 @@ N_events_per_dataset = 10000
 
 load_batch_size = 1000
 
-
 # %%
 # Read in feature keys
 with open("features.json") as features_file:
@@ -48,36 +47,60 @@ with (uproot.open(input_files[0])["DecayTree"] as tree0,
             raise KeyError(f"Keys not in tree {i}: {keys_not_found}")
     
 print("All features found in all trees")
+
 # %%
-# Read the data
+# Read the data and merge all datasets
 print("Reading data...")
-with (uproot.open(input_files[0])["DecayTree"] as tree0,
-     uproot.open(input_files[1])["DecayTree"] as tree1):
-    trees = [tree0, tree1]
-    # merge datasets
-    df = pd.DataFrame()
-    for i,tree in enumerate(tqdm(trees, "Datasets")):
-        N_batches_estimate = N_events_per_dataset // load_batch_size
+df = pd.DataFrame()
+N_batches_estimate = N_events_per_dataset // load_batch_size
+for i, input_file_path in enumerate(tqdm(input_files, "Datasets")):
+    with uproot.open(input_file_path)["DecayTree"] as tree:   
         for temp_df in tqdm(tree.iterate(features_to_load, entry_stop=N_events_per_dataset, step_size=load_batch_size, library="pd"), "Batches", total=N_batches_estimate):
             temp_df.reset_index(inplace=True)
             temp_df.rename(columns={"entry":"event_id", "subentry": "track_id"}, errors="raise", inplace=True)
+
             temp_df["tree_id"] = i
+
+            if "B2JpsiKstar" in input_file_path:
+                temp_df["decay"] = "B2JpsiKstar"
+            elif "Bs2DsPi" in input_file_path:
+                temp_df["decay"] = "Bs2DsPi"
+            else:
+                raise NameError(f"Decay channel not recognized in Dataset {i}")
+
             if not df.empty:
                 temp_df["event_id"] = temp_df["event_id"] + df["event_id"].max()
 
             df = pd.concat([df, temp_df], ignore_index=True)
-print("Done.")
+
+print("Done reading in.")
+
+# %%
+# Histogram some features before selection
+# df.hist("B_BKGCAT", by="decay")
+# print(df[["B_BKGCAT","decay"]].value_counts())
+# df.hist("B_BKGCAT")
+# df.hist("B_DIRA_OWNPV")
+# df.hist("B_IPCHI2_OWNPV")
+
 # %%
 # Selection of MC events
 N_events_before_sel = len(df['event_id'].unique())
 
-mask = (df["B_BKGCAT"] == 0) | (df["B_BKGCAT"] == 50)
-mask = mask & (df["B_DIRA_OWNPV"] > 0.9999)
-mask = mask & (df["B_IPCHI2_OWNPV"] < 16)
-df = df[mask]
+mask = df["B_DIRA_OWNPV"] > 0.9999
+mask &= df["B_IPCHI2_OWNPV"] < 16
+# We only want B_BKGCAT == 0 and B_BKGCAT == 50
+mask &= (df["B_BKGCAT"] == 0) | (df["B_BKGCAT"] == 50)
+# but B_BKGCAT is wrong in Bs2DsPi... workaround:
+mask |= ((df["decay"]=="Bs2DsPi") & ((df["B_BKGCAT"] == 20)))
 
-N_events_after_sel = len(df['event_id'].unique())
+df_selected = df[mask]
+
+N_events_after_sel = len(df_selected['event_id'].unique())
 
 print(f"Events before selection: {N_events_before_sel}")
 print(f"Events after selection: {N_events_after_sel}")
+
+# %%
+print(df_selected[["B_BKGCAT","decay"]].value_counts())
 # %%
