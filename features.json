@@ -3,17 +3,19 @@
     "B_BKGCAT"
 ],
 "extracted_mc" : [
-    
+    "Tr_is_SS",
+    "decay_id"
 ],
 "direct_mc" : [
     "B_TRUEID",
     "Tr_ORIG_FLAGS"
 ],
 "temporary" : [
-    "nTracks",
     "B_IPCHI2_OWNPV",
     "B_DIRA_OWNPV",
     "B_OWNPV_Z",
+    "B_P", 
+    "B_PT", 
     "B_PX", 
     "B_PY", 
     "B_PZ", 
@@ -22,7 +24,9 @@
     "B_LOKI_ETA"
 ],
 "extracted" : [
+    "input_file_id",
     "Tr_diff_z",
+    "Tr_p_proj",
     "Tr_diff_pt",
     "Tr_diff_p",
     "Tr_cos_diff_phi",
