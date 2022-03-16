@@ -1,6 +1,16 @@
 {
+"temporary_mc" : [
+    "B_BKGCAT"
+],
+"extracted_mc" : [
+    
+],
+"direct_mc" : [
+    "B_TRUEID",
+    "Tr_ORIG_FLAGS"
+],
 "temporary" : [
-    "B_BKGCAT",
+    "nTracks",
     "B_IPCHI2_OWNPV",
     "B_DIRA_OWNPV",
     "B_OWNPV_Z",
@@ -19,10 +29,7 @@
     "Tr_diff_eta"
 ],
 "direct" : [
-    "B_TRUEID", 
-    "B_ID", 
-    "Tr_B_FLAGS", 
-    "Tr_ORIG_FLAGS", 
+    "B_ID",  
     "Tr_T_Sum_of_trackp", 
     "Tr_T_TRFITMATCHCHI2", 
     "Tr_T_Best_PAIR_DCHI2", 
@@ -89,14 +96,5 @@
     "Tr_T_Best_PAIR_VCHI2", 
     "Tr_T_Best_PAIR_D", 
     "Tr_T_IP_trMother"
-],
-"temporary_mc" : [
-    
-],
-"extracted_mc" : [
-    
-],
-"direct_mc" : [
-    
 ]
 }
