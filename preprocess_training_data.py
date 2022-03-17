@@ -181,6 +181,11 @@ for promised_key in ["extracted_mc", "direct_mc", "extracted", "direct"]:
 features_assym = set(df.columns) ^ set(features_promised)
 
 assert len(features_assym) == 0, f"Found an assymmetry in the final features with features.json: {features_assym}"
+
+# %%
+# Reorder the features according to the features.json
+df = df[features_promised]
+
 # %%
 # Save the dataframe to a root file
 print("Writing output file...")

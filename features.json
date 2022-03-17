@@ -7,7 +7,8 @@
     "decay_id"
 ],
 "direct_mc" : [
-    "B_TRUEID",
+    "B_ID", 
+    "B_TRUEID", 
     "Tr_ORIG_FLAGS"
 ],
 "temporary" : [
@@ -33,7 +34,6 @@
     "Tr_diff_eta"
 ],
 "direct" : [
-    "B_ID",  
     "Tr_T_Sum_of_trackp", 
     "Tr_T_TRFITMATCHCHI2", 
     "Tr_T_Best_PAIR_DCHI2", 
