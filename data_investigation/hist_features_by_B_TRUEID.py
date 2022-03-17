@@ -19,13 +19,11 @@ from utils.merge_pdfs import merge_pdfs
 # Constant variables
 
 input_file = Path("/ceph/users/nguth/data/preprocesses_mc_Sim9b.root")
-temp_dir = Path("../plots/features_by_B_TRUEID")
 output_file = Path("../plots/features_by_B_TRUEID.pdf")
 
-temp_dir.mkdir(parents=True, exist_ok=True)
 output_file.parent.mkdir(parents=True, exist_ok=True)
 
-N_tracks = 100000
+N_tracks = 1000000
 
 load_batch_size = 10000
 
@@ -63,9 +61,10 @@ for feature in tqdm(feature_keys, "Features by B_TRUEID"):
     B_IDs = [531,-531,511,-511]
     line_styles = ["solid", "solid", "dotted", "dotted",]
     for B_ID, line_style in zip(B_IDs, line_styles):
-        bin_edges, _ = find_good_binning(df[feature])
-        axs[0].hist(df[df["B_TRUEID"]==B_ID][feature], bins=bin_edges, histtype="step", linestyle=line_style, label=f"B_TRUEID=={B_ID}")
-        axs[1].hist(df[df["B_TRUEID"]==B_ID][feature], bins=bin_edges, histtype="step", linestyle=line_style, label=f"B_TRUEID=={B_ID}")
+        bin_edges, bin_centers = find_good_binning(df[feature], n_bins_max=300)
+        x_counts, _ = np.histogram(df[df["B_TRUEID"]==B_ID][feature], bins=bin_edges, density=True)
+        for i in [0,1]: 
+            axs[i].hist(bin_centers, weights=x_counts, bins=bin_edges, histtype="step", linestyle=line_style, label=f"B_TRUEID=={B_ID}")
     axs[1].set_yscale("log")
     axs[0].legend()
     axs[1].legend()
@@ -77,3 +76,9 @@ for feature in tqdm(feature_keys, "Features by B_TRUEID"):
 output_pdf.close()
 
 # %%
+
+# Features to look out for B0 Bs classification:
+# Tr_diff_pt
+# Tr_T_SumBDT_ult
+# Tr_T_ShareSamePVasSignal
+# 
