@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
 import uproot
 import sys
+from matplotlib.backends.backend_pdf import PdfPages
 
 # Imports from this repository
 sys.path.insert(0,'..')
@@ -18,12 +19,18 @@ from utils.merge_pdfs import merge_pdfs
 # Constant variables
 
 input_file = Path("/ceph/users/nguth/data/preprocesses_mc_Sim9b.root")
+temp_dir = Path("../plots/features_by_B_TRUEID")
+output_file = Path("../plots/features_by_B_TRUEID.pdf")
+
+temp_dir.mkdir(parents=True, exist_ok=True)
+output_file.parent.mkdir(parents=True, exist_ok=True)
 
 N_tracks = 100000
 
 load_batch_size = 10000
 
 N_batches_estimate = np.ceil(N_tracks / load_batch_size).astype(int)
+
 
 # %%
 # Read the input data
@@ -40,7 +47,7 @@ print("Done reading input")
 
 # %%
 # Read in the feature keys
-with open("features.json") as features_file:
+with open("../features.json") as features_file:
     features_dict = json.load(features_file)
     
 feature_keys = []
@@ -49,8 +56,9 @@ for k in ["extracted_mc", "direct_mc", "extracted", "direct"]:
 
 # %%
 # Histograms of all features by B_TRUEID
+output_pdf = PdfPages(output_file)
 for feature in tqdm(feature_keys, "Features by B_TRUEID"):
-    fig, axs = plt.subplots(1,2,figsize=(6,12))
+    fig, axs = plt.subplots(1,2,figsize=(12,6))
     fig.suptitle(f"{feature} by B_TRUEID")
     B_IDs = [531,-531,511,-511]
     line_styles = ["solid", "solid", "dotted", "dotted",]
@@ -63,9 +71,9 @@ for feature in tqdm(feature_keys, "Features by B_TRUEID"):
     axs[1].legend()
     fig.tight_layout()
     # plt.show()
-    plt.savefig(f"plots/features_by_B_TRUEID/{feature}.pdf")
+    output_pdf.savefig(fig)
     plt.close()
 
-merge_pdfs("plots/features_by_B_TRUEID", "plots/features_by_B_TRUEID.pdf")
+output_pdf.close()
 
 # %%

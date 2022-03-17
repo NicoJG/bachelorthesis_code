@@ -9,8 +9,11 @@ from tqdm.auto import tqdm
 import sys
 
 def merge_pdfs(input_dir, output_file):
-    input_dir = Path(input_dir)
-    output_file = Path(output_file)
+    if not isinstance(input_dir, Path):
+        input_dir = Path(input_dir)
+
+    if not isinstance(output_file, Path):
+        output_file = Path(output_file)
 
     assert input_dir.is_dir(), "Input directory is not a directory"
 
@@ -22,9 +25,12 @@ def merge_pdfs(input_dir, output_file):
 
     for pdf in pdf_files:
         merger.append(pdf)
+    
+    with open(output_file, "wb") as fout:
+        merger.write(fout)
 
-    merger.write(str(output_file))
     merger.close()
+
     print("PDFs merged successfully")
 
 
