@@ -19,7 +19,7 @@ if not output_file.parent.is_dir():
     output_file.parent.mkdir(parents=True)
     print(f"Created output directory '{output_file.parent.absolute()}'")
 
-N_events_per_dataset = 10000
+N_events_per_dataset = 100000
 
 load_batch_size = 10000
 
@@ -158,6 +158,10 @@ def constructVariables(df):
     df['Tr_diff_eta'] = df['B_LOKI_ETA'] - df['Tr_T_Eta']
 
     df["Tr_is_SS"] = (df["Tr_ORIG_FLAGS"] == 1).astype(int)
+
+    assert set(df["B_TRUEID"].unique()) == set([511,-511,531,-531]), "There are other signal particles than B0 and Bs"
+
+    df["B_is_strange"] = (np.abs(df["B_TRUEID"]) == 531).astype(int)
 
     return df
 
