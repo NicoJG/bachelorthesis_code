@@ -10,17 +10,24 @@ def find_good_binning(x_raw, n_bins_max=50, lower_quantil=0.01, higher_quantil=0
 
     bin_edges = np.linspace(x_min, x_max, n_bins_max+1)
 
+    only_integers = np.all(x_raw % 1 == 0)
+
     # check for categorical data
     if len(np.unique(x_raw)) <= n_categories_max:
         is_categorical = True
         bin_centers = np.sort(np.unique(x_raw))
         bin_edges = None
+        n_bins = len(bin_centers)
+
+        if only_integers:
+            bin_centers = bin_centers.astype(int)
+
         return bin_edges, bin_centers, is_categorical
 
     # better binning for integer values (workaround)
     # it works but it's not good 
     # test the data only contains integers
-    if np.all(x_raw % 1 == 0):
+    if only_integers:
         n_bins = np.abs(x_max-x_min).astype(int) + 1
         # primes are not divisible...
         while isprime(n_bins) and n_bins > n_bins_max:
@@ -39,6 +46,9 @@ def find_good_binning(x_raw, n_bins_max=50, lower_quantil=0.01, higher_quantil=0
         bin_edges = np.linspace(x_min-0.5, x_max+0.5, n_bins+1)
 
     bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
+
+    if only_integers:
+        bin_centers = bin_centers.astype(int)
 
     return bin_edges, bin_centers, is_categorical
     
