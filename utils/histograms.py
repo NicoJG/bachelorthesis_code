@@ -33,3 +33,29 @@ def find_good_binning(x_raw, n_bins_max=50, lower_quantil=0.01, higher_quantil=0
     bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
 
     return bin_edges, bin_centers
+    
+def get_hist(x, bin_edges, normed=False):
+    x_counts, _ = np.histogram(x, bins=bin_edges)
+    sigma_counts = np.sqrt(x_counts)
+
+    if not normed:
+        return x_counts, sigma_counts
+
+    bin_widths = np.diff(bin_edges)
+    
+    x_normed = x_counts / np.dot(x_counts, bin_widths)
+    mask = x_counts > 0
+    sigma_normed = np.zeros_like(sigma_counts)
+    sigma_normed[mask] = (sigma_counts[mask]/x_counts[mask]) * x_normed[mask]
+    
+    return x_normed, sigma_normed
+
+def calc_pull(x0, x1, sigma0, sigma1):
+    x_delta = x0 - x1
+    sigma_delta = np.sqrt(sigma0**2 + sigma1**2)
+
+    pull = np.zeros_like(x_delta)
+    mask = sigma_delta != 0
+    pull[mask] = x_delta[mask] / sigma_delta[mask]
+
+    return pull

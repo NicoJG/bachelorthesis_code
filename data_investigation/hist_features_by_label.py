@@ -12,20 +12,23 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 # Imports from this repository
 sys.path.insert(0,'..')
-from utils.histograms import find_good_binning
+from utils.histograms import find_good_binning, get_hist, calc_pull
 
 # %%
 # Constant variables
 
 input_file = Path("/ceph/users/nguth/data/preprocesses_mc_Sim9b.root")
-output_file = Path("../plots/features_by_label.pdf")
 
-output_file.parent.mkdir(parents=True, exist_ok=True)
+output_dir = Path("../plots")
 
-labels = ["SS B_0", "SS B_s", "other B_0", "other B_s"]
-label_ids = {l:i for i,l in enumerate(labels)}
+output_dir.mkdir(parents=True, exist_ok=True)
 
-N_tracks = 100000
+label_keys = ["Tr_is_SS", "B_is_strange"]
+label_values = {"Tr_is_SS": [0, 1], "B_is_strange": [0,1]}
+label_value_names = {"Tr_is_SS": ["other", "SS"], "B_is_strange": ["Bd", "Bs"]}
+label_names = {"Tr_is_SS": "Track membership", "B_is_strange": "Signal meson flavour"}
+
+N_tracks = 1000000
 
 load_batch_size = 10000
 
@@ -38,7 +41,7 @@ with open("../features.json") as features_file:
     features_dict = json.load(features_file)
     
 feature_keys = []
-for k in ["extracted_mc", "direct_mc", "extracted", "direct"]:
+for k in ["extracted", "direct"]:
     feature_keys.extend(features_dict[k])
 
 # %%
@@ -55,33 +58,88 @@ with uproot.open(input_file)["DecayTree"] as tree:
 print("Done reading input")
 
 # %%
-# Histograms of all features by B_TRUEID
-output_pdf = PdfPages(output_file)
+# Histogram function
+def hist_feature_by_label(df, feature_key, label_key, label_values, label_value_names, label_name, output_pdf):
+    # plot a pull plot if the label is binary
+    is_binary = len(label_values) == 2
+    if is_binary:
+        fig = plt.figure(figsize=(10,7))
 
-for feature in tqdm(feature_keys, "Features"):
-    fig, axs = plt.subplots(1,2,figsize=(12,6))
-    fig.suptitle(f"{feature} by B_TRUEID")
-    B_IDs = [531,-531,511,-511]
-    line_styles = ["solid", "solid", "dotted", "dotted",]
-    for B_ID, line_style in zip(B_IDs, line_styles):
-        bin_edges, bin_centers = find_good_binning(df[feature], n_bins_max=300)
-        x_counts, _ = np.histogram(df[df["B_TRUEID"]==B_ID][feature], bins=bin_edges, density=True)
-        for i in [0,1]: 
-            axs[i].hist(bin_centers, weights=x_counts, bins=bin_edges, histtype="step", linestyle=line_style, label=f"B_TRUEID=={B_ID}")
+        ax0 = plt.subplot2grid((4,2), (0,0), rowspan=3, colspan=1)
+        ax1 = plt.subplot2grid((4,2), (0,1), rowspan=3, colspan=1)
+        axs = [ax0, ax1]
+
+        ax0 = plt.subplot2grid((4,2), (3,0), rowspan=1, sharex=ax0)
+        ax1 = plt.subplot2grid((4,2), (3,1), rowspan=1, sharex=ax1)
+        axs_pull = [ax0, ax1]
+    else:
+        fig, axs = plt.subplots(1, 2, figsize=(10,5), sharex=True)
+
+    fig.suptitle(f"{feature_key} by {label_name}")
+    
+    bin_edges, bin_centers = find_good_binning(df[feature_key], n_bins_max=100)
+    
+    x = []
+    sigma = []
+
+    line_styles = ["solid","solid","dotted","dotted","dased","dashed"]
+
+    for i, (l_val, l_val_name) in enumerate(zip(label_values, label_value_names)):
+        x_normed, sigma_normed = get_hist(df.query(f"{label_key}=={l_val}")[feature_key], bin_edges, normed=True)
+
+        for ax in axs:
+            ax.hist(bin_centers, weights=x_normed, bins=bin_edges, 
+                    histtype="step", 
+                    label=l_val_name, 
+                    color=f"C{i}",
+                    linestyle=line_styles[i])
+            ax.errorbar(bin_centers, x_normed, yerr=sigma_normed, 
+                        fmt="none", 
+                        color=f"C{i}")
+            ax.legend(loc="best")
+
+        x.append(x_normed)
+        sigma.append(sigma_normed)
+
     axs[1].set_yscale("log")
-    axs[0].legend()
-    axs[1].legend()
-    fig.tight_layout()
-    # plt.show()
-    output_pdf.savefig(fig)
-    plt.close()
+    axs[0].set_ylabel("Frequency")
+    axs[1].legend(loc="best")
 
-output_pdf.close()
+    if is_binary:
+        pull = calc_pull(x[0], x[1], sigma[0], sigma[1])
+
+        for ax in axs_pull:
+            ax.hist(bin_centers, weights=pull, bins=bin_edges)
+            ax.set_xlabel(feature_key)
+        
+        axs_pull[0].set_ylabel("Pull")
+    else:
+        for ax in axs:
+            ax.set_xlabel(feature_key)
+    
+    fig.tight_layout()
+
+    assert isinstance(output_pdf, PdfPages), "output_pdf must be matplotlib.backends.backend_pdf.PdfPages"
+    output_pdf.savefig(fig)
+    
+    plt.close()
+        
 
 # %%
+# Hist of all features by all labels
 
-# Features to look out for B0 Bs classification:
-# Tr_diff_pt
-# Tr_T_SumBDT_ult
-# Tr_T_ShareSamePVasSignal
-# 
+for label_key in label_keys:
+    output_file = output_dir / f"features_by_{label_key}.pdf"
+
+    output_pdf = PdfPages(output_file)
+
+    for feature_key in tqdm(feature_keys, f"Features by {label_key}"):
+        hist_feature_by_label(df, feature_key, label_key, 
+                              label_values[label_key], 
+                              label_value_names[label_key], 
+                              label_names[label_key],
+                              output_pdf)
+    
+    output_pdf.close()
+
+# %%
