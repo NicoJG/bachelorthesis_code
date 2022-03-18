@@ -86,7 +86,11 @@ def hist_feature_by_label(df, feature_key, label_key, label_values, label_value_
     colors = [f"C{i}" for i in range(10)]
 
     for l_val, l_val_name, ls, c in zip(label_values, label_value_names, line_styles, colors):
-        x_normed, sigma_normed = get_hist(df.query(f"{label_key}=={l_val}")[feature_key], bin_edges, normed=True, is_categorical=is_categorical)
+        x_normed, sigma_normed = get_hist(x=df.query(f"{label_key}=={l_val}")[feature_key], 
+                                          bin_edges=bin_edges, 
+                                          normed=True, 
+                                          is_categorical=is_categorical,
+                                          categorical_values=bin_centers)
         x.append(x_normed)
         sigma.append(sigma_normed)
 

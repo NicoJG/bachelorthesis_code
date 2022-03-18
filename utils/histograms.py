@@ -52,9 +52,12 @@ def find_good_binning(x_raw, n_bins_max=50, lower_quantil=0.01, higher_quantil=0
 
     return bin_edges, bin_centers, is_categorical
     
-def get_hist(x, bin_edges, normed=False, is_categorical=False):
+def get_hist(x, bin_edges, normed=False, is_categorical=False, categorical_values=None):
     if is_categorical:
-        x_categories, x_counts = np.unique(x, return_counts=True)
+        if categorical_values is None:
+            categorical_values, x_counts = np.unique(x, return_counts=True)
+        else:
+            x_counts = np.array([(x==cval).sum() for cval in categorical_values])
     else:
         x_counts, _ = np.histogram(x, bins=bin_edges)
     
