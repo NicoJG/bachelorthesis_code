@@ -1,13 +1,21 @@
 from sympy import isprime
 import numpy as np
 
-def find_good_binning(x_raw, n_bins_max=50, lower_quantil=0.01, higher_quantil=0.99):
+def find_good_binning(x_raw, n_bins_max=50, lower_quantil=0.01, higher_quantil=0.99, n_categories_max=10):
+    is_categorical = False
     n_bins = n_bins_max
 
     x_min = np.quantile(x_raw, lower_quantil)
     x_max = np.quantile(x_raw, higher_quantil)
 
     bin_edges = np.linspace(x_min, x_max, n_bins_max+1)
+
+    # check for categorical data
+    if len(np.unique(x_raw)) <= n_categories_max:
+        is_categorical = True
+        bin_centers = np.sort(np.unique(x_raw))
+        bin_edges = None
+        return bin_edges, bin_centers, is_categorical
 
     # better binning for integer values (workaround)
     # it works but it's not good 
@@ -32,16 +40,23 @@ def find_good_binning(x_raw, n_bins_max=50, lower_quantil=0.01, higher_quantil=0
 
     bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
 
-    return bin_edges, bin_centers
+    return bin_edges, bin_centers, is_categorical
     
-def get_hist(x, bin_edges, normed=False):
-    x_counts, _ = np.histogram(x, bins=bin_edges)
+def get_hist(x, bin_edges, normed=False, is_categorical=False):
+    if is_categorical:
+        x_categories, x_counts = np.unique(x, return_counts=True)
+    else:
+        x_counts, _ = np.histogram(x, bins=bin_edges)
+    
     sigma_counts = np.sqrt(x_counts)
 
     if not normed:
         return x_counts, sigma_counts
 
-    bin_widths = np.diff(bin_edges)
+    if is_categorical:
+        bin_widths = np.ones_like(x_counts)
+    else:
+        bin_widths = np.diff(bin_edges)
     
     x_normed = x_counts / np.dot(x_counts, bin_widths)
     mask = x_counts > 0

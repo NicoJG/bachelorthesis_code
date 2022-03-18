@@ -77,39 +77,53 @@ def hist_feature_by_label(df, feature_key, label_key, label_values, label_value_
 
     fig.suptitle(f"{feature_key} by {label_name}")
     
-    bin_edges, bin_centers = find_good_binning(df[feature_key], n_bins_max=100)
+    bin_edges, bin_centers, is_categorical = find_good_binning(df[feature_key], n_bins_max=100)
     
     x = []
     sigma = []
 
     line_styles = ["solid","solid","dotted","dotted","dased","dashed"]
+    colors = [f"C{i}" for i in range(10)]
 
-    for i, (l_val, l_val_name) in enumerate(zip(label_values, label_value_names)):
-        x_normed, sigma_normed = get_hist(df.query(f"{label_key}=={l_val}")[feature_key], bin_edges, normed=True)
-
-        for ax in axs:
-            ax.hist(bin_centers, weights=x_normed, bins=bin_edges, 
-                    histtype="step", 
-                    label=l_val_name, 
-                    color=f"C{i}",
-                    linestyle=line_styles[i])
-            ax.errorbar(bin_centers, x_normed, yerr=sigma_normed, 
-                        fmt="none", 
-                        color=f"C{i}")
-            ax.legend(loc="best")
-
+    for l_val, l_val_name, ls, c in zip(label_values, label_value_names, line_styles, colors):
+        x_normed, sigma_normed = get_hist(df.query(f"{label_key}=={l_val}")[feature_key], bin_edges, normed=True, is_categorical=is_categorical)
         x.append(x_normed)
         sigma.append(sigma_normed)
 
-    axs[1].set_yscale("log")
+        for ax in axs:
+            if is_categorical:
+                ax.bar(bin_centers, x_normed, yerr=sigma_normed,
+                       fill=False,
+                       tick_label=bin_centers,
+                       label=l_val_name,
+                       edgecolor=c,
+                       ecolor=c,
+                       linestyle=ls)
+            else:
+                ax.hist(bin_centers, weights=x_normed, bins=bin_edges, 
+                        histtype="step", 
+                        label=l_val_name, 
+                        color=c,
+                        linestyle=ls)
+                ax.errorbar(bin_centers, x_normed, yerr=sigma_normed, 
+                            fmt="none", 
+                            color=c)
+
     axs[0].set_ylabel("Frequency")
+    axs[0].legend(loc="best")
+
+    axs[1].set_yscale("log")
     axs[1].legend(loc="best")
 
     if is_binary:
         pull = calc_pull(x[0], x[1], sigma[0], sigma[1])
 
         for ax in axs_pull:
-            ax.hist(bin_centers, weights=pull, bins=bin_edges)
+            if is_categorical:
+                ax.bar(bin_centers, pull, tick_label=bin_centers)
+            else:
+                ax.hist(bin_centers, weights=pull, bins=bin_edges)
+
             ax.set_xlabel(feature_key)
         
         axs_pull[0].set_ylabel("Pull")
@@ -123,7 +137,6 @@ def hist_feature_by_label(df, feature_key, label_key, label_values, label_value_
     output_pdf.savefig(fig)
     
     plt.close()
-        
 
 # %%
 # Hist of all features by all labels
