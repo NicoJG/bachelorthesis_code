@@ -1,7 +1,7 @@
 from sympy import isprime
 import numpy as np
 
-def find_good_binning(x_raw, n_bins_max=50, lower_quantil=0.01, higher_quantil=0.99, n_categories_max=10, mag_delta_threshold=2):
+def find_good_binning(x_raw, n_bins_max=50, lower_quantil=0.01, higher_quantil=0.99, n_categories_max=10, allow_logx=True, mag_delta_threshold=2):
     is_categorical = False
     is_logx = False
     n_bins = n_bins_max
@@ -50,7 +50,7 @@ def find_good_binning(x_raw, n_bins_max=50, lower_quantil=0.01, higher_quantil=0
     # use a log scale if appropriate
     # all values positive non-integers
     # and different orders of magnitude at the 0.5 quantil and either x_min or x_max
-    if not only_integers and np.all(x_raw >= 0) and x_min>0:
+    if allow_logx and not only_integers and np.all(x_raw >= 0) and x_min>0:
         mag_higher = np.log10(x_max)
         mag_50 = np.log10(np.quantile(x_raw, 0.5))
         mag_delta = np.abs(mag_50-mag_higher)
