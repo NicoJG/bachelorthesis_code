@@ -77,7 +77,7 @@ def hist_feature_by_label(df, feature_key, label_key, label_values, label_value_
 
     fig.suptitle(f"{feature_key} by {label_name}")
     
-    bin_edges, bin_centers, is_categorical = find_good_binning(df[feature_key], n_bins_max=100)
+    bin_edges, bin_centers, is_categorical, is_logx = find_good_binning(df[feature_key], n_bins_max=100)
     
     x = []
     sigma = []
@@ -118,6 +118,10 @@ def hist_feature_by_label(df, feature_key, label_key, label_values, label_value_
 
     axs[1].set_yscale("log")
     axs[1].legend(loc="best")
+
+    if is_logx:
+        axs[0].set_xscale("log")
+        axs[1].set_xscale("log")
 
     if is_binary:
         pull = calc_pull(x[0], x[1], sigma[0], sigma[1])
@@ -160,3 +164,18 @@ for label_key in label_keys:
     output_pdf.close()
 
 # %%
+
+# strange Features:
+# B flavour:
+# Tr_diff_pt
+# Tr_T_Best_PAIR_DCH2
+# Tr_T_IPCHI2_trMother
+# Tr_T_ShareSamePVasSignal
+# Tr_T_IP_trMother
+
+# SS vs other:
+# Tr_T_Best_PAIR_DCHI2 
+# Tr_T_IPCHI2_trMother 
+# Tr_T_PROBNNmu
+# Tr_T_AALLSAMEBPV
+# Tr_T_TRFITTCHI2 
