@@ -188,13 +188,13 @@ for label_key in label_keys:
 
 # B flavour:
 # Tr_diff_pt
-# Tr_T_Best_PAIR_DCHI
-# Tr_T_VeloCharge
-# Tr_T_IPCHI2_trMother
 # Tr_T_ACHI2DOCA
-# Tr_T_AALLSAMEBP
 # Tr_T_ShareSamePVasSignal
-# Tr_T_SumMinBDT_ult
+
+# look weird:
+# Tr_T_Best_PAIR_DCHI
+# Tr_T_IPCHI2_trMother
+# Tr_T_VeloCharge (zackig)
 # Tr_T_IP_trMother
 
 
