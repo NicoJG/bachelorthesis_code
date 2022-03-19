@@ -2,7 +2,6 @@
 # Imports
 from pathlib import Path
 import json
-from matplotlib.style import library
 import uproot
 import pandas as pd
 import numpy as np
@@ -19,11 +18,10 @@ if not output_file.parent.is_dir():
     output_file.parent.mkdir(parents=True)
     print(f"Created output directory '{output_file.parent.absolute()}'")
 
-N_events_per_dataset = 100000
+N_events_max_per_dataset = 1000000
 
 load_batch_size = 10000
 
-N_batches_estimate = np.ceil(N_events_per_dataset / load_batch_size).astype(int)
 
 random_seed = 13579
 rng = np.random.default_rng(random_seed)
@@ -42,6 +40,20 @@ for i, input_file_path in enumerate(input_files):
     with uproot.open(input_file_path)["DecayTree"] as tree:
         keys_not_found = set(features_to_load) - set(tree.keys())
         assert len(keys_not_found) == 0, f"Keys not in tree {i}: {keys_not_found}"
+
+# %%
+# Read in the number of entries in all datasets
+N_events = []
+for i, input_file_path in enumerate(input_files):
+    with uproot.open(input_file_path)["DecayTree"] as tree:
+        N_events.append(tree.num_entries)
+
+N_events_per_dataset = np.min(N_events + [N_events_max_per_dataset])
+
+N_batches_estimate = np.ceil(N_events_per_dataset / load_batch_size).astype(int)
+
+print(f"Events in the datasets: {N_events}")
+print(f"Events to load per dataset: {N_events_per_dataset}")
 
 # %%
 # Read the data and merge all datasets
