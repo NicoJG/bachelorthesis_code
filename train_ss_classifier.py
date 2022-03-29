@@ -9,24 +9,48 @@ from tqdm.auto import tqdm
 import uproot
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_curve
+from sklearn import metrics as skmetrics
+from utils.merge_pdfs import merge_pdfs
 
 # %%
 # Constant variables
 
 input_file = Path("/ceph/users/nguth/data/preprocessed_mc_Sim9b.root")
 
-N_tracks = 100000
+output_file_model = Path("/ceph/users/nguth/models/BDT_SS/test")
 
-load_batch_size = 10000
+output_dir_plots = Path("plots/SS_classifier_training")
+output_dir_plots.mkdir(parents=True, exist_ok=True)
+
+N_tracks_max = 1000000
+
+load_batch_size = 100000
+
+params = {
+    "test_size" : 0.4,
+    "n_estimators" : 300,
+    "max_depth" : 5,
+    "n_threads" : 10,
+    "early_stopping_rounds" : 20
+}
 
 random_seed = 13579
 rng = np.random.default_rng(random_seed)
 
-N_batches_estimate = np.ceil(N_tracks / load_batch_size).astype(int)
-
 if not Path("plots").is_dir():
     Path("plots").mkdir()
+
+# %%
+# Read Num of Entries
+with uproot.open(input_file)["DecayTree"] as tree:
+    N_tracks_in_tree = tree.num_entries
+
+N_tracks = np.min([N_tracks_in_tree, N_tracks_max])
+
+N_batches_estimate = np.ceil(N_tracks / load_batch_size).astype(int)
+
+print(f"Tracks in the preprocessed data: {N_tracks_in_tree}")
+print(f"Tracks used for training and testing: {N_tracks}")
 
 # %%
 # Read the input data
@@ -50,37 +74,54 @@ feature_keys = []
 for k in ["extracted", "direct"]:
     feature_keys.extend(features_dict[k])
 
-feature_keys.remove("input_file_id")
+for k in features_dict["not_for_training"]:
+    feature_keys.remove(k)
 
 label_key = "Tr_is_SS"
 
 X = df[feature_keys]
-y = df[label_key]
+y = df[label_key].to_numpy()
 
 # Split the data into train and test (with shuffling)
 X_train, X_test, y_train, y_test = train_test_split(X, y, 
-                                                    test_size=0.4, 
+                                                    test_size=params["test_size"], 
                                                     shuffle=True, 
                                                     stratify=y)
 
+print(f"Training Tracks: {len(y_train)}")
+print(f"Test Tracks: {len(y_test)}")
+
 # %%
 # Train a BDT
-bdt = xgb.XGBClassifier(n_estimators=1000, max_depth=5, n_threads=10)
 
-bdt.fit(X_train, y_train, eval_set=[(X_train, y_train), (X_test, y_test)], early_stopping_rounds=20)
+class XGBProgressCallback(xgb.callback.TrainingCallback):
+    """Show a progressbar using TQDM while training"""
+    def __init__(self, rounds=None, desc=None):
+        self.pbar = tqdm(total=rounds, desc=desc)
+
+    def after_iteration(self, model, epoch, evals_log):
+        self.pbar.update(1)
+        return False
+
+    def after_training(self, model):
+        self.pbar.close()
+        return model
+
+# define the BDT
+bdt = xgb.XGBClassifier(n_estimators=params["n_estimators"],
+                        max_depth=params["max_depth"], 
+                        nthread=params["n_threads"],
+                        use_label_encoder=False)
+
+# Train the BDT
+bdt.fit(X_train, y_train, 
+        eval_set=[(X_train, y_train), (X_test, y_test)], 
+        early_stopping_rounds=params["early_stopping_rounds"],
+        verbose=0,
+        callbacks=[XGBProgressCallback(params["n_estimators"], "BDT Training")])
 
 # %%
 # Evaluate the training
-
-# ROC curve
-fpr, tpr, _ = roc_curve(y_test, bdt.predict_proba(X_test)[:, 1])
-plt.figure(figsize=(8, 6))
-plt.title("ROC curve")
-plt.plot(fpr, tpr)
-plt.xlabel("False positive rate (background)")
-plt.ylabel("True positive rate (sameside)")
-plt.savefig("plots/roc.pdf")
-plt.show()
 
 # Error rate during training
 validation_score = bdt.evals_result()
@@ -92,12 +133,99 @@ plt.plot(iteration, validation_score["validation_1"]["logloss"], label="Test per
 plt.xlabel("iteration")
 plt.ylabel("error rate")
 plt.legend()
-plt.savefig("plots/train_performance.pdf")
+plt.savefig(output_dir_plots/"train_performance.pdf")
 plt.show()
 
+# %%
+# Evaluate the model on test data
+
+# get predictions
+y_pred_proba = bdt.predict_proba(X_test)
+y_pred = bdt.predict(X_test)
+
+# %%
+# ROC curve
+fpr, tpr, _ = skmetrics.roc_curve(y_test, y_pred_proba[:, 1])
+auc = skmetrics.auc(fpr, tpr)
+plt.figure(figsize=(8, 6))
+plt.title(f"ROC curve, AUC={auc:.4f}")
+plt.plot(fpr, tpr)
+plt.xlabel("False positive rate (background)")
+plt.ylabel("True positive rate (sameside)")
+plt.savefig(output_dir_plots/"roc.pdf")
+plt.show()
+
+# %%
+# Confusion matrix
+conf_mat = skmetrics.confusion_matrix(y_test, y_pred)/len(y_pred)
+fig, ax = plt.subplots(figsize=(8,6))
+skmetrics.ConfusionMatrixDisplay(conf_mat, display_labels=["other","SS"]).plot(ax=ax)
+plt.title("Confusion Matrix")
+plt.savefig(output_dir_plots/"confusion_matrix.pdf")
+plt.show()
+
+tn = conf_mat[0,0]
+fp = conf_mat[0,1]
+fn = conf_mat[1,0]
+tp = conf_mat[1,1]
+# %%
+# Plot the probability histogram
+plt.figure(figsize=(8,6))
+plt.title("Histogram of the probabilities")
+plt.hist(y_pred_proba[:,1], bins=200, density=True)
+plt.yscale("log")
+plt.xlabel("Prediction Probability of SS")
+plt.ylabel("density (logarithmic)")
+plt.savefig(output_dir_plots/"hist_proba.pdf")
+plt.show()
+
+# %%
+# Calculate different metrics (and plot them as text so they are in a pdf)
+
+fig = plt.figure(figsize=(10,6))
+plt.axis("off")
+plt.text(0.1, 0.1, 
+f"""
+Various Metrics
+
+Accuracy: {skmetrics.accuracy_score(y_test, y_pred):.4f}
+Balanced Accuracy: {skmetrics.balanced_accuracy_score(y_test, y_pred):.4f}
+Precision: {skmetrics.precision_score(y_test, y_pred):.4f}
+Recall: {skmetrics.recall_score(y_test, y_pred):.4f}
+
+Classification Report:
+{skmetrics.classification_report(y_test, y_pred)}
+""",
+         fontsize=16,
+         fontfamily="monospace",
+         horizontalalignment="left",
+         transform=fig.transFigure)
+plt.tight_layout()
+plt.savefig(output_dir_plots/"various_metrics.pdf")
+plt.show()
+
+# %%
 # Feature Importance
 df_feature_importance = pd.DataFrame({"feature":feature_keys, "feature_importance":bdt.feature_importances_})
 df_feature_importance.sort_values(by="feature_importance", ascending=False, inplace=True)
-df_feature_importance
+with pd.option_context('display.min_rows',14):
+    print(df_feature_importance)
+
+df_feature_importance.to_csv(output_dir_plots/"feature_importance.csv")
+
+# Plot the Feature importance
+plt.figure(figsize=(len(feature_keys), 5))
+plt.title("Feature Importance")
+plt.bar(df_feature_importance["feature"], df_feature_importance["feature_importance"])
+# plt.yscale("log")
+plt.ylabel("Feature Importance")
+plt.xticks(rotation=45)
+plt.grid(which="both")
+plt.tight_layout()
+plt.savefig(output_dir_plots/"feature_importance.pdf")
+plt.show()
+
+# %%
+merge_pdfs(output_dir_plots, "plots/eval_ss_classification.pdf")
 
 # %%

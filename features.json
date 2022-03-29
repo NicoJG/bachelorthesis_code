@@ -101,5 +101,8 @@
     "Tr_T_Best_PAIR_VCHI2", 
     "Tr_T_Best_PAIR_D", 
     "Tr_T_IP_trMother"
+], 
+"not_for_training": [
+    "input_file_id"
 ]
 }
