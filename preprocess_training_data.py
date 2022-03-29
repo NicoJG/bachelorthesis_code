@@ -20,7 +20,7 @@ if not output_file.parent.is_dir():
     output_file.parent.mkdir(parents=True)
     print(f"Created output directory '{output_file.parent.absolute()}'")
 
-N_events_max_per_dataset = 1000000
+N_events_max_per_dataset = 10000000
 
 load_batch_size = 10000
 

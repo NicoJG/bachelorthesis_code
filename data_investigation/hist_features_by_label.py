@@ -30,7 +30,7 @@ label_names = {"Tr_is_SS": "Track membership", "B_is_strange": "Signal meson fla
 
 N_tracks_max = 1000000000
 
-load_batch_size = 10000
+load_batch_size = 100000
 
 
 
