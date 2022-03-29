@@ -14,7 +14,7 @@ from sklearn.metrics import roc_curve
 # %%
 # Constant variables
 
-input_file = Path("/ceph/users/nguth/data/preprocesses_mc_Sim9b.root")
+input_file = Path("/ceph/users/nguth/data/preprocessed_mc_Sim9b.root")
 
 N_tracks = 100000
 

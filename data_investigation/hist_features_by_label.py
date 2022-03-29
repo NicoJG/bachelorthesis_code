@@ -17,7 +17,7 @@ from utils.histograms import find_good_binning, get_hist, calc_pull
 # %%
 # Constant variables
 
-input_file = Path("/ceph/users/nguth/data/preprocesses_mc_Sim9b.root")
+input_file = Path("/ceph/users/nguth/data/preprocessed_mc_Sim9b.root")
 
 output_dir = Path("../plots")
 

@@ -11,9 +11,11 @@ from tqdm.auto import tqdm
 # Constant variables
 input_files = [
     "/ceph/FlavourTagging/NTuples/ift/MC/B2JpsiKstar/Nov_2021_wgproduction/DTT_MC_Bd2JpsiKst_2016_26_Sim09b_DST.root",
-    "/ceph/FlavourTagging/NTuples/ift/MC/Bs2DsPi/DTT_MC_Bs2Dspi_2016_26_Sim09b_DST.root"]
+    "/ceph/FlavourTagging/NTuples/ift/MC/Bs2DsPi/Mar_2022_wgproduction/DTT_MC_Bs2Dspi_2016_26_Sim09b_DST.root"]
 
-output_file = Path("/ceph/users/nguth/data/preprocesses_mc_Sim9b.root")
+input_file_keys = ["DecayTree", "Bs2DspiDetached/DecayTree"]
+
+output_file = Path("/ceph/users/nguth/data/preprocessed_mc_Sim9b.root")
 if not output_file.parent.is_dir():
     output_file.parent.mkdir(parents=True)
     print(f"Created output directory '{output_file.parent.absolute()}'")
@@ -36,16 +38,16 @@ for load_key in ["temporary_mc", "direct_mc", "temporary", "direct"]:
     features_to_load.extend(feature_keys[load_key])
 
 # Check if all keys are present in all datasets
-for i, input_file_path in enumerate(input_files):
-    with uproot.open(input_file_path)["DecayTree"] as tree:
+for i, (input_file_path, input_file_key) in enumerate(zip(input_files, input_file_keys)):
+    with uproot.open(input_file_path)[input_file_key] as tree:
         keys_not_found = set(features_to_load) - set(tree.keys())
         assert len(keys_not_found) == 0, f"Keys not in tree {i}: {keys_not_found}"
 
 # %%
 # Read in the number of entries in all datasets
 N_events = []
-for i, input_file_path in enumerate(input_files):
-    with uproot.open(input_file_path)["DecayTree"] as tree:
+for i, (input_file_path, input_file_key) in enumerate(zip(input_files, input_file_keys)):
+    with uproot.open(input_file_path)[input_file_key] as tree:
         N_events.append(tree.num_entries)
 
 N_events_per_dataset = np.min(N_events + [N_events_max_per_dataset])
@@ -62,8 +64,8 @@ print("Read and merge the data...")
 # concatenate all DataFrames into one
 df = pd.DataFrame()
 # iterate over all input files
-for i, input_file_path in enumerate(tqdm(input_files, "Datasets")):
-    with uproot.open(input_file_path)["DecayTree"] as tree:   
+for i, (input_file_path, input_file_key) in enumerate(tqdm(zip(input_files, input_file_keys), "Datasets")):
+    with uproot.open(input_file_path)[input_file_key] as tree:   
         # iterate over all batches
         tree_iter = tree.iterate(features_to_load, 
                                  entry_stop=N_events_per_dataset,
