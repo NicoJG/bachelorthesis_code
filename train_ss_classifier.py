@@ -22,6 +22,8 @@ output_file_model = Path("/ceph/users/nguth/models/BDT_SS/test")
 output_dir_plots = Path("plots/SS_classifier_training")
 output_dir_plots.mkdir(parents=True, exist_ok=True)
 
+output_file = Path("plots/eval_ss_classification_random_features.pdf")
+
 N_tracks_max = 1000000
 
 load_batch_size = 100000
@@ -34,7 +36,7 @@ params = {
     "early_stopping_rounds" : 20
 }
 
-random_seed = 13579
+random_seed = 42
 rng = np.random.default_rng(random_seed)
 
 if not Path("plots").is_dir():
@@ -76,6 +78,10 @@ for k in ["extracted", "direct"]:
 
 for k in features_dict["not_for_training"]:
     feature_keys.remove(k)
+
+# Random Subsets of the features (for some testing)
+feature_keys = list(np.random.choice(feature_keys, size=10, replace=False))
+
 
 label_key = "Tr_is_SS"
 
@@ -226,6 +232,6 @@ plt.savefig(output_dir_plots/"feature_importance.pdf")
 plt.show()
 
 # %%
-merge_pdfs(output_dir_plots, "plots/eval_ss_classification.pdf")
+merge_pdfs(output_dir_plots, output_file)
 
 # %%
