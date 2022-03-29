@@ -39,9 +39,6 @@ params = {
 random_seed = 42
 rng = np.random.default_rng(random_seed)
 
-if not Path("plots").is_dir():
-    Path("plots").mkdir()
-
 # %%
 # Read Num of Entries
 with uproot.open(input_file)["DecayTree"] as tree:
@@ -78,10 +75,6 @@ for k in ["extracted", "direct"]:
 
 for k in features_dict["not_for_training"]:
     feature_keys.remove(k)
-
-# Random Subsets of the features (for some testing)
-feature_keys = list(np.random.choice(feature_keys, size=10, replace=False))
-
 
 label_key = "Tr_is_SS"
 
@@ -126,6 +119,13 @@ bdt.fit(X_train, y_train,
         verbose=0,
         callbacks=[XGBProgressCallback(params["n_estimators"], "BDT Training")])
 
+
+
+
+
+###############
+# Evaluation
+###############
 # %%
 # Evaluate the training
 
@@ -147,7 +147,6 @@ plt.show()
 
 # get predictions
 y_pred_proba = bdt.predict_proba(X_test)
-y_pred = bdt.predict(X_test)
 
 # %%
 # ROC curve
@@ -158,8 +157,43 @@ plt.title(f"ROC curve, AUC={auc:.4f}")
 plt.plot(fpr, tpr)
 plt.xlabel("False positive rate (background)")
 plt.ylabel("True positive rate (sameside)")
-plt.savefig(output_dir_plots/"roc.pdf")
+plt.savefig(output_dir_plots/"00_roc.pdf")
 plt.show()
+
+# %%
+# Probability Distribution
+plt.figure(figsize=(8,6))
+plt.title("Distribution of the probabilities")
+plt.hist(y_pred_proba[y_test==0][:,1], histtype="step", bins=200, density=True, label="other (ground truth)")
+plt.hist(y_pred_proba[y_test==1][:,1], histtype="step", bins=200, density=True, label="SS (ground truth)")
+plt.yscale("log")
+plt.xlabel("Prediction Probability of SS")
+plt.ylabel("density (logarithmic)")
+plt.savefig(output_dir_plots/"01_hist_proba.pdf")
+plt.show()
+
+# %%
+# Analysis of different cuts
+cut_linspace = np.linspace(0,1,1000)
+
+tp, tn, fp, fn = [-1*np.ones_like(cut_linspace) for i in range(4)]
+
+# make predictions for every cut and calc the confusion matrix
+# TODO: faster
+for i, cut in enumerate(tqdm(cut_linspace)):
+    conf_mat = skmetrics.confusion_matrix(y_test, y_pred_proba[:,1] >= cut, normalize="all")
+    tn[i], fp[i], fn[i], tp[i] = conf_mat.flatten()
+
+# %%
+# Plot the rates for every cut
+plt.plot(cut_linspace, tp, label="tp (True Positive)", linestyle="dashed")
+plt.plot(cut_linspace, fn, label="fn (False Negative)", linestyle="dashed")
+plt.plot(cut_linspace, tn, label="tn (True Negative)")
+plt.plot(cut_linspace, fp, label="fp (False Positive)")
+#plt.yscale("log")
+plt.legend()
+plt.show()
+
 
 # %%
 # Confusion matrix
@@ -176,14 +210,6 @@ fn = conf_mat[1,0]
 tp = conf_mat[1,1]
 # %%
 # Plot the probability histogram
-plt.figure(figsize=(8,6))
-plt.title("Histogram of the probabilities")
-plt.hist(y_pred_proba[:,1], bins=200, density=True)
-plt.yscale("log")
-plt.xlabel("Prediction Probability of SS")
-plt.ylabel("density (logarithmic)")
-plt.savefig(output_dir_plots/"hist_proba.pdf")
-plt.show()
 
 # %%
 # Calculate different metrics (and plot them as text so they are in a pdf)
