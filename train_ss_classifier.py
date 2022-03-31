@@ -128,7 +128,7 @@ bdt.fit(X_train, y_train,
 
 
 
-
+# %%
 ###############
 # Evaluation
 ###############
@@ -151,21 +151,32 @@ for i, metric in enumerate(params["eval_metric"]):
 
 # %%
 # Feature Importance
-df_feature_importance = pd.DataFrame({"feature":feature_keys, "feature_importance":bdt.feature_importances_})
-df_feature_importance.sort_values(by="feature_importance", ascending=False, inplace=True)
-with pd.option_context('display.min_rows',14):
-    print(df_feature_importance)
+# https://towardsdatascience.com/be-careful-when-interpreting-your-features-importance-in-xgboost-6e16132588e7
+# Build the dataframe
+df_fi = pd.DataFrame({"feature":feature_keys})
+importance_types = ["weight", "gain", "total_gain", "cover", "total_cover"]
+for imp_type in importance_types:
+    scores = bdt.get_booster().get_score(importance_type=imp_type)
+    df_fi[imp_type] = df_fi["feature"].map(scores)
+    # norm on 1
+    df_fi[imp_type] /= df_fi[imp_type].sum()
 
-df_feature_importance.to_csv(output_dir_plots/"feature_importance.csv")
+# Sort the features
+df_fi.sort_values(by="gain", ascending=False, inplace=True)
+
+# Show in Text version
+#with pd.option_context('display.min_rows',14):
+#    print(df_fi)
+df_fi.to_csv(output_dir_plots/"feature_importance.csv")
 
 # Plot the Feature importance
-plt.figure(figsize=(len(feature_keys), 5))
-plt.title("Feature Importance")
-plt.bar(df_feature_importance["feature"], df_feature_importance["feature_importance"])
-# plt.yscale("log")
-plt.ylabel("Feature Importance")
-plt.xticks(rotation=45)
-plt.grid(which="both")
+fig, axs = plt.subplots(len(importance_types), 1,figsize=(len(feature_keys), len(importance_types)*5), sharex=True)
+fig.suptitle("Feature Importance", fontsize=40, y=0.995)
+for i, (imp_type, ax) in enumerate(zip(importance_types, axs)):
+    ax.bar(df_fi["feature"], df_fi[imp_type], color=f"C{i}",zorder=3)
+    ax.set_ylabel(imp_type, fontsize=30)
+    ax.grid(zorder=0)
+    ax.tick_params(axis="x", labelbottom=True, labelrotation=45)
 plt.tight_layout()
 plt.savefig(output_dir_plots/"01_feature_importance.pdf")
 plt.show()
