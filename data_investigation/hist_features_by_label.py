@@ -87,7 +87,7 @@ def hist_feature_by_label(df, feature_key, label_key, label_values, label_value_
 
     fig.suptitle(f"{feature_key} by {label_name}")
     
-    bin_edges, bin_centers, is_categorical, is_logx = find_good_binning(df[feature_key], n_bins_max=200, allow_logx=allow_logx)
+    bin_edges, bin_centers, is_categorical, is_logx = find_good_binning(df[feature_key], n_bins_max=200, lower_quantil=0.0001, higher_quantil=0.9999, allow_logx=allow_logx)
     
     x = []
     sigma = []
