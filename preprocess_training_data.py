@@ -7,18 +7,18 @@ import pandas as pd
 import numpy as np
 from tqdm.auto import tqdm
 
+# Imports from this project
+from utils import paths
+from utils.input_output import load_feature_keys
+
 # %%
 # Constant variables
-input_files = [
-    "/ceph/FlavourTagging/NTuples/ift/MC/B2JpsiKstar/Nov_2021_wgproduction/DTT_MC_Bd2JpsiKst_2016_26_Sim09b_DST.root",
-    "/ceph/FlavourTagging/NTuples/ift/MC/Bs2DsPi/Mar_2022_wgproduction/DTT_MC_Bs2Dspi_2016_26_Sim09b_DST.root"]
+input_files = [paths.B2JpsiKstar_file, paths.Bs2DsPi_file]
 
 input_file_keys = ["DecayTree", "Bs2DspiDetached/DecayTree"]
 
-output_file = Path("/ceph/users/nguth/data/preprocessed_mc_Sim9b.root")
-if not output_file.parent.is_dir():
-    output_file.parent.mkdir(parents=True)
-    print(f"Created output directory '{output_file.parent.absolute()}'")
+output_file = paths.preprocessed_data_file
+output_file.parent.mkdir(parents=True, exist_ok=True)
 
 N_events_max_per_dataset = 10000000
 
@@ -30,12 +30,7 @@ rng = np.random.default_rng(random_seed)
 
 # %%
 # Read in the feature keys from features.json and get a list of features that should be read from the input
-with open("features.json") as features_file:
-    feature_keys = json.load(features_file)
-
-features_to_load = []
-for load_key in ["temporary_mc", "direct_mc", "temporary", "direct"]:
-    features_to_load.extend(feature_keys[load_key])
+features_to_load = load_feature_keys(["temporary_mc", "direct_mc", "temporary", "direct"])
 
 # Check if all keys are present in all datasets
 for i, (input_file_path, input_file_key) in enumerate(zip(input_files, input_file_keys)):
@@ -185,16 +180,12 @@ df = constructVariables(df)
 # Remove all temporary features
 print("Remove temporary features...")
 
-features_to_remove = []
-for remove_key in ["temporary_mc", "temporary"]:
-    features_to_remove.extend(feature_keys[remove_key])
+features_to_remove = load_feature_keys(["temporary_mc", "temporary"])
 
 df.drop(columns=features_to_remove, inplace=True)
 
 # Check if only the features listed in features.json as direct or extracted are present
-features_promised = []
-for promised_key in ["extracted_mc", "direct_mc", "extracted", "direct"]:
-    features_promised.extend(feature_keys[promised_key])
+features_promised = load_feature_keys(["extracted_mc", "direct_mc", "extracted", "direct"])
 
 features_assym = set(df.columns) ^ set(features_promised)
 

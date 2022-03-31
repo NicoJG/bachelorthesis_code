@@ -10,19 +10,24 @@ import uproot
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from sklearn import metrics as skmetrics
+
+# Imports from this project
+from utils import paths
+from utils.input_output import load_feature_keys
 from utils.merge_pdfs import merge_pdfs
 
 # %%
 # Constant variables
 
-input_file = Path("/ceph/users/nguth/data/preprocessed_mc_Sim9b.root")
+input_file = paths.preprocessed_data_file
 
+# TODO: Save the model
 output_file_model = Path("/ceph/users/nguth/models/BDT_SS/test")
 
-output_dir_plots = Path("plots/SS_classifier_training")
+output_dir_plots = paths.plots_dir/"SS_classifier_training"
 output_dir_plots.mkdir(parents=True, exist_ok=True)
 
-output_file = Path("plots/eval_ss_classification.pdf")
+output_file = paths.plots_dir/"eval_ss_classification.pdf"
 
 N_tracks_max = 1000000
 
@@ -69,15 +74,7 @@ print("Done reading input")
 
 # %%
 # Prepare the data
-with open("features.json") as features_file:
-    features_dict = json.load(features_file)
-    
-feature_keys = []
-for k in ["extracted", "direct"]:
-    feature_keys.extend(features_dict[k])
-
-for k in features_dict["not_for_training"]:
-    feature_keys.remove(k)
+feature_keys = load_feature_keys(["extracted", "direct"], exclude_keys=["not_for_training"])
 
 label_key = "Tr_is_SS"
 

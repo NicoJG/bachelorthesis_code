@@ -1,5 +1,6 @@
 # %%
 # Imports
+import sys
 from pathlib import Path
 import json
 import pandas as pd
@@ -12,15 +13,18 @@ from sklearn.model_selection import train_test_split
 from sklearn import metrics as skmetrics
 from sklearn.inspection import permutation_importance
 
+# Imports from this project
+sys.path.insert(0, Path(__file__).parent.parent.parent)
+from utils import paths
+from utils.input_output import load_feature_keys
+
 # %%
 # Constant variables
 
-input_file = Path("/ceph/users/nguth/data/preprocessed_mc_Sim9b.root")
+input_file = paths.preprocessed_data_file
 
-output_dir = Path("../../plots/SS_classifier_importance")
+output_dir = paths.plots_dir/"SS_classifier_importance"
 output_dir.mkdir(parents=True, exist_ok=True)
-
-# output_file = Path("plots/eval_ss_classification.pdf")
 
 N_tracks_max = 1000000
 
@@ -67,15 +71,7 @@ print("Done reading input")
 
 # %%
 # Prepare the data
-with open("../../features.json") as features_file:
-    features_dict = json.load(features_file)
-    
-feature_keys = []
-for k in ["extracted", "direct"]:
-    feature_keys.extend(features_dict[k])
-
-for k in features_dict["not_for_training"]:
-    feature_keys.remove(k)
+feature_keys = load_feature_keys(["extracted", "direct"], exclude_keys=["not_for_training"])
 
 label_key = "Tr_is_SS"
 

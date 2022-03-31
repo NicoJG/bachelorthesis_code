@@ -10,17 +10,18 @@ import uproot
 import sys
 from matplotlib.backends.backend_pdf import PdfPages
 
-# Imports from this repository
+# Imports from this project
 sys.path.insert(0,'..')
+from utils import paths
+from utils.input_output import load_feature_keys
 from utils.histograms import find_good_binning, get_hist, calc_pull
 
 # %%
 # Constant variables
 
-input_file = Path("/ceph/users/nguth/data/preprocessed_mc_Sim9b.root")
+input_file = paths.preprocessed_data_file
 
-output_dir = Path("../plots")
-
+output_dir = paths.plots_dir
 output_dir.mkdir(parents=True, exist_ok=True)
 
 label_keys = ["Tr_is_SS", "B_is_strange"]
@@ -36,12 +37,7 @@ load_batch_size = 100000
 
 # %%
 # Read in the feature keys
-with open("../features.json") as features_file:
-    features_dict = json.load(features_file)
-    
-feature_keys = []
-for k in ["extracted", "direct"]:
-    feature_keys.extend(features_dict[k])
+feature_keys = load_feature_keys(["extracted", "direct"])
 
 # %%
 # Read number of tracks
