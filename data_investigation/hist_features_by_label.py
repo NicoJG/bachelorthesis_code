@@ -1,13 +1,10 @@
 # %%
 # Imports
-from pathlib import Path
-import json
+import sys
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
-import uproot
-import sys
 from matplotlib.backends.backend_pdf import PdfPages
 
 # Imports from this project
