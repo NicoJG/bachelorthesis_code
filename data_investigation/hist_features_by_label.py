@@ -13,7 +13,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 # Imports from this project
 sys.path.insert(0,'..')
 from utils import paths
-from utils.input_output import load_feature_keys
+from utils.input_output import load_feature_keys, load_preprocessed_data
 from utils.histograms import find_good_binning, get_hist, calc_pull
 
 # %%
@@ -29,38 +29,16 @@ label_values = {"Tr_is_SS": [0, 1], "B_is_strange": [0,1]}
 label_value_names = {"Tr_is_SS": ["other", "SS"], "B_is_strange": ["Bd", "Bs"]}
 label_names = {"Tr_is_SS": "Track membership", "B_is_strange": "Signal meson flavour"}
 
-N_tracks_max = 1000000000
-
-load_batch_size = 100000
-
-
 
 # %%
 # Read in the feature keys
 feature_keys = load_feature_keys(["extracted", "direct"])
 
 # %%
-# Read number of tracks
-with uproot.open(input_file)["DecayTree"] as tree:
-    N_tracks_in_file = tree.num_entries
-
-N_tracks = np.min([N_tracks_in_file, N_tracks_max])
-
-print(f"Tracks in the dataset: {N_tracks_in_file}")
-print(f"Tracks to use for plotting: {N_tracks}")
-
-N_batches_estimate = np.ceil(N_tracks / load_batch_size).astype(int)
-# %%
 # Read the input data
 print("Read in the data...")
-
-df = pd.DataFrame()
-with uproot.open(input_file)["DecayTree"] as tree:
-    tree_iter = tree.iterate(entry_stop=N_tracks, step_size=load_batch_size, library="pd")
-    for temp_df in tqdm(tree_iter, "Track batches", total=N_batches_estimate):
-        temp_df.set_index("index", inplace=True)
-        df = pd.concat([df, temp_df])
-
+df = load_preprocessed_data(N_entries_max=100000000,
+                            batch_size=100000)
 print("Done reading input")
 
 # %%

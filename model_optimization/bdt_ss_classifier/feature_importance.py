@@ -16,7 +16,7 @@ from sklearn.inspection import permutation_importance
 # Imports from this project
 sys.path.insert(0, Path(__file__).parent.parent.parent)
 from utils import paths
-from utils.input_output import load_feature_keys
+from utils.input_output import load_feature_keys, load_preprocessed_data
 
 # %%
 # Constant variables
@@ -25,10 +25,6 @@ input_file = paths.preprocessed_data_file
 
 output_dir = paths.plots_dir/"SS_classifier_importance"
 output_dir.mkdir(parents=True, exist_ok=True)
-
-N_tracks_max = 1000000
-
-load_batch_size = 100000
 
 params = {
     "test_size" : 0.4,
@@ -45,28 +41,10 @@ random_seed = 42
 rng = np.random.default_rng(random_seed)
 
 # %%
-# Read Num of Entries
-with uproot.open(input_file)["DecayTree"] as tree:
-    N_tracks_in_tree = tree.num_entries
-
-N_tracks = np.min([N_tracks_in_tree, N_tracks_max])
-
-N_batches_estimate = np.ceil(N_tracks / load_batch_size).astype(int)
-
-print(f"Tracks in the preprocessed data: {N_tracks_in_tree}")
-print(f"Tracks used for training and testing: {N_tracks}")
-
-# %%
 # Read the input data
 print("Read in the data...")
-
-df = pd.DataFrame()
-with uproot.open(input_file)["DecayTree"] as tree:
-    tree_iter = tree.iterate(entry_stop=N_tracks, step_size=load_batch_size, library="pd")
-    for temp_df in tqdm(tree_iter, "Tracks", total=N_batches_estimate):
-        temp_df.set_index("index", inplace=True)
-        df = pd.concat([df, temp_df])
-
+df = load_preprocessed_data(N_entries_max=1000000000,
+                            batch_size=100000)
 print("Done reading input")
 
 # %%

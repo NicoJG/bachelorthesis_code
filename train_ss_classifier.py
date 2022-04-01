@@ -13,7 +13,7 @@ from sklearn import metrics as skmetrics
 
 # Imports from this project
 from utils import paths
-from utils.input_output import load_feature_keys
+from utils.input_output import load_feature_keys, load_preprocessed_data
 from utils.merge_pdfs import merge_pdfs
 
 # %%
@@ -48,33 +48,15 @@ random_seed = 42
 rng = np.random.default_rng(random_seed)
 
 # %%
-# Read Num of Entries
-with uproot.open(input_file)["DecayTree"] as tree:
-    N_tracks_in_tree = tree.num_entries
-
-N_tracks = np.min([N_tracks_in_tree, N_tracks_max])
-
-N_batches_estimate = np.ceil(N_tracks / load_batch_size).astype(int)
-
-print(f"Tracks in the preprocessed data: {N_tracks_in_tree}")
-print(f"Tracks used for training and testing: {N_tracks}")
-
-# %%
 # Read the input data
 print("Read in the data...")
-
-df = pd.DataFrame()
-with uproot.open(input_file)["DecayTree"] as tree:
-    tree_iter = tree.iterate(entry_stop=N_tracks, step_size=load_batch_size, library="pd")
-    for temp_df in tqdm(tree_iter, "Tracks", total=N_batches_estimate):
-        temp_df.set_index("index", inplace=True)
-        df = pd.concat([df, temp_df])
-
-print("Done reading input")
+df = load_preprocessed_data(N_entries_max=1000000, batch_size=100000)
+print("Done reading data")
 
 # %%
 # Prepare the data
-feature_keys = load_feature_keys(["extracted", "direct"], exclude_keys=["not_for_training"])
+feature_keys = load_feature_keys(include_keys=["extracted", "direct"], 
+                                 exclude_keys=["not_for_training"])
 
 label_key = "Tr_is_SS"
 
@@ -82,10 +64,11 @@ X = df[feature_keys]
 y = df[label_key].to_numpy()
 
 # Split the data into train and test (with shuffling)
-X_train, X_test, y_train, y_test = train_test_split(X, y, 
-                                                    test_size=params["test_size"], 
-                                                    shuffle=True, 
-                                                    stratify=y)
+temp = train_test_split(X, y, 
+                          test_size=params["test_size"], 
+                          shuffle=True, 
+                          stratify=y)
+X_train, X_test, y_train, y_test = temp
 
 print(f"Training Tracks: {len(y_train)}")
 print(f"Test Tracks: {len(y_test)}")

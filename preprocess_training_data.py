@@ -9,7 +9,7 @@ from tqdm.auto import tqdm
 
 # Imports from this project
 from utils import paths
-from utils.input_output import load_feature_keys
+from utils.input_output import load_feature_keys, load_data_from_root
 
 # %%
 # Constant variables
@@ -19,11 +19,6 @@ input_file_keys = ["DecayTree", "Bs2DspiDetached/DecayTree"]
 
 output_file = paths.preprocessed_data_file
 output_file.parent.mkdir(parents=True, exist_ok=True)
-
-N_events_max_per_dataset = 10000000
-
-load_batch_size = 10000
-
 
 random_seed = 13579
 rng = np.random.default_rng(random_seed)
@@ -40,14 +35,14 @@ for i, (input_file_path, input_file_key) in enumerate(zip(input_files, input_fil
 
 # %%
 # Read in the number of entries in all datasets
+N_events_max_per_dataset = 1000000000000
+
 N_events = []
 for i, (input_file_path, input_file_key) in enumerate(zip(input_files, input_file_keys)):
     with uproot.open(input_file_path)[input_file_key] as tree:
         N_events.append(tree.num_entries)
 
 N_events_per_dataset = np.min(N_events + [N_events_max_per_dataset])
-
-N_batches_estimate = np.ceil(N_events_per_dataset / load_batch_size).astype(int)
 
 print(f"Events in the datasets: {N_events}")
 print(f"Events to load per dataset: {N_events_per_dataset}")
@@ -59,34 +54,32 @@ print("Read and merge the data...")
 # concatenate all DataFrames into one
 df = pd.DataFrame()
 # iterate over all input files
-for i, (input_file_path, input_file_key) in enumerate(tqdm(zip(input_files, input_file_keys), "Datasets")):
-    with uproot.open(input_file_path)[input_file_key] as tree:   
-        # iterate over all batches
-        tree_iter = tree.iterate(features_to_load, 
-                                 entry_stop=N_events_per_dataset,
-                                 step_size=load_batch_size, 
-                                 library="pd")
-        for temp_df in tqdm(tree_iter, f"Batches in File {i}", total=N_batches_estimate):
+for i, (input_file_path, input_file_key) in enumerate(tqdm(zip(input_files, input_file_keys), total=len(input_files), desc="Datasets")):
+    temp_df = load_data_from_root(input_file_path, 
+                                  tree_key=input_file_key,
+                                  features=features_to_load, 
+                                  N_entries_max=N_events_per_dataset, 
+                                  batch_size=10000)
+    
+    temp_df.rename_axis(index={"entry":"event_id", "subentry": "track_id"},  inplace=True)
 
-            temp_df.rename_axis(index={"entry":"event_id", "subentry": "track_id"},  inplace=True)
+    temp_df["input_file_id"] = i
 
-            temp_df["input_file_id"] = i
+    if "B2JpsiKstar" in str(input_file_path):
+        temp_df["decay_id"] = 0
+    elif "Bs2DsPi" in str(input_file_path):
+        temp_df["decay_id"] = 1
+    else:
+        raise NameError(f"Decay channel not recognized in Dataset {i}")
 
-            if "B2JpsiKstar" in input_file_path:
-                temp_df["decay_id"] = 0
-            elif "Bs2DsPi" in input_file_path:
-                temp_df["decay_id"] = 1
-            else:
-                raise NameError(f"Decay channel not recognized in Dataset {i}")
+    # make sure all event ids are unambiguous
+    if not df.empty:
+        temp_df.reset_index(inplace=True)
+        temp_df["event_id"] += df.index.max()[0] + 1
+        temp_df.set_index(["event_id", "track_id"], inplace=True)
 
-            # make sure all event ids are unambiguous
-            if not df.empty:
-                temp_df.reset_index(inplace=True)
-                temp_df["event_id"] += df.index.max()[0] + 1
-                temp_df.set_index(["event_id", "track_id"], inplace=True)
-
-            # append this batch to the DataFrame
-            df = pd.concat([df, temp_df])
+    # append this batch to the DataFrame
+    df = pd.concat([df, temp_df])
 
 print("Done reading input")
 
@@ -147,34 +140,29 @@ assert len(df) == df_len_before_reindex, "Reindexing shrunk the dataframe. Somet
 # Generate new features
 print("Generate new features...")
 
-def constructVariables(df):
 
-    df['Tr_diff_z'] = df['Tr_T_TrFIRSTHITZ'] - df['B_OWNPV_Z']
-    
-    PX_proj = -1 * df[f"B_PX"] * df[f"Tr_T_PX"]
-    PY_proj = -1 * df[f"B_PY"] * df[f"Tr_T_PY"]
-    PZ_proj = -1 * df[f"B_PZ"] * df[f"Tr_T_PZ"]
-    PE_proj = +1 * df[f"B_PE"] * df[f"Tr_T_E"]
+df['Tr_diff_z'] = df['Tr_T_TrFIRSTHITZ'] - df['B_OWNPV_Z']
 
-    df["Tr_p_proj"] = np.sum([PX_proj, PY_proj, PZ_proj, PE_proj], axis=0)
+PX_proj = -1 * df[f"B_PX"] * df[f"Tr_T_PX"]
+PY_proj = -1 * df[f"B_PY"] * df[f"Tr_T_PY"]
+PZ_proj = -1 * df[f"B_PZ"] * df[f"Tr_T_PZ"]
+PE_proj = +1 * df[f"B_PE"] * df[f"Tr_T_E"]
 
-    df['Tr_diff_pt'] = df["B_PT"] - df["Tr_T_PT"]
+df["Tr_p_proj"] = np.sum([PX_proj, PY_proj, PZ_proj, PE_proj], axis=0)
 
-    df['Tr_diff_p'] = df["B_P"] - df["Tr_T_P"]
+df['Tr_diff_pt'] = df["B_PT"] - df["Tr_T_PT"]
 
-    df['Tr_cos_diff_phi'] = np.array(list(map(lambda x : np.cos(x), df['B_LOKI_PHI'] - df['Tr_T_Phi'])))
+df['Tr_diff_p'] = df["B_P"] - df["Tr_T_P"]
 
-    df['Tr_diff_eta'] = df['B_LOKI_ETA'] - df['Tr_T_Eta']
+df['Tr_cos_diff_phi'] = np.array(list(map(lambda x : np.cos(x), df['B_LOKI_PHI'] - df['Tr_T_Phi'])))
 
-    df["Tr_is_SS"] = (df["Tr_ORIG_FLAGS"] == 1).astype(int)
+df['Tr_diff_eta'] = df['B_LOKI_ETA'] - df['Tr_T_Eta']
 
-    assert set(df["B_TRUEID"].unique()) == set([511,-511,531,-531]), "There are other signal particles than B0 and Bs"
+df["Tr_is_SS"] = (df["Tr_ORIG_FLAGS"] == 1).astype(int)
 
-    df["B_is_strange"] = (np.abs(df["B_TRUEID"]) == 531).astype(int)
+assert set(df["B_TRUEID"].unique()) == set([511,-511,531,-531]), "There are other signal particles than B0 and Bs"
 
-    return df
-
-df = constructVariables(df)
+df["B_is_strange"] = (np.abs(df["B_TRUEID"]) == 531).astype(int)
 
 # %%
 # Remove all temporary features
