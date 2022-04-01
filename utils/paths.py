@@ -3,6 +3,7 @@ from pathlib import Path
 # Paths inside this project
 base_dir = Path(__file__).parent.parent.absolute()
 features_file = base_dir/"features.json"
+feature_properties_file = base_dir/"feature_properties.json"
 plots_dir = base_dir/"plots"
 
 # Paths of data used by this project
