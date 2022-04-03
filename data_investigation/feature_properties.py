@@ -24,6 +24,7 @@ import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import json
 
 # Imports from this project
 sys.path.insert(0,'..')
@@ -37,24 +38,23 @@ feature_keys = load_feature_keys(["extracted", "direct"])
 # %%
 # Read the input data
 print("Read in the data...")
-df_data = load_preprocessed_data(N_entries_max=1000000,
-                            batch_size=100000)
+df_data = load_preprocessed_data(N_entries_max=1000000)
 print("Done reading input")
 
 # %%
-# Prepare the feature properties DataFrame
+# Prepare the feature properties dictionary
 if paths.feature_properties_file.is_file():
-    df = pd.read_json(paths.feature_properties_file, orient="index")
+    with open(paths.feature_properties_file, "r") as file: 
+        fprops = json.load(file)
 else:
-    df = pd.DataFrame({"feature":feature_keys})
-    df.set_index("feature", inplace=True)
+    fprops = {feature:dict() for feature in feature_keys}
 
 # %%
 # Feature Type
 for feature in feature_keys:
     # Check for only integer values
     int_only = (df_data[feature] % 1 == 0).all()
-    df.loc[feature, "int_only"] = int_only
+    fprops[feature]["int_only"] = int_only
     
     # Choose if the feature could be categorical
     feature_type = "numerical"
@@ -67,29 +67,34 @@ for feature in feature_keys:
     if feature in man_feature_type.keys():
         feature_type = man_feature_type[feature]
     
-    df.loc[feature, "feature_type"] = feature_type
+    fprops[feature]["feature_type"] = feature_type
     
 # %%
 # Handle categorical features
 for feature in feature_keys:
     # insert dummy categories, so that the unique values are already in the file
     # the categories must be filled manually
-    if df.loc[feature, "feature_type"] != "categorical":
+    if fprops[feature]["feature_type"] != "categorical":
         continue
     
-    if "category_values" not in df.columns:
-        df["category_values"] = [None]*len(feature_keys)
-    if "category_names" not in df.columns:
-        df["category_names"] = [None]*len(feature_keys)
-        
-    if df.loc[feature, "category_values"] is None: 
-        uniq_vals = sorted(df_data[feature].astype(int).unique())
-        df.at[feature, "category_values"] = uniq_vals
+    uniq_vals = sorted(df_data[feature].astype(int).unique())
+    
+    if "category_values" not in fprops[feature].keys():
+        fprops[feature]["category_values"] = uniq_vals
+    else:
+        if set(fprops[feature]["category_values"]) != set(uniq_vals):
+            print(f"WARNING: There is an asymmetry in the category values found for '{feature}'")
+            print(f"Categories found in the data: {uniq_vals}")
+            print(f"Categories in feature_properties.json: {fprops[feature]['category_values']}")
+    
+    if "category_names" not in fprops[feature].keys():
+        fprops[feature]["category_names"] = []
+    
 
 # %%
 # Handle numerical features
 for feature in feature_keys:
-    if df.loc[feature, "feature_type"] != "numerical":
+    if fprops[feature]["feature_type"] != "numerical":
         continue
     
     # make a copy of the feature data for easier use
@@ -105,13 +110,13 @@ for feature in feature_keys:
     counts = counts[sort_mask]
     count_diff_mag = np.log10(counts[0]) - np.log10(counts[1])
     if feature in man_error_value:
-        df.loc[feature, "error_value"] = man_error_value[feature]
+        fprops[feature]["error_value"] = man_error_value[feature]
     elif count_diff_mag >= count_diff_max_magnitude:
         # check for oders of magnitude
         error_val = uniq[0]
         # check if values are near the potential error value
         if not np.any((uniq[1:] > error_val-epsilon) & (uniq[1:] < error_val+epsilon)):
-            df.loc[feature, "error_value"] = error_val
+            fprops[feature]["error_value"] = error_val
             # for further analysis exclude the error values to NaN
             # WARNING: any analysis from this point on does not include the error value
             f_data = f_data[f_data != error_val]
@@ -119,43 +124,38 @@ for feature in feature_keys:
     
     
     # calc the min and max values (for outliers)
-    df.loc[feature, "min"] = np.min(f_data)
-    df.loc[feature, "max"] = np.max(f_data)
+    fprops[feature]["min"] = np.min(f_data)
+    fprops[feature]["max"] = np.max(f_data)
     
     # calc the quantiles
     quantiles = [0.01,0.0001,0.5,0.99,0.9999]
     for q in quantiles:
-        df.loc[feature, f"quantile_{q}"] = np.quantile(f_data, q)
+        fprops[feature][f"quantile_{q}"] = np.quantile(f_data, q)
         
     # check if logx is sensible
-    if "logx" not in df.columns:
-        df["logx"] = False
+    if "logx" not in fprops[feature].keys():
+        fprops[feature]["logx"] = False
         
     min_magnitude_diff_for_logx = 3 # how many orders of magnitude should lie between the lower and higher end of values so that logx should be considered
     if np.all(f_data>0):
-        mag_lower = np.log10(df.loc[feature, "quantile_0.01"])
-        mag_higher = np.log10(df.loc[feature, "quantile_0.99"])
+        mag_lower = np.log10(fprops[feature]["quantile_0.01"])
+        mag_higher = np.log10(fprops[feature]["quantile_0.99"])
         mag_diff = mag_higher - mag_lower
         if mag_diff >= min_magnitude_diff_for_logx:
-            df.loc[feature, "logx"] = True
+            fprops[feature]["logx"] = True
             
     if feature in man_logx:
-        df.loc[feature, "logx"] = man_logx[feature]
+        fprops[feature]["logx"] = man_logx[feature]
         
 # %%
 # Write the feature properties to the json file
 
-# this is a workaround so that null values don't show up:
-# https://stackoverflow.com/questions/30912746/pandas-remove-null-values-when-to-json
-# temp_df = df.apply(lambda x: [x.dropna()], axis=1)
-
-df.to_json(paths.feature_properties_file,
-           orient="index",
-           indent=2,
-           double_precision=5)
+with open(paths.feature_properties_file, "w") as file:
+    fprops_json = json.dump(file, indent=2)
 
 # %%
-# TODO: switch from df to dict
+
+# TODO: set float precision in json.dump
 # TODO: make functions
 # TODO: make code more clean
 # TODO: actually check the properties
