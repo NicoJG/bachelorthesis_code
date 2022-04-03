@@ -1,4 +1,5 @@
 # Properties that should be evaluated for each feature:
+# mc_only: if the feature is only present in simulated data
 # feature_type: numerical or categorical
 # int_only: if all values are only integers
 # category_values: if categorical, the unique values representing categories
@@ -29,11 +30,11 @@ import json
 # Imports from this project
 sys.path.insert(0,'..')
 from utils import paths
-from utils.input_output import load_feature_keys, load_preprocessed_data
+from utils.input_output import load_feature_keys, load_features_dict, load_feature_properties, load_preprocessed_data
 
 # %%
 # Read in the feature keys
-feature_keys = load_feature_keys(["extracted", "direct"])
+feature_keys = load_feature_keys(["extracted_mc", "direct_mc","extracted", "direct"])
 
 # %%
 # Read the input data
@@ -44,10 +45,19 @@ print("Done reading input")
 # %%
 # Prepare the feature properties dictionary
 if paths.feature_properties_file.is_file():
-    with open(paths.feature_properties_file, "r") as file: 
-        fprops = json.load(file)
+    fprops = load_feature_properties()
 else:
     fprops = {feature:dict() for feature in feature_keys}
+
+# %%
+# Check if the feature is only present in MC simulated data
+for feature in feature_keys:
+    features_dict = load_features_dict()
+
+    if feature in features_dict["extracted_mc"] or feature in features_dict["direct_mc"]:
+        fprops[feature]["mc_only"] = True
+    else:
+        fprops[feature]["mc_only"] = False
 
 # %%
 # Feature Type

@@ -11,6 +11,16 @@ from tqdm.auto import tqdm
 sys.path.insert(0, Path(__file__).parent.parent)
 from utils import paths
 
+def load_features_dict():
+    """Load the dictionary of all feature keys (features.json)
+
+    Returns:
+        dict
+    """
+    with open(paths.features_file, "r") as file:
+        features_dict = json.load(file)
+    return features_dict
+
 def load_feature_keys(include_keys, exclude_keys=None):
     """Read in selected features from the features.json
 
@@ -22,9 +32,7 @@ def load_feature_keys(include_keys, exclude_keys=None):
         list: A concatenated list of all the feature keys requested
     """
     
-    # read the features.json as dict
-    with open(paths.features_file) as features_file:
-        features_dict = json.load(features_file)
+    features_dict = load_features_dict()
         
     # add only included features to a list
     feature_keys = []
@@ -39,6 +47,14 @@ def load_feature_keys(include_keys, exclude_keys=None):
                 feature_keys.remove(f)
         
     return feature_keys
+
+def load_feature_properties():
+    assert paths.feature_properties_file.is_file(), "There is no feature_properties.json. First execute feature_properties.py"
+    
+    with open(paths.feature_properties_file, "r") as file:
+        fprops = json.load(file)
+        
+    return fprops
 
 
 def load_data_from_root(file_path, tree_key="DecayTree", features=None, N_entries_max=np.Infinity, batch_size=100000):
