@@ -32,7 +32,7 @@ feature_props = load_feature_properties()
 # %%
 # Read the input data
 print("Read in the data...")
-df = load_preprocessed_data(N_entries_max=100000)
+df = load_preprocessed_data(N_entries_max=1000000)
 print("Done reading input")
 
 # %%
@@ -47,10 +47,8 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lname, output_pdf, allow_logx=
     
     lvalues = fprops[lkey]["category_values"]
     lvalue_names = fprops[lkey]["category_names"]
-    
-    if is_feature_categorical:
-        fvalues = fprops[fkey]["category_values"]
-        fvalue_names = fprops[fkey]["category_names"]
+    if not lvalue_names:
+        lvalue_names = lvalues
     
     # prepare the subplots
     if is_label_binary:
@@ -67,11 +65,23 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lname, output_pdf, allow_logx=
     else:
         fig, axs = plt.subplots(1, 2, figsize=(10,5), sharex=True)
 
-    fig.suptitle(f"{fkey} by {lname} ({lkey})")
+    if "error_value" in fprops[fkey].keys():
+        fig.suptitle(f"{fkey} by {lname} ({lkey})\n without error_value {fprops[fkey]['error_value']}")
+    else:
+        fig.suptitle(f"{fkey} by {lname} ({lkey})")
     
-    # TODO: all below rework + histograms.py rework of find_good_binning (with feature_properties.py)
-    
-    #bin_edges, bin_centers, is_categorical, is_logx = find_good_binning(df[feature_key], n_bins_max=200, lower_quantil=0.0001, higher_quantil=0.9999, allow_logx=allow_logx)
+    if is_feature_numerical:
+        bin_edges, bin_centers, is_logx = find_good_binning(fprops[fkey], 
+                                                            n_bins_max=300, 
+                                                            lower_quantile=0.0001,
+                                                            higher_quantile=0.9999,
+                                                            allow_logx=allow_logx)
+    elif is_feature_categorical:
+        fvalues = fprops[fkey]["category_values"]
+        fvalue_names = fprops[fkey]["category_names"]
+        is_logx = False
+    else:
+        raise RuntimeError(f"The feature {fkey} is not categorical and not numerical")
     
     x = []
     sigma = []
@@ -80,25 +90,38 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lname, output_pdf, allow_logx=
     colors = [f"C{i}" for i in range(10)]
 
     for lvalue, lvalue_name, ls, c in zip(lvalues, lvalue_names, line_styles, colors):
-        x_normed, sigma_normed = get_hist(x=df.query(f"{lkey}=={lvalue}")[fkey], 
-                                          bin_edges=bin_edges, 
-                                          normed=True, 
-                                          is_categorical=is_categorical,
-                                          categorical_values=bin_centers)
+        
+        if is_feature_numerical:
+            x_normed, sigma_normed = get_hist(x=df.query(f"{lkey}=={lvalue}")[fkey], 
+                                              bin_edges=bin_edges, 
+                                              normed=True)
+        elif is_feature_categorical:
+            x_normed, sigma_normed = get_hist(x=df.query(f"{lkey}=={lvalue}")[fkey],
+                                              is_categorical=True,
+                                              categorical_values=fvalues,
+                                              normed=True)
+            
         x.append(x_normed)
         sigma.append(sigma_normed)
 
         for ax in axs:
             if is_feature_categorical:
-                ax.bar(bin_centers, x_normed, yerr=sigma_normed,
+                if fvalue_names:
+                    tick_labels = [f"{fval}\n{fval_name}" for fval, fval_name in zip(fvalues, fvalue_names)]
+                else:
+                    tick_labels = [f"{fval}" for fval in fvalues]
+                ax.bar(tick_labels, x_normed, yerr=sigma_normed,
+                       tick_label=tick_labels,
                        fill=False,
-                       tick_label=bin_centers,
                        label=lvalue_name,
                        edgecolor=c,
                        ecolor=c,
                        linestyle=ls)
-            else:
-                ax.hist(bin_centers, weights=x_normed, bins=bin_edges, 
+                
+            elif is_feature_numerical:
+                ax.hist(bin_centers, 
+                        weights=x_normed, 
+                        bins=bin_edges, 
                         histtype="step", 
                         label=lvalue_name, 
                         color=c,
@@ -117,13 +140,13 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lname, output_pdf, allow_logx=
         axs[0].set_xscale("log")
         axs[1].set_xscale("log")
 
-    if is_binary:
+    if is_label_binary:
         pull = calc_pull(x[0], x[1], sigma[0], sigma[1])
 
         for ax in axs_pull:
-            if is_categorical:
-                ax.bar(bin_centers, pull, tick_label=bin_centers)
-            else:
+            if is_feature_categorical:
+                ax.bar(tick_labels, pull, tick_label=tick_labels)
+            elif is_feature_numerical:
                 ax.hist(bin_centers, weights=pull, bins=bin_edges)
 
             ax.set_xlabel(fkey)
@@ -151,20 +174,19 @@ for label_key in label_keys:
     output_pdf = PdfPages(output_file)
 
     for feature_key in tqdm(feature_keys, f"Features by {label_key}"):
-        is_logx = hist_feature_by_label(df, feature_key, label_key, 
-                                        label_values[label_key], 
-                                        label_value_names[label_key], 
+        is_logx = hist_feature_by_label(df, feature_key, feature_props, 
+                                        label_key, 
                                         label_names[label_key],
                                         output_pdf)
         if is_logx:
-            hist_feature_by_label(df, feature_key, label_key, 
-                                label_values[label_key], 
-                                label_value_names[label_key], 
-                                f"{label_names[label_key]} \n now without logx for comparison",
-                                output_pdf,
-                                allow_logx=False)
+            hist_feature_by_label(df, feature_key, feature_props, 
+                                  label_key, 
+                                  f"{label_names[label_key]} \n now without logx for comparison",
+                                  output_pdf,
+                                  allow_logx=False)
 
     output_pdf.close()
+
 
 # %%
 

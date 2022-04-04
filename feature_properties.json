@@ -7,7 +7,7 @@
       0,
       1
     ],
-    "category_names": []
+    "category_names": ["other", "SS"]
   },
   "B_is_strange": {
     "mc_only": true,
@@ -17,7 +17,7 @@
       0,
       1
     ],
-    "category_names": []
+    "category_names": ["Bd", "Bs"]
   },
   "decay_id": {
     "mc_only": true,

@@ -1,32 +1,34 @@
 from sympy import isprime
 import numpy as np
 
-def find_good_binning(x_raw, n_bins_max=50, lower_quantil=0.01, higher_quantil=0.99, n_categories_max=10, allow_logx=True, mag_delta_threshold=2):
-    is_categorical = False
-    is_logx = False
+def find_good_binning(fprops, n_bins_max=50, lower_quantile=0.01, higher_quantile=0.99, allow_logx=True):
+    """Find bin edges for a feature based on the feature properties dictionary
+    Only works for numerical features
+
+    Args:
+        fdata (np.ndarray or pd.Series): feature data
+        fprops (dict): feature properties
+        n_bins_max (int, optional): How many bins there should be maximally, because of int binning. Defaults to 50.
+        lower_quantile (float, optional): which quantile the lower end of the binning is. Defaults to 0.01.
+        higher_quantile (float, optional): which quantile the higher end of the binning is. Defaults to 0.01.
+        allow_logx (bool, optional): If a logarithmic x axis is allowed. Defaults to True.
+
+    Returns:
+        bin_edges (np.ndarray), bin_centers(np.ndarray), is_logx (boot)
+    """
+    assert fprops["feature_type"] == "numerical", "The feature must be a numerical feature for find_good_binning"
+
+    int_only = fprops["int_only"]
+    is_logx = fprops["logx"] and allow_logx
+    
     n_bins = n_bins_max
 
-    x_min = np.quantile(x_raw, lower_quantil)
-    x_max = np.quantile(x_raw, higher_quantil)
-
-    only_integers = np.all(x_raw % 1 == 0)
-
-    # check for categorical data
-    if len(np.unique(x_raw)) <= n_categories_max:
-        is_categorical = True
-        bin_centers = np.sort(np.unique(x_raw))
-        bin_edges = None
-        n_bins = len(bin_centers)
-
-        if only_integers:
-            bin_centers = bin_centers.astype(int)
-
-        return bin_edges, bin_centers, is_categorical, is_logx
+    x_min = fprops[f"quantile_{lower_quantile}"]
+    x_max = fprops[f"quantile_{higher_quantile}"]
 
     # better binning for integer values (workaround)
     # it works but it's not good 
-    # test the data only contains integers
-    if only_integers:
+    if int_only:
         n_bins = np.abs(x_max-x_min).astype(int) + 1
         # primes are not divisible...
         while isprime(n_bins) and n_bins > n_bins_max:
@@ -45,42 +47,27 @@ def find_good_binning(x_raw, n_bins_max=50, lower_quantil=0.01, higher_quantil=0
         x_min -= 0.5
         x_max += 0.5
 
-    bin_edges = np.linspace(x_min, x_max, n_bins+1)
-
-    # use a log scale if appropriate
-    # all values positive non-integers
-    # and different orders of magnitude at the 0.5 quantil and either x_min or x_max
-    if allow_logx and not only_integers and np.all(x_raw >= 0) and x_min>0:
-        mag_higher = np.log10(x_max)
-        mag_50 = np.log10(np.quantile(x_raw, 0.5))
-        mag_delta = np.abs(mag_50-mag_higher)
-        if x_min > 0:
-            mag_lower = np.log10(x_min)
-            if np.abs(mag_50-mag_higher) > mag_delta:
-                mag_delta
-        if mag_delta >= mag_delta_threshold:
-            is_logx = True
-            if x_min == 0:
-                # geomspace cannot include 0 workaround
-                bin_edges = np.geomspace(np.min(x_raw>0), x_max, n_bins+1)
-                bin_edges[0] = 0
-            else:
-                bin_edges = np.geomspace(x_min, x_max, n_bins+1)
+    if is_logx:
+        bin_edges = np.geomspace(x_min, x_max, n_bins+1)
+    else:
+        bin_edges = np.linspace(x_min, x_max, n_bins+1)
 
     bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
 
-    if only_integers:
+    if int_only:
         bin_centers = bin_centers.astype(int)
 
-    return bin_edges, bin_centers, is_categorical, is_logx
+    return bin_edges, bin_centers, is_logx
     
-def get_hist(x, bin_edges, normed=False, is_categorical=False, categorical_values=None):
+    
+def get_hist(x, bin_edges=None, normed=False, is_categorical=False, categorical_values=None):
     if is_categorical:
-        if categorical_values is None:
-            categorical_values, x_counts = np.unique(x, return_counts=True)
-        else:
-            x_counts = np.array([(x==cval).sum() for cval in categorical_values])
+        assert categorical_values is not None, "Please provide categorical_values for a categorical feature"
+        
+        x_counts = np.array([(x==cval).sum() for cval in categorical_values])
     else:
+        assert bin_edges is not None, "Please provide bin_edges for a numerical feature"
+        
         x_counts, _ = np.histogram(x, bins=bin_edges)
     
     sigma_counts = np.sqrt(x_counts)
