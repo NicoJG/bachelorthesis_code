@@ -156,15 +156,31 @@ for feature in feature_keys:
             
     if feature in man_logx:
         fprops[feature]["logx"] = man_logx[feature]
-        
+       
+# %%
+# Numpy JSON serialization
+# https://stackoverflow.com/questions/50916422/python-typeerror-object-of-type-int64-is-not-json-serializable
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
+
 # %%
 # Write the feature properties to the json file
-
 with open(paths.feature_properties_file, "w") as file:
-    fprops_json = json.dump(file, indent=2)
+    fprops_json = json.dumps(fprops, indent=2, cls=NpEncoder)
+    # delete all line breaks in lists (between [ and ] )
+    # TODO with RegEx
+    file.write(fprops_json)
 
 # %%
-
 # TODO: set float precision in json.dump
 # TODO: make functions
 # TODO: make code more clean
