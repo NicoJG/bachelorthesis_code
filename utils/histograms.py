@@ -1,7 +1,7 @@
 from sympy import isprime
 import numpy as np
 
-def find_good_binning(fprops, n_bins_max=50, lower_quantile=0.01, higher_quantile=0.99, allow_logx=True):
+def find_good_binning(fprops, n_bins_max=50, lower_quantile=0.01, higher_quantile=0.99, allow_logx=True, force_logx=False):
     """Find bin edges for a feature based on the feature properties dictionary
     Only works for numerical features
 
@@ -12,6 +12,7 @@ def find_good_binning(fprops, n_bins_max=50, lower_quantile=0.01, higher_quantil
         lower_quantile (float, optional): which quantile the lower end of the binning is. Defaults to 0.01.
         higher_quantile (float, optional): which quantile the higher end of the binning is. Defaults to 0.01.
         allow_logx (bool, optional): If a logarithmic x axis is allowed. Defaults to True.
+        force_logx (bool, optional): If every numerical feature should be plotted with log x-axis
 
     Returns:
         bin_edges (np.ndarray), bin_centers(np.ndarray), is_logx (boot)
@@ -19,7 +20,6 @@ def find_good_binning(fprops, n_bins_max=50, lower_quantile=0.01, higher_quantil
     assert fprops["feature_type"] == "numerical", "The feature must be a numerical feature for find_good_binning"
 
     int_only = fprops["int_only"]
-    is_logx = fprops["logx"] and allow_logx
     
     n_bins = n_bins_max
 
@@ -46,10 +46,13 @@ def find_good_binning(fprops, n_bins_max=50, lower_quantile=0.01, higher_quantil
         # center bins around the integers
         x_min -= 0.5
         x_max += 0.5
+        
+    is_logx = (fprops["logx"] and allow_logx) or (force_logx and x_min > 0.0)
 
     if is_logx:
         bin_edges = np.geomspace(x_min, x_max, n_bins+1)
     else:
+        is_logx = False
         bin_edges = np.linspace(x_min, x_max, n_bins+1)
 
     bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2

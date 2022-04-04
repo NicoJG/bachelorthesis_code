@@ -32,12 +32,12 @@ feature_props = load_feature_properties()
 # %%
 # Read the input data
 print("Read in the data...")
-df = load_preprocessed_data(N_entries_max=1000000)
+df = load_preprocessed_data(N_entries_max=10000000000)
 print("Done reading input")
 
 # %%
 # Histogram function
-def hist_feature_by_label(df, fkey, fprops, lkey, lname, output_pdf, allow_logx=True):
+def hist_feature_by_label(df, fkey, fprops, lkey, lname, output_pdf, allow_logx=True, force_logx=False):
     
     is_feature_int_only = fprops[fkey]["int_only"]
     is_label_binary = len(fprops[lkey]["category_values"]) == 2
@@ -75,7 +75,8 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lname, output_pdf, allow_logx=
                                                             n_bins_max=300, 
                                                             lower_quantile=0.0001,
                                                             higher_quantile=0.9999,
-                                                            allow_logx=allow_logx)
+                                                            allow_logx=allow_logx,
+                                                            force_logx=force_logx)
     elif is_feature_categorical:
         fvalues = fprops[fkey]["category_values"]
         fvalue_names = fprops[fkey]["category_names"]
@@ -174,20 +175,26 @@ for label_key in label_keys:
     output_file = output_dir / f"features_by_{label_key}.pdf"
 
     output_pdf = PdfPages(output_file)
+    
+    output_logx_file = output_dir / f"features_by_{label_key}_logx.pdf"
+
+    output_logx_pdf = PdfPages(output_logx_file)
 
     for feature_key in tqdm(feature_keys, f"Features by {label_key}"):
-        is_logx = hist_feature_by_label(df, feature_key, feature_props, 
-                                        label_key, 
-                                        label_names[label_key],
-                                        output_pdf)
-        # if is_logx:
-        #     hist_feature_by_label(df, feature_key, feature_props, 
-        #                           label_key, 
-        #                           f"{label_names[label_key]} \n now without logx for comparison",
-        #                           output_pdf,
-        #                           allow_logx=False)
+        hist_feature_by_label(df, feature_key, feature_props, 
+                              label_key, 
+                              label_names[label_key],
+                              output_pdf,
+                              allow_logx=False)
+        
+        hist_feature_by_label(df, feature_key, feature_props, 
+                              label_key, 
+                              label_names[label_key],
+                              output_logx_pdf,
+                              force_logx=True)
 
     output_pdf.close()
+    output_logx_pdf.close()
 
 
 # %%

@@ -6,6 +6,9 @@ features_file = base_dir/"features.json"
 feature_properties_file = base_dir/"feature_properties.json"
 plots_dir = base_dir/"plots"
 
+if not plots_dir.is_dir():
+    plots_dir.mkdir(parents=True)
+
 # Paths of data used by this project
 B2JpsiKstar_file = Path("/ceph/FlavourTagging/NTuples/ift/MC/B2JpsiKstar/Nov_2021_wgproduction/DTT_MC_Bd2JpsiKst_2016_26_Sim09b_DST.root")
 Bs2DsPi_file = Path("/ceph/FlavourTagging/NTuples/ift/MC/Bs2DsPi/Mar_2022_wgproduction/DTT_MC_Bs2Dspi_2016_26_Sim09b_DST.root")

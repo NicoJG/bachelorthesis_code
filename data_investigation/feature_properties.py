@@ -18,7 +18,11 @@
 man_feature_type = {"Tr_T_NbNonIsoTr_MinBDT_ult":"numerical",
                     "Tr_T_NbTrNonIso_sigtr":"numerical"}
 man_error_value = {"Tr_T_Sum_of_trackp":None,
-                   "Tr_T_Sum_of_trackpt":None}
+                   "Tr_T_Sum_of_trackpt":None,
+                   "Tr_T_ConIso_p_ult":None,
+                   "Tr_T_ConIso_pt_ult":None,
+                   "Tr_T_Cone_asym_P":None,
+                   "Tr_T_Cone_asym_Pt":None}
 man_logx = {"Tr_T_Best_PAIR_D":True,
             "Tr_T_Best_PAIR_M_fromiso":True,
             "Tr_T_Best_PAIR_VCHI2":True,
@@ -31,9 +35,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import json
+from pathlib import Path
 
 # Imports from this project
-sys.path.insert(0,'..')
+sys.path.insert(0, Path(__file__).parent.parent.parent)
 from utils import paths
 from utils.input_output import load_feature_keys, load_features_dict, load_feature_properties, load_preprocessed_data
 
@@ -44,7 +49,7 @@ feature_keys = load_feature_keys(["extracted_mc", "direct_mc","extracted", "dire
 # %%
 # Read the input data
 print("Read in the data...")
-df_data = load_preprocessed_data(N_entries_max=1000000)
+df_data = load_preprocessed_data(N_entries_max=10000000000)
 print("Done reading input")
 
 # %%
@@ -191,4 +196,3 @@ with open(paths.feature_properties_file, "w") as file:
 # TODO: set float precision in json.dump
 # TODO: make functions
 # TODO: make code more clean
-# TODO: actually check the properties
