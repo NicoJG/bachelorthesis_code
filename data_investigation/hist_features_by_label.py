@@ -125,10 +125,12 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lname, output_pdf, allow_logx=
                         histtype="step", 
                         label=lvalue_name, 
                         color=c,
-                        linestyle=ls)
+                        linestyle=ls,
+                        alpha=0.8)
                 ax.errorbar(bin_centers, x_normed, yerr=sigma_normed, 
                             fmt="none", 
-                            color=c)
+                            color=c,
+                            alpha=0.8)
 
     axs[0].set_ylabel("Frequency")
     axs[0].legend(loc="best")
@@ -178,12 +180,12 @@ for label_key in label_keys:
                                         label_key, 
                                         label_names[label_key],
                                         output_pdf)
-        if is_logx:
-            hist_feature_by_label(df, feature_key, feature_props, 
-                                  label_key, 
-                                  f"{label_names[label_key]} \n now without logx for comparison",
-                                  output_pdf,
-                                  allow_logx=False)
+        # if is_logx:
+        #     hist_feature_by_label(df, feature_key, feature_props, 
+        #                           label_key, 
+        #                           f"{label_names[label_key]} \n now without logx for comparison",
+        #                           output_pdf,
+        #                           allow_logx=False)
 
     output_pdf.close()
 

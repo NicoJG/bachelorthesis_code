@@ -15,9 +15,14 @@
 
 # %%
 # Manual corrections, because most algorithms here are just guesses and a human is better in estimating those properties:
-man_feature_type = {}
-man_error_value = {}
-man_logx = {}
+man_feature_type = {"Tr_T_NbNonIsoTr_MinBDT_ult":"numerical",
+                    "Tr_T_NbTrNonIso_sigtr":"numerical"}
+man_error_value = {"Tr_T_Sum_of_trackp":None,
+                   "Tr_T_Sum_of_trackpt":None}
+man_logx = {"Tr_T_Best_PAIR_D":True,
+            "Tr_T_Best_PAIR_M_fromiso":True,
+            "Tr_T_Best_PAIR_VCHI2":True,
+            "Tr_T_PROBNNpi":False}
 
 # %%
 # Imports
@@ -121,6 +126,8 @@ for feature in feature_keys:
     count_diff_mag = np.log10(counts[0]) - np.log10(counts[1])
     if feature in man_error_value:
         fprops[feature]["error_value"] = man_error_value[feature]
+        if man_error_value[feature] is None:
+            fprops[feature].pop("error_value")
     elif count_diff_mag >= count_diff_max_magnitude:
         # check for oders of magnitude
         error_val = uniq[0]
@@ -146,10 +153,10 @@ for feature in feature_keys:
     if "logx" not in fprops[feature].keys():
         fprops[feature]["logx"] = False
         
-    min_magnitude_diff_for_logx = 3 # how many orders of magnitude should lie between the lower and higher end of values so that logx should be considered
+    min_magnitude_diff_for_logx = 4 # how many orders of magnitude should lie between the lower and higher end of values so that logx should be considered
     if np.all(f_data>0):
-        mag_lower = np.log10(fprops[feature]["quantile_0.01"])
-        mag_higher = np.log10(fprops[feature]["quantile_0.99"])
+        mag_lower = np.log10(fprops[feature]["quantile_0.0001"])
+        mag_higher = np.log10(fprops[feature]["quantile_0.9999"])
         mag_diff = mag_higher - mag_lower
         if mag_diff >= min_magnitude_diff_for_logx:
             fprops[feature]["logx"] = True

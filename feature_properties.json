@@ -7,7 +7,10 @@
       0,
       1
     ],
-    "category_names": ["other", "SS"]
+    "category_names": [
+      "other",
+      "SS"
+    ]
   },
   "B_is_strange": {
     "mc_only": true,
@@ -17,7 +20,10 @@
       0,
       1
     ],
-    "category_names": ["Bd", "Bs"]
+    "category_names": [
+      "Bd",
+      "Bs"
+    ]
   },
   "decay_id": {
     "mc_only": true,
@@ -230,7 +236,7 @@
     "quantile_0.5": 0.09379050508141518,
     "quantile_0.99": 12.774340734481822,
     "quantile_0.9999": 68.6763188423227,
-    "logx": false
+    "logx": true
   },
   "Tr_T_Best_PAIR_DCHI2": {
     "mc_only": false,
@@ -253,7 +259,7 @@
     "quantile_0.5": 433.8520965576172,
     "quantile_0.99": 2313.9269238281267,
     "quantile_0.9999": 6956.6819521001125,
-    "logx": false
+    "logx": true
   },
   "Tr_T_Best_PAIR_VCHI2": {
     "mc_only": false,
@@ -266,7 +272,7 @@
     "quantile_0.5": 1.2301154136657715,
     "quantile_0.99": 26392.33738281255,
     "quantile_0.9999": 727029.1546188866,
-    "logx": false
+    "logx": true
   },
   "Tr_T_Charge": {
     "mc_only": false,
@@ -289,7 +295,8 @@
     "quantile_0.5": 0.08934126049280167,
     "quantile_0.99": 1.0,
     "quantile_0.9999": 1.0,
-    "logx": false
+    "logx": false,
+    "error_value": 1.0
   },
   "Tr_T_ConIso_pt_ult": {
     "mc_only": false,
@@ -302,7 +309,8 @@
     "quantile_0.5": 0.09215833991765976,
     "quantile_0.99": 1.0,
     "quantile_0.9999": 1.0,
-    "logx": false
+    "logx": false,
+    "error_value": 1.0
   },
   "Tr_T_Cone_asym_P": {
     "mc_only": false,
@@ -315,7 +323,8 @@
     "quantile_0.5": 0.0283636674284935,
     "quantile_0.99": 1.0,
     "quantile_0.9999": 1.0,
-    "logx": false
+    "logx": false,
+    "error_value": 1.0
   },
   "Tr_T_Cone_asym_Pt": {
     "mc_only": false,
@@ -328,7 +337,8 @@
     "quantile_0.5": -0.8156833052635193,
     "quantile_0.99": 1.0,
     "quantile_0.9999": 1.0,
-    "logx": false
+    "logx": false,
+    "error_value": 1.0
   },
   "Tr_T_E": {
     "mc_only": false,
@@ -474,7 +484,7 @@
   "Tr_T_NbNonIsoTr_MinBDT_ult": {
     "mc_only": false,
     "int_only": true,
-    "feature_type": "categorical",
+    "feature_type": "numerical",
     "category_values": [
       0,
       1,
@@ -494,7 +504,15 @@
       15,
       16
     ],
-    "category_names": []
+    "category_names": [],
+    "min": 0.0,
+    "max": 16.0,
+    "quantile_0.01": 0.0,
+    "quantile_0.0001": 0.0,
+    "quantile_0.5": 3.0,
+    "quantile_0.99": 9.0,
+    "quantile_0.9999": 12.0,
+    "logx": false
   },
   "Tr_T_NbNonIsoTr_ult": {
     "mc_only": false,
@@ -512,7 +530,7 @@
   "Tr_T_NbTrNonIso_sigtr": {
     "mc_only": false,
     "int_only": true,
-    "feature_type": "categorical",
+    "feature_type": "numerical",
     "category_values": [
       0,
       1,
@@ -520,7 +538,15 @@
       3,
       4
     ],
-    "category_names": []
+    "category_names": [],
+    "min": 0.0,
+    "max": 4.0,
+    "quantile_0.01": 0.0,
+    "quantile_0.0001": 0.0,
+    "quantile_0.5": 0.0,
+    "quantile_0.99": 1.0,
+    "quantile_0.9999": 4.0,
+    "logx": false
   },
   "Tr_T_Ntr_incone": {
     "mc_only": false,
@@ -797,28 +823,26 @@
     "mc_only": false,
     "int_only": false,
     "feature_type": "numerical",
-    "error_value": 0.0,
-    "min": 2000.199951171875,
+    "min": 0.0,
     "max": 1185926.75,
-    "quantile_0.01": 4121.57955078125,
-    "quantile_0.0001": 2016.9317716918945,
-    "quantile_0.5": 82494.3828125,
-    "quantile_0.99": 451009.711875,
-    "quantile_0.9999": 947864.9678125004,
+    "quantile_0.01": 0.0,
+    "quantile_0.0001": 0.0,
+    "quantile_0.5": 81234.90234375,
+    "quantile_0.99": 449925.26031250006,
+    "quantile_0.9999": 946311.6538250968,
     "logx": false
   },
   "Tr_T_Sum_of_trackpt": {
     "mc_only": false,
     "int_only": false,
     "feature_type": "numerical",
-    "error_value": 0.0,
-    "min": 26.030029296875,
+    "min": 0.0,
     "max": 65666.875,
-    "quantile_0.01": 291.69347381591797,
-    "quantile_0.0001": 49.042811248016356,
-    "quantile_0.5": 4843.722412109375,
-    "quantile_0.99": 21975.35931640626,
-    "quantile_0.9999": 53459.87464101866,
+    "quantile_0.01": 0.0,
+    "quantile_0.0001": 0.0,
+    "quantile_0.5": 4781.9970703125,
+    "quantile_0.99": 21914.585039062506,
+    "quantile_0.9999": 53115.591347281326,
     "logx": false
   },
   "Tr_T_THETA": {
@@ -886,7 +910,7 @@
     "quantile_0.5": 0.991197407245636,
     "quantile_0.99": 3.407595140933991,
     "quantile_0.9999": 17.21384846572898,
-    "logx": false
+    "logx": true
   },
   "Tr_T_TRGHOSTPROB": {
     "mc_only": false,
