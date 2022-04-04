@@ -10,40 +10,51 @@ from matplotlib.backends.backend_pdf import PdfPages
 # Imports from this project
 sys.path.insert(0,'..')
 from utils import paths
-from utils.input_output import load_feature_keys, load_preprocessed_data
+from utils.input_output import load_feature_keys, load_feature_properties, load_preprocessed_data
 from utils.histograms import find_good_binning, get_hist, calc_pull
 
 # %%
 # Constant variables
-
-input_file = paths.preprocessed_data_file
-
 output_dir = paths.plots_dir
 output_dir.mkdir(parents=True, exist_ok=True)
 
 label_keys = ["Tr_is_SS", "B_is_strange"]
-label_values = {"Tr_is_SS": [0, 1], "B_is_strange": [0,1]}
-label_value_names = {"Tr_is_SS": ["other", "SS"], "B_is_strange": ["Bd", "Bs"]}
 label_names = {"Tr_is_SS": "Track membership", "B_is_strange": "Signal meson flavour"}
 
 
 # %%
 # Read in the feature keys
-feature_keys = load_feature_keys(["extracted", "direct"])
+feature_keys = load_feature_keys(["extracted_mc", "direct_mc","extracted", "direct"])
+
+# Read in the feature properties
+feature_props = load_feature_properties()
 
 # %%
 # Read the input data
 print("Read in the data...")
-df = load_preprocessed_data(N_entries_max=100000000,
-                            batch_size=100000)
+df = load_preprocessed_data(N_entries_max=100000)
 print("Done reading input")
 
 # %%
 # Histogram function
-def hist_feature_by_label(df, feature_key, label_key, label_values, label_value_names, label_name, output_pdf, allow_logx=True):
-    # plot a pull plot if the label is binary
-    is_binary = len(label_values) == 2
-    if is_binary:
+def hist_feature_by_label(df, fkey, fprops, lkey, lname, output_pdf, allow_logx=True):
+    
+    is_feature_int_only = fprops[fkey]["int_only"]
+    is_label_binary = len(fprops[lkey]["category_values"]) == 2
+    is_feature_categorical = fprops[fkey]["feature_type"] == "categorical"
+    is_feature_numerical = fprops[fkey]["feature_type"] == "numerical"
+    assert is_feature_categorical or is_feature_numerical, f"The feature {fkey} is not categorical and not numerical..."
+    
+    lvalues = fprops[lkey]["category_values"]
+    lvalue_names = fprops[lkey]["category_names"]
+    
+    if is_feature_categorical:
+        fvalues = fprops[fkey]["category_values"]
+        fvalue_names = fprops[fkey]["category_names"]
+    
+    # prepare the subplots
+    if is_label_binary:
+        # prepare the pull plot
         fig = plt.figure(figsize=(10,7))
 
         ax0 = plt.subplot2grid((4,2), (0,0), rowspan=3, colspan=1)
@@ -56,9 +67,11 @@ def hist_feature_by_label(df, feature_key, label_key, label_values, label_value_
     else:
         fig, axs = plt.subplots(1, 2, figsize=(10,5), sharex=True)
 
-    fig.suptitle(f"{feature_key} by {label_name}")
+    fig.suptitle(f"{fkey} by {lname} ({lkey})")
     
-    bin_edges, bin_centers, is_categorical, is_logx = find_good_binning(df[feature_key], n_bins_max=200, lower_quantil=0.0001, higher_quantil=0.9999, allow_logx=allow_logx)
+    # TODO: all below rework + histograms.py rework of find_good_binning (with feature_properties.py)
+    
+    #bin_edges, bin_centers, is_categorical, is_logx = find_good_binning(df[feature_key], n_bins_max=200, lower_quantil=0.0001, higher_quantil=0.9999, allow_logx=allow_logx)
     
     x = []
     sigma = []
@@ -66,8 +79,8 @@ def hist_feature_by_label(df, feature_key, label_key, label_values, label_value_
     line_styles = ["solid","solid","dotted","dotted","dased","dashed"]
     colors = [f"C{i}" for i in range(10)]
 
-    for l_val, l_val_name, ls, c in zip(label_values, label_value_names, line_styles, colors):
-        x_normed, sigma_normed = get_hist(x=df.query(f"{label_key}=={l_val}")[feature_key], 
+    for lvalue, lvalue_name, ls, c in zip(lvalues, lvalue_names, line_styles, colors):
+        x_normed, sigma_normed = get_hist(x=df.query(f"{lkey}=={lvalue}")[fkey], 
                                           bin_edges=bin_edges, 
                                           normed=True, 
                                           is_categorical=is_categorical,
@@ -76,18 +89,18 @@ def hist_feature_by_label(df, feature_key, label_key, label_values, label_value_
         sigma.append(sigma_normed)
 
         for ax in axs:
-            if is_categorical:
+            if is_feature_categorical:
                 ax.bar(bin_centers, x_normed, yerr=sigma_normed,
                        fill=False,
                        tick_label=bin_centers,
-                       label=l_val_name,
+                       label=lvalue_name,
                        edgecolor=c,
                        ecolor=c,
                        linestyle=ls)
             else:
                 ax.hist(bin_centers, weights=x_normed, bins=bin_edges, 
                         histtype="step", 
-                        label=l_val_name, 
+                        label=lvalue_name, 
                         color=c,
                         linestyle=ls)
                 ax.errorbar(bin_centers, x_normed, yerr=sigma_normed, 
@@ -113,12 +126,12 @@ def hist_feature_by_label(df, feature_key, label_key, label_values, label_value_
             else:
                 ax.hist(bin_centers, weights=pull, bins=bin_edges)
 
-            ax.set_xlabel(feature_key)
+            ax.set_xlabel(fkey)
         
         axs_pull[0].set_ylabel("Pull")
     else:
         for ax in axs:
-            ax.set_xlabel(feature_key)
+            ax.set_xlabel(fkey)
     
     fig.tight_layout()
 
