@@ -66,7 +66,10 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lname, output_pdf, allow_logx=
         fig, axs = plt.subplots(1, 2, figsize=(10,5), sharex=True)
 
     if "error_value" in fprops[fkey].keys():
-        fig.suptitle(f"{fkey} by {lname} ({lkey})\n without error_value {fprops[fkey]['error_value']}")
+        error_val = fprops[fkey]['error_value']
+        error_val_counts = (df[fkey] == error_val).sum()
+        error_val_proportion = error_val_counts / df.shape[0]
+        fig.suptitle(f"{fkey} by {lname} ({lkey})\n without the error value {error_val} (proportion: {error_val_proportion*100:.2f}%)")
     else:
         fig.suptitle(f"{fkey} by {lname} ({lkey})")
     

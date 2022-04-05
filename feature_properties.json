@@ -33,7 +33,10 @@
       0,
       1
     ],
-    "category_names": []
+    "category_names": [
+      "B2JpsiKstar",
+      "Bs2DsPi"
+    ]
   },
   "B_ID": {
     "mc_only": true,
@@ -43,7 +46,10 @@
       -511,
       511
     ],
-    "category_names": []
+    "category_names": [
+      "B0",
+      "B0_anti"
+    ]
   },
   "B_TRUEID": {
     "mc_only": true,
@@ -55,7 +61,12 @@
       511,
       531
     ],
-    "category_names": []
+    "category_names": [
+      "Bs_anti",
+      "Bd_anti",
+      "Bd",
+      "Bs"
+    ]
   },
   "Tr_ORIG_FLAGS": {
     "mc_only": true,
