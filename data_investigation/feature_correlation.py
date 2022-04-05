@@ -109,7 +109,9 @@ plt.show()
 # %%
 # List the highest correlations
 
+print("Calculating the correlation matrix...")
 df_highest_corr = df_corr.copy()
+print("Done calculating the correlation matrix.")
 # set lower triangular matrix (with diagonal) to nan
 triu_mask = np.triu(np.ones(df_highest_corr.shape), k=1).astype(bool)
 df_highest_corr.where(triu_mask, np.nan, inplace=True)
@@ -185,7 +187,7 @@ for i, (corr, f0, f1) in tqdm(df_highest_corr.iterrows(), total=df_highest_corr.
     cbar.ax.set_ylabel("Counts")
     
     plt.tight_layout()
-    plt.savefig(output_dir/f"02_pair_plot_{i}_{f0}_{f1}.pdf")
+    plt.savefig(output_dir/f"02_pair_plot_{i:02d}_{f0}_{f1}.pdf")
     #plt.show()
     plt.close()
     

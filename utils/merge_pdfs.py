@@ -20,6 +20,8 @@ def merge_pdfs(input_dir, output_file):
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
     pdf_files = [str(file) for file in input_dir.glob("*.pdf") if file.is_file()]
+    
+    pdf_files = sorted(pdf_files)
 
     merger = PdfFileMerger()
 
