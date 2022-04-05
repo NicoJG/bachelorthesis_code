@@ -79,7 +79,9 @@ feature_keys = numerical_features + categorical_features
 
 # %% 
 # Calculate the correlation matrix
+print("Calculating the correlation matrix...")
 df_corr = df_data_cut[feature_keys].corr()
+print("Done calculating the correlation matrix.")
 
 # Save the correlation matrix
 df_corr.to_csv(output_dir/"01_feature_corr_matrix.csv", float_format="%.6f")
@@ -109,9 +111,8 @@ plt.show()
 # %%
 # List the highest correlations
 
-print("Calculating the correlation matrix...")
 df_highest_corr = df_corr.copy()
-print("Done calculating the correlation matrix.")
+
 # set lower triangular matrix (with diagonal) to nan
 triu_mask = np.triu(np.ones(df_highest_corr.shape), k=1).astype(bool)
 df_highest_corr.where(triu_mask, np.nan, inplace=True)
