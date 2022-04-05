@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from pathlib import Path
 from tqdm.auto import tqdm
+import json
 
 # Imports from this project
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -40,13 +41,31 @@ print("Done reading input")
 lower_quantile = 0.0001
 higher_quantile = 0.9999
 
+cut_loss = {}
+
 mask = True
 for feature in tqdm(feature_keys, desc="Apply Feature Cuts"):
     if fprops[feature]["feature_type"] == "numerical":
-        mask &= fprops[feature][f"quantile_{lower_quantile}"] <= df_data[feature]
-        mask &= df_data[feature] <= fprops[feature][f"quantile_{higher_quantile}"]
+        temp_mask = fprops[feature][f"quantile_{lower_quantile}"] <= df_data[feature]
+        temp_mask &= df_data[feature] <= fprops[feature][f"quantile_{higher_quantile}"]
+        
+        # include the error value because else, to much tracks get lost
+        if "error_value" in fprops[feature].keys():
+            temp_mask |= df_data[feature] == fprops[feature]["error_value"]
+        
+        cut_loss[feature] = {}
+        cut_loss[feature]["relative_loss"] = (~temp_mask).sum()/len(temp_mask)
+        cut_loss[feature]["absolute_loss"] = (~temp_mask).sum()
+        
+        mask &= temp_mask
         
 df_data_cut = df_data[mask]
+
+# save the list of loss in tracks
+df_cut_loss = pd.DataFrame.from_dict(cut_loss, orient="index")
+df_cut_loss.rename_axis(index="feature", inplace=True)
+df_cut_loss.sort_values(by="absolute_loss", ascending=False, inplace=True)
+df_cut_loss.to_csv(output_dir/"00_feature_cut_loss.csv", float_format="%.6f")
 
 print(f"Tracks before the cuts: {df_data.shape[0]}")
 print(f"Tracks after the cuts: {df_data_cut.shape[0]}")
@@ -61,6 +80,9 @@ feature_keys = numerical_features + categorical_features
 # %% 
 # Calculate the correlation matrix
 df_corr = df_data_cut[feature_keys].corr()
+
+# Save the correlation matrix
+df_corr.to_csv(output_dir/"01_feature_corr_matrix.csv", float_format="%.6f")
 
 # Plot the correlation matrix
 N_features = len(feature_keys)
@@ -81,7 +103,7 @@ cax = divider.append_axes("right", size="5%", pad=0.05)
 plt.colorbar(ax_img, cax=cax)
 
 plt.tight_layout()
-plt.savefig(output_dir/"00_feature_correlation.pdf")
+plt.savefig(output_dir/"01_feature_correlation.pdf")
 plt.show()
 
 # %%
@@ -102,24 +124,35 @@ df_highest_corr.sort_values(by="correlation", ascending=False, key=abs, inplace=
 df_highest_corr = df_highest_corr[["correlation", "f0", "f1"]]
 df_highest_corr.reset_index(drop=True, inplace=True)
 print(df_highest_corr)
-df_highest_corr.to_csv(output_dir/"00_feature_correlation.csv", float_format="%.4f", index=False)
+df_highest_corr.to_csv(output_dir/"01_feature_correlation.csv", float_format="%.4f", index=False)
 
 # %%
 # Plot the feature pairs with the highest correlation (scatterplot and hist2d plot)
 
 for i, (corr, f0, f1) in tqdm(df_highest_corr.iterrows(), total=df_highest_corr.shape[0], desc="Pair Plots"):
     
-    bin_edges_0, bin_centers_0, is_logx_0 = find_good_binning(fprops[f0], 
-                                                      n_bins_max=100, 
-                                                      lower_quantile=0.0001, 
-                                                      higher_quantile=0.9999, 
-                                                      allow_logx=True)
     
-    bin_edges_1, bin_centers_1, is_logx_1 = find_good_binning(fprops[f1], 
-                                                      n_bins_max=100, 
-                                                      lower_quantile=0.0001, 
-                                                      higher_quantile=0.9999, 
-                                                      allow_logx=True)
+    # find binning for both features and both numerical and categorical feature_types
+    bin_edges, bin_centers, is_logx = [], [], []
+    for f in [f0,f1]:
+        if fprops[f]["feature_type"] == "numerical":
+            bin_res = find_good_binning(fprops[f], 
+                                        n_bins_max=200, 
+                                        lower_quantile=0.0001, 
+                                        higher_quantile=0.9999, 
+                                        allow_logx=True)
+            bin_edges.append(bin_res[0])
+            bin_centers.append(bin_res[1])
+            is_logx.append(bin_res[2])
+        elif fprops[f]["feature_type"] == "categorical":
+            is_logx.append(False)
+            fvals = fprops[f]["category_values"]
+            fvals = np.array(fvals)
+            bin_centers.append(fvals)
+            # the bin edges are the centers +- 0.49 (for neighbouring values not 0.5)
+            fedges = np.column_stack([fvals-0.49,fvals+0.49]).flatten()
+            bin_edges.append(fedges)
+            
     
     data0 = df_data[f0].to_numpy()
     data1 = df_data[f1].to_numpy()
@@ -134,7 +167,7 @@ for i, (corr, f0, f1) in tqdm(df_highest_corr.iterrows(), total=df_highest_corr.
     
     ax1.set_title("2D Histogram")
     hist = ax1.hist2d(data0, data1, 
-               bins=[bin_edges_0, bin_edges_1], 
+               bins=[bin_edges[0], bin_edges[1]], 
                density=False,
                norm=mpl.colors.LogNorm(),
                cmap="inferno",
@@ -143,16 +176,16 @@ for i, (corr, f0, f1) in tqdm(df_highest_corr.iterrows(), total=df_highest_corr.
     ax1.set_ylabel(f1)
     ax1.set_facecolor('black')
     
-    if is_logx_0:
+    if is_logx[0]:
         ax1.set_xscale("log")
-    if is_logx_1:
+    if is_logx[1]:
         ax1.set_yscale("log")
-    
+        
     cbar = plt.colorbar(hist[3])
     cbar.ax.set_ylabel("Counts")
     
     plt.tight_layout()
-    plt.savefig(output_dir/f"01_pair_plot_{i}_{f0}_{f1}.pdf")
+    plt.savefig(output_dir/f"02_pair_plot_{i}_{f0}_{f1}.pdf")
     #plt.show()
     plt.close()
     
