@@ -133,7 +133,6 @@ df_highest_corr.to_csv(output_dir/"01_feature_correlation.csv", float_format="%.
 
 for i, (corr, f0, f1) in tqdm(df_highest_corr.iterrows(), total=df_highest_corr.shape[0], desc="Pair Plots"):
     
-    
     # find binning for both features and both numerical and categorical feature_types
     bin_edges, bin_centers, is_logx = [], [], []
     for f in [f0,f1]:
@@ -159,29 +158,38 @@ for i, (corr, f0, f1) in tqdm(df_highest_corr.iterrows(), total=df_highest_corr.
     data0 = df_data[f0].to_numpy()
     data1 = df_data[f1].to_numpy()
     
-    fig, (ax0, ax1) = plt.subplots(1,2, figsize=(12,6), sharex=True, sharey=True)
-    fig.suptitle(f"Pair Plot ('{f0}' vs '{f1}')\ncorrelation: {corr:.5f}")
+    plt.figure(figsize=(8,8))
+    plt.title(f"Hist2d Plot ('{f0}' vs '{f1}')\ncorrelation: {corr:.5f}")
     
-    ax0.set_title("Scatter Plot")
-    ax0.scatter(data0, data1, s=1.0, rasterized=True)
-    ax0.set_xlabel(f0)
-    ax0.set_ylabel(f1)
-    
-    ax1.set_title("2D Histogram")
-    hist = ax1.hist2d(data0, data1, 
+    hist = plt.hist2d(data0, data1, 
                bins=[bin_edges[0], bin_edges[1]], 
                density=False,
                norm=mpl.colors.LogNorm(),
                cmap="inferno",
                rasterized=True)
-    ax1.set_xlabel(f0)
-    ax1.set_ylabel(f1)
-    ax1.set_facecolor('black')
+    plt.gca().set_facecolor('black')
+    
+    # set x and y labels
+    if fprops[f0]["feature_type"] == "categorical":
+        plt.xlabel(f"{f0} (categorical)")
+    elif fprops[f0]["int_only"]:
+        plt.xlabel(f"{f0} (only integers)")
+    else:
+        plt.xlabel(f0)
+    
+    if fprops[f1]["feature_type"] == "categorical":
+        plt.ylabel(f"{f1} (categorical)")
+    elif fprops[f1]["int_only"]:
+        plt.ylabel(f"{f1} (only integers)")
+    else:
+        plt.ylabel(f1)
+    
+    
     
     if is_logx[0]:
-        ax1.set_xscale("log")
+        plt.xscale("log")
     if is_logx[1]:
-        ax1.set_yscale("log")
+        plt.yscale("log")
         
     cbar = plt.colorbar(hist[3])
     cbar.ax.set_ylabel("Counts")
