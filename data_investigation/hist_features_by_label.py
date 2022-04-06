@@ -153,7 +153,7 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lname, output_pdf, allow_logx=
             if is_feature_categorical:
                 ax.bar(tick_labels, pull, tick_label=tick_labels)
             elif is_feature_numerical:
-                ax.hist(bin_centers, weights=pull, bins=bin_edges)
+                ax.hist(bin_centers, weights=pull, bins=bin_edges, histtype="stepfilled")
 
             ax.set_xlabel(fkey)
         
