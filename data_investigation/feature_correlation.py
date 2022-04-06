@@ -25,7 +25,7 @@ output_file = paths.plots_dir/"feature_correlation.pdf"
 
 # %%
 # Read in the feature keys
-feature_keys = load_feature_keys(["extracted","direct"])
+feature_keys = load_feature_keys(["features_ss_classifier"])
 
 # Read in the feature properties
 fprops = load_feature_properties()
@@ -33,7 +33,8 @@ fprops = load_feature_properties()
 # %%
 # Read in the data
 print("Read in the data...")
-df_data = load_preprocessed_data(N_entries_max=1000000000)
+df_data = load_preprocessed_data(features=feature_keys, 
+                                 N_entries_max=1000000000)
 print("Done reading input")
 
 # %%
@@ -116,8 +117,8 @@ df_highest_corr = df_corr.copy()
 # set lower triangular matrix (with diagonal) to nan
 triu_mask = np.triu(np.ones(df_highest_corr.shape), k=1).astype(bool)
 df_highest_corr.where(triu_mask, np.nan, inplace=True)
-# set all abs values lower than 0.7 to nan
-df_highest_corr.where(np.abs(df_highest_corr)>0.7, np.nan, inplace=True)
+# set all abs values lower than 0.3 to nan
+df_highest_corr.where(np.abs(df_highest_corr)>0.3, np.nan, inplace=True)
 # list of all pairs that have a high correlation
 df_highest_corr.dropna(how="all", inplace=True)
 df_highest_corr = df_highest_corr.stack().reset_index()
@@ -196,7 +197,7 @@ for i, (corr, f0, f1) in tqdm(df_highest_corr.iterrows(), total=df_highest_corr.
     cbar.ax.set_ylabel("Counts")
     
     plt.tight_layout()
-    plt.savefig(output_dir/f"02_pair_plot_{i:02d}_{f0}_{f1}.pdf")
+    plt.savefig(output_dir/f"02_pair_plot_{i:03d}_{f0}_{f1}.pdf")
     #plt.show()
     plt.close()
     
