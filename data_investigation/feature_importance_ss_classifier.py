@@ -163,71 +163,35 @@ for fkey in tqdm(feature_keys, desc="Train without one feature"):
         df_fi.loc[fkey,metric] = temp_results[metric][model.best_iteration]
     df_fi.loc[fkey,"best_iter"] = model.best_iteration
 
+# %%
 # Calculate the differences to the baseline
 for metric in params["eval_metrics"]:
-    df_fi[f"diff_{metric}"] = df_fi[metric] - df_fi.loc["_baseline_",metric]
+    df_fi[f"diff_{metric}"] = df_fi.loc["_baseline_",metric] - df_fi[metric]
+
+df_fi["diff_loss"] = np.exp(-df_fi["logloss"]) - np.exp(-df_fi.loc["_baseline_","logloss"])
 
 # %%
 # Sort the features
-df_fi.sort_values(by="diff_logloss", ascending=False, inplace=True)
+df_fi.sort_values(by="xgb_gain", ascending=False, inplace=True)
 
 # %%
-# Plot the differences to the baseline sorted
-fig, axs = plt.subplots(len(params["eval_metrics"])+1,1, 
-                        figsize=(len(feature_keys)/3, (len(params["eval_metrics"])+1)*5), 
+# Plot the feature importances
+importance_metrics = ["xgb_gain", "perm_balanced_accuracy", "perm_roc_auc", "diff_auc", "diff_logloss", "diff_loss", "best_iter"]
+
+fig, axs = plt.subplots(len(importance_metrics),1, 
+                        figsize=(len(feature_keys)/1.5, len(importance_metrics)*5), 
                         sharex=True)
 
-fig.suptitle("Feature Importance through temporary feature removal\ndifference in the metrics (removed feature - baseline)")
+fig.suptitle(f"Feature Importance, baseline ROC AUC: {df_fi.loc['_baseline_','auc']}")
 
-for i, (ax, metric) in enumerate(zip(axs, params["eval_metrics"])):
-    ax.set_title(f"metric: {metric}\nbaseline value: {df_fi.loc['_baseline_',metric]:.6f}")
-    ax.bar(df_fi.index, df_fi[f"diff_{metric}"], color=f"C{i}")
-    ax.set_ylabel(f"diff_{metric}")
-    ax.tick_params(axis="x", labelbottom=True, labelrotation=90)
-
-axs[-1].set_title("Index of the best iteration")
-axs[-1].bar(df_fi.index, df_fi["best_iter"], color=f"C{i+1}")
-axs[-1].set_ylabel("best_iter")
-axs[-1].tick_params(axis="x", labelbottom=True, labelrotation=90)
-
-plt.tight_layout()
-plt.savefig(output_dir/"01_removal_importance.pdf")
-plt.show()
-
-# %%
-# Plot the permutation importance
-fig, axs = plt.subplots(len(perm_imp_metrics),1, 
-                        figsize=(len(feature_keys)/3, len(perm_imp_metrics)*5), 
-                        sharex=True)
-
-fig.suptitle("Permutation Importance from scikit-learn")
-
-for i, (ax, metric) in enumerate(zip(axs, perm_imp_metrics)):
+for i, (ax, metric) in enumerate(zip(axs, importance_metrics)):
     ax.set_title(f"metric: {metric}")
-    ax.bar(df_fi.index, df_fi[f"perm_{metric}"], color=f"C{i}")
-    ax.set_ylabel(f"perm_{metric}")
-    ax.tick_params(axis="x", labelbottom=True, labelrotation=90)
+    ax.bar(df_fi.index, df_fi[metric], color=f"C{i}")
+    ax.set_ylabel(metric)
+    ax.tick_params(axis="x", labelbottom=True, labelrotation=60)
 
 plt.tight_layout()
-plt.savefig(output_dir/"02_permutation_importance.pdf")
-plt.show()
-
-# %%
-# Plot the XGBoost feature importance
-fig, axs = plt.subplots(len(importance_types),1, 
-                        figsize=(len(feature_keys)/3, len(importance_types)*6), 
-                        sharex=True)
-
-fig.suptitle("XGBoost Internal Feature Importance")
-
-for i, (ax, metric) in enumerate(zip(axs, importance_types)):
-    ax.set_title(f"metric: {metric}")
-    ax.bar(df_fi.index, df_fi[f"xgb_{metric}"], color=f"C{i}")
-    ax.set_ylabel(f"xgb_{metric}")
-    ax.tick_params(axis="x", labelbottom=True, labelrotation=90)
-
-plt.tight_layout()
-plt.savefig(output_dir/"03_xgb_importance.pdf")
+plt.savefig(output_dir/"00_selected_importances.pdf")
 plt.show()
 
 # %%
