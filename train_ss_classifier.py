@@ -11,13 +11,11 @@ from sklearn import metrics as skmetrics
 
 # Imports from this project
 from utils import paths
-from utils.input_output import load_feature_keys, load_preprocessed_data
+from utils.input_output import load_feature_keys, load_feature_properties, load_preprocessed_data
 from utils.merge_pdfs import merge_pdfs
 
 # %%
 # Constant variables
-
-input_file = paths.preprocessed_data_file
 
 # TODO: Save the model
 output_file_model = Path("/ceph/users/nguth/models/BDT_SS/test")
@@ -27,53 +25,65 @@ output_dir_plots.mkdir(parents=True, exist_ok=True)
 
 output_file = paths.plots_dir/"eval_ss_classification.pdf"
 
-N_tracks_max = 1000000
-
-load_batch_size = 100000
-
 params = {
     "test_size" : 0.4,
     "n_estimators" : 500,
-    "max_depth" : 5,
-    "n_threads" : 10,
+    "max_depth" : 4,
+    "learning_rate" : 0.15, # 0.3 is default
+    "n_threads" : 50,
     "early_stopping_rounds" : 20,
-    "scale_pos_weight" : 10,
     "objective" : "binary:logistic",
-    "eval_metric" : ["logloss", "error", "auc"]
+    "eval_metrics" : ["logloss", "error", "auc"]
 }
 
-random_seed = 42
-rng = np.random.default_rng(random_seed)
+# %%
+# Read in the feature keys
+feature_keys = load_feature_keys(["label_ss_classifier","features_ss_classifier"])
+
+# Read in the feature properties
+fprops = load_feature_properties()
 
 # %%
-# Read the input data
+# Read in the data
 print("Read in the data...")
-df = load_preprocessed_data(N_entries_max=1000000, batch_size=100000)
-print("Done reading data")
+df_data = load_preprocessed_data(features=feature_keys, 
+                                 N_entries_max=100000000)
+print("Done reading input")
+
 
 # %%
 # Prepare the data
-feature_keys = load_feature_keys(include_keys=["extracted", "direct"], 
-                                 exclude_keys=["not_for_training"])
-
 label_key = "Tr_is_SS"
+feature_keys.remove(label_key)
 
-X = df[feature_keys]
-y = df[label_key].to_numpy()
+X = df_data[feature_keys]
+y = df_data[label_key].to_numpy()
 
 # Split the data into train and test (with shuffling)
 temp = train_test_split(X, y, 
-                          test_size=params["test_size"], 
-                          shuffle=True, 
-                          stratify=y)
+                        test_size=params["test_size"], 
+                        shuffle=True, 
+                        stratify=y)
 X_train, X_test, y_train, y_test = temp
 
 print(f"Training Tracks: {len(y_train)}")
 print(f"Test Tracks: {len(y_test)}")
 
 # %%
-# Train a BDT
+# Build the BDT
+params["scale_pos_weight"] = np.sum(y == 0)/np.sum(y == 1)
 
+print(f"scale_pos_weight = {params['scale_pos_weight']}")
+
+model = xgb.XGBClassifier(n_estimators=params["n_estimators"],
+                    max_depth=params["max_depth"], 
+                    learning_rate=params["learning_rate"],
+                    nthread=params["n_threads"],
+                    objective=params["objective"],
+                    scale_pos_weight=params["scale_pos_weight"],
+                    use_label_encoder=False)
+
+# Callback for a progress bar of the training
 class XGBProgressCallback(xgb.callback.TrainingCallback):
     """Show a progressbar using TQDM while training"""
     def __init__(self, rounds=None, desc=None):
@@ -87,23 +97,16 @@ class XGBProgressCallback(xgb.callback.TrainingCallback):
         self.pbar.close()
         return model
 
-# define the BDT
-bdt = xgb.XGBClassifier(n_estimators=params["n_estimators"],
-                        max_depth=params["max_depth"], 
-                        nthread=params["n_threads"],
-                        objective=params["objective"],
-                        scale_pos_weight=params["scale_pos_weight"],
-                        use_label_encoder=False)
-
+# %%
 # Train the BDT
-bdt.fit(X_train, y_train, 
-        eval_set=[(X_train, y_train), (X_test, y_test)], 
-        eval_metric=params["eval_metric"],
-        early_stopping_rounds=params["early_stopping_rounds"],
-        verbose=0,
-        callbacks=[XGBProgressCallback(params["n_estimators"], "BDT Training")])
-
-
+model.fit(X_train, y_train, 
+          eval_set=[(X_train, y_train), (X_test, y_test)], 
+          eval_metric=params["eval_metrics"],
+          early_stopping_rounds=params["early_stopping_rounds"],
+          verbose=0,
+          callbacks=[XGBProgressCallback(rounds=params["n_estimators"], 
+                                         desc="BDT Train Baseline")]
+          )
 
 
 # %%
@@ -114,8 +117,8 @@ bdt.fit(X_train, y_train,
 # Evaluate the training
 
 # Error rate during training
-validation_score = bdt.evals_result()
-for i, metric in enumerate(params["eval_metric"]):
+validation_score = model.evals_result()
+for i, metric in enumerate(params["eval_metrics"]):
     iteration = range(len(validation_score["validation_0"][metric]))
     plt.figure(figsize=(8, 6))
     plt.title(f"training performance ({metric})")
@@ -134,7 +137,7 @@ for i, metric in enumerate(params["eval_metric"]):
 df_fi = pd.DataFrame({"feature":feature_keys})
 importance_types = ["weight", "gain", "total_gain", "cover", "total_cover"]
 for imp_type in importance_types:
-    scores = bdt.get_booster().get_score(importance_type=imp_type)
+    scores = model.get_booster().get_score(importance_type=imp_type)
     df_fi[imp_type] = df_fi["feature"].map(scores)
     # norm on 1
     df_fi[imp_type] /= df_fi[imp_type].sum()
@@ -163,7 +166,7 @@ plt.show()
 # Evaluate the model on test data
 
 # get predictions
-y_pred_proba = bdt.predict_proba(X_test)
+y_pred_proba = model.predict_proba(X_test)
 
 # %%
 # ROC curve
