@@ -107,6 +107,7 @@ def load_preprocessed_data(features=None, N_entries_max=np.Infinity, batch_size=
         pandas.DataFrame
     """
     if isinstance(features, list):
+        features = features.copy()
         features.extend(["index", "event_id", "track_id"])
     
     df = load_data_from_root(paths.preprocessed_data_file, features=features, N_entries_max=N_entries_max, batch_size=batch_size)
