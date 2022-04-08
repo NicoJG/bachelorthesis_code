@@ -1,37 +1,29 @@
 # %%
 # Imports
-from pathlib import Path
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from sklearn import metrics as skmetrics
+import json
+import pickle
 
 # Imports from this project
 from utils import paths
 from utils.input_output import load_feature_keys, load_feature_properties, load_preprocessed_data
-from utils.merge_pdfs import merge_pdfs
 
 # %%
 # Constant variables
+paths.ss_classifier_dir.mkdir(parents=True, exist_ok=True)
 
-# TODO: Save the model
-output_file_model = Path("/ceph/users/nguth/models/BDT_SS/test")
-
-output_dir_plots = paths.plots_dir/"SS_classifier_training"
-output_dir_plots.mkdir(parents=True, exist_ok=True)
-
-output_file = paths.plots_dir/"eval_ss_classification.pdf"
-
+# Parameters of the model
 params = {
     "test_size" : 0.4,
-    "n_estimators" : 500,
+    "n_estimators" : 2000,
     "max_depth" : 5,
     "learning_rate" : 0.1, # 0.3 is default
     "n_threads" : 50,
-    "early_stopping_rounds" : 50,
+    "early_stopping_rounds" : 5000000,
     "objective" : "binary:logistic",
     "eval_metrics" : ["logloss", "error", "auc"]
 }
@@ -47,7 +39,7 @@ fprops = load_feature_properties()
 # Read in the data
 print("Read in the data...")
 df_data = load_preprocessed_data(features=feature_keys, 
-                                 N_entries_max=100000000)
+                                 N_entries_max=10000000000)
 print("Done reading input")
 
 
@@ -59,6 +51,7 @@ feature_keys.remove(label_key)
 X = df_data[feature_keys]
 y = df_data[label_key].to_numpy()
 
+# %%
 # Split the data into train and test (with shuffling)
 temp = train_test_split(X, y, 
                         test_size=params["test_size"], 
@@ -68,6 +61,15 @@ X_train, X_test, y_train, y_test = temp
 
 print(f"Training Tracks: {len(y_train)}")
 print(f"Test Tracks: {len(y_test)}")
+
+# Save the indices of the train test split
+train_idxs = X_train.index.to_list()
+test_idxs = X_test.index.to_list()
+
+with open(paths.ss_classifier_train_test_split_file, "w") as file:
+    json.dump({"train_idxs":train_idxs,"test_idxs":test_idxs}, 
+              fp=file, 
+              indent=2)
 
 # %%
 # Build the BDT
@@ -83,6 +85,7 @@ model = xgb.XGBClassifier(n_estimators=params["n_estimators"],
                     scale_pos_weight=params["scale_pos_weight"],
                     use_label_encoder=False)
 
+# %%
 # Callback for a progress bar of the training
 class XGBProgressCallback(xgb.callback.TrainingCallback):
     """Show a progressbar using TQDM while training"""
@@ -105,121 +108,16 @@ model.fit(X_train, y_train,
           early_stopping_rounds=params["early_stopping_rounds"],
           verbose=0,
           callbacks=[XGBProgressCallback(rounds=params["n_estimators"], 
-                                         desc="BDT Train Baseline")]
+                                         desc="BDT Train")]
           )
 
-
 # %%
-###############
-# Evaluation
-###############
-# %%
-# Evaluate the training
-
-# Error rate during training
-validation_score = model.evals_result()
-for i, metric in enumerate(params["eval_metrics"]):
-    iteration = range(len(validation_score["validation_0"][metric]))
-    plt.figure(figsize=(8, 6))
-    plt.title(f"training performance ({metric})")
-    plt.plot(iteration, validation_score["validation_0"][metric], label="training data")
-    plt.plot(iteration, validation_score["validation_1"][metric], label="test data")
-    plt.xlabel("iteration")
-    plt.ylabel(metric)
-    plt.legend()
-    plt.savefig(output_dir_plots/f"00_train_performance_{i}_{metric}.pdf")
-    plt.show()
-
-# %%
-# Evaluate the model on test data
-
-# get predictions
-y_pred_proba = model.predict_proba(X_test)
-
-# %%
-# ROC curve
-fpr, tpr, _ = skmetrics.roc_curve(y_test, y_pred_proba[:, 1])
-auc = skmetrics.auc(fpr, tpr)
-plt.figure(figsize=(8, 6))
-plt.title(f"ROC curve, AUC={auc:.4f}")
-plt.plot(fpr, tpr)
-plt.xlabel("False positive rate (background)")
-plt.ylabel("True positive rate (sameside)")
-plt.savefig(output_dir_plots/"02_roc.pdf")
-plt.show()
-
-# %%
-# Probability Distribution
-plt.figure(figsize=(8,6))
-plt.title("Distribution of the probabilities")
-plt.hist(y_pred_proba[y_test==0][:,1], histtype="step", bins=200, range=(0.0, 1.0), density=True, label="other (ground truth)")
-plt.hist(y_pred_proba[y_test==1][:,1], histtype="step", bins=200, range=(0.0, 1.0), density=True, label="SS (ground truth)")
-plt.yscale("log")
-plt.xlabel("Prediction Probability of SS")
-plt.ylabel("density (logarithmic)")
-plt.legend()
-plt.savefig(output_dir_plots/"03_hist_proba.pdf")
-plt.show()
-
-# %%
-# Analysis of different cuts
-cut_linspace = np.linspace(0,1,1000)
+# Save the parameters
+with open(paths.ss_classifier_parameters_file, "w") as file:
+    json.dump(params, file, indent=2)
     
-def rates_for_cut(cut, y_true, y_pred_proba, pbar=None):
-    y_pred = (y_pred_proba[:,1] >= cut).astype(int)
-    tp = np.sum((y_true == 1) & (y_pred == 1))
-    fp = np.sum((y_true == 0) & (y_pred == 1))
-    fn = np.sum((y_true == 1) & (y_pred == 0))
-    tn = np.sum((y_true == 0) & (y_pred == 0))
-    if isinstance(pbar, tqdm):
-        pbar.update(1)
-    return tp,fp,fn,tn
-
-tp,fp,fn,tn = np.apply_along_axis(rates_for_cut, 1,cut_linspace[:,np.newaxis], y_test, y_pred_proba, tqdm(total=len(cut_linspace), desc="Calc tp,fp,fn,tn")).T
-
-# %%
-# Plot the rates for every cut
-tpr = tp/(tp+fn)
-fnr = fn/(tp+fn)
-tnr = tn/(tn+fp)
-fpr = fp/(tn+fp)
-
-plt.figure(figsize=(8,6))
-plt.title("Prediction rates for every cut")
-plt.plot(cut_linspace, tpr, label="tpr (True Positive Rate)", linestyle="dashed")
-plt.plot(cut_linspace, fnr, label="fnr (False Negative Rate)", linestyle="dashed")
-plt.plot(cut_linspace, tnr, label="tnr (True Negative Rate)")
-plt.plot(cut_linspace, fpr, label="fpr (False Positive Rate)")
-plt.xlabel("Cut")
-#plt.yscale("log")
-plt.legend()
-plt.savefig(output_dir_plots/"04_pred_rates.pdf")
-plt.show()
-
-# %%
-# Plot various metrics for every cut
-accuracy = (tp+tn)/(tp+tn+fp+fn)
-#precision = tp/(tp+fp)
-recall = tp/(tp+fn)
-specificity = tn/(tn+fp)
-balanced_accuracy = (recall+specificity)/2
-signal_over_bkg = tp/(tn+fp+fn)
-
-plt.figure(figsize=(8,6))
-plt.title("Various metrics for every cut")
-plt.plot(cut_linspace, accuracy, label="accuracy")
-plt.plot(cut_linspace, balanced_accuracy, label="balanced accuracy")
-#plt.plot(cut_linspace, precision, label="precision")
-plt.plot(cut_linspace, recall, linestyle="dashed", label="recall/efficiency for SS")
-plt.plot(cut_linspace, specificity, linestyle="dotted", label="specificity/efficiency for other")
-plt.plot(cut_linspace, signal_over_bkg, linestyle="dashdot", label="TP/(TN+FP+FN)")
-plt.xlabel("Cut")
-plt.legend()
-plt.savefig(output_dir_plots/"05_metrics.pdf")
-plt.show()
-
-# %%
-# Merge all evaluation plots
-merge_pdfs(output_dir_plots, output_file)
-
+# Save the model
+with open(paths.ss_classifier_model_file, "wb") as file:
+    pickle.dump(model, file)
+    
 # %%
