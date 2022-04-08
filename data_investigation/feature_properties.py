@@ -36,9 +36,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import json
 from pathlib import Path
+import re
 
 # Imports from this project
-sys.path.insert(0, Path(__file__).parent.parent.parent)
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils import paths
 from utils.input_output import load_feature_keys, load_features_dict, load_feature_properties, load_preprocessed_data
 
@@ -189,10 +190,10 @@ class NpEncoder(json.JSONEncoder):
 with open(paths.feature_properties_file, "w") as file:
     fprops_json = json.dumps(fprops, indent=2, cls=NpEncoder)
     # delete all line breaks in lists (between [ and ] )
-    # TODO with RegEx
+    # https://stackoverflow.com/questions/71742728/regex-match-line-breaks-or-spaces-between-square-brackets
+    fprops_json = re.sub(r"\[[^][]*]", lambda z: re.sub(r'\s+', '', z.group()), fprops_json)
     file.write(fprops_json)
 
 # %%
-# TODO: set float precision in json.dump
 # TODO: make functions
 # TODO: make code more clean

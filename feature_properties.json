@@ -3,97 +3,49 @@
     "mc_only": true,
     "int_only": true,
     "feature_type": "categorical",
-    "category_values": [
-      0,
-      1
-    ],
-    "category_names": [
-      "other",
-      "SS"
-    ]
+    "category_values": [0,1],
+    "category_names": ["other","SS"]
   },
   "B_is_strange": {
     "mc_only": true,
     "int_only": true,
     "feature_type": "categorical",
-    "category_values": [
-      0,
-      1
-    ],
-    "category_names": [
-      "Bd",
-      "Bs"
-    ]
+    "category_values": [0,1],
+    "category_names": ["Bd","Bs"]
   },
   "decay_id": {
     "mc_only": true,
     "int_only": true,
     "feature_type": "categorical",
-    "category_values": [
-      0,
-      1
-    ],
-    "category_names": [
-      "B2JpsiKstar",
-      "Bs2DsPi"
-    ]
+    "category_values": [0,1],
+    "category_names": ["B2JpsiKstar","Bs2DsPi"]
   },
   "B_ID": {
     "mc_only": true,
     "int_only": true,
     "feature_type": "categorical",
-    "category_values": [
-      -511,
-      511
-    ],
-    "category_names": [
-      "B0",
-      "B0_anti"
-    ]
+    "category_values": [-511,511],
+    "category_names": ["B0","B0_anti"]
   },
   "B_TRUEID": {
     "mc_only": true,
     "int_only": true,
     "feature_type": "categorical",
-    "category_values": [
-      -531,
-      -511,
-      511,
-      531
-    ],
-    "category_names": [
-      "Bs_anti",
-      "Bd_anti",
-      "Bd",
-      "Bs"
-    ]
+    "category_values": [-531,-511,511,531],
+    "category_names": ["Bs_anti","Bd_anti","Bd","Bs"]
   },
   "Tr_ORIG_FLAGS": {
     "mc_only": true,
     "int_only": true,
     "feature_type": "categorical",
-    "category_values": [
-      -1,
-      1,
-      2,
-      3,
-      4,
-      5,
-      102,
-      103,
-      104,
-      105
-    ],
+    "category_values": [-1,1,2,3,4,5,102,103,104,105],
     "category_names": []
   },
   "input_file_id": {
     "mc_only": false,
     "int_only": true,
     "feature_type": "categorical",
-    "category_values": [
-      0,
-      1
-    ],
+    "category_values": [0,1],
     "category_names": []
   },
   "Tr_diff_z": {
@@ -178,10 +130,7 @@
     "mc_only": false,
     "int_only": true,
     "feature_type": "categorical",
-    "category_values": [
-      0,
-      1
-    ],
+    "category_values": [0,1],
     "category_names": []
   },
   "Tr_T_ACHI2DOCA": {
@@ -253,10 +202,7 @@
     "mc_only": false,
     "int_only": true,
     "feature_type": "categorical",
-    "category_values": [
-      -1,
-      0
-    ],
+    "category_values": [-1,0],
     "category_names": []
   },
   "Tr_T_Best_PAIR_M_fromiso": {
@@ -289,10 +235,7 @@
     "mc_only": false,
     "int_only": true,
     "feature_type": "categorical",
-    "category_values": [
-      -1,
-      1
-    ],
+    "category_values": [-1,1],
     "category_names": []
   },
   "Tr_T_ConIso_p_ult": {
@@ -417,10 +360,7 @@
     "mc_only": false,
     "int_only": true,
     "feature_type": "categorical",
-    "category_values": [
-      0,
-      1
-    ],
+    "category_values": [0,1],
     "category_names": []
   },
   "Tr_T_MinBDT_sigtr": {
@@ -753,10 +693,7 @@
     "mc_only": false,
     "int_only": true,
     "feature_type": "categorical",
-    "category_values": [
-      0,
-      1
-    ],
+    "category_values": [0,1],
     "category_names": []
   },
   "Tr_T_SumBDT_sigtr": {
@@ -921,10 +858,7 @@
     "mc_only": false,
     "int_only": true,
     "feature_type": "categorical",
-    "category_values": [
-      3,
-      4
-    ],
+    "category_values": [3,4],
     "category_names": []
   },
   "Tr_T_TrFIRSTHITZ": {
