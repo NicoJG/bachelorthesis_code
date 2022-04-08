@@ -34,7 +34,7 @@ feature_props = load_feature_properties()
 # %%
 # Read the input data
 print("Read in the data...")
-df = load_preprocessed_data(N_entries_max=100000)
+df = load_preprocessed_data(N_entries_max=100000000)
 print("Done reading input")
 
 # %%
@@ -60,17 +60,18 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
     
     elif add_logy and not add_logx:
         # structure with gridding
-        # normal | logy (3) 
-        # -------------
-        # pull   | pull (1)
-        # (1)    | (1)
-        fig = plt.figure(figsize=(10,7))
+        # normal (3) 
+        # --------
+        # logy   (3)
+        # -------
+        # pull   (1)
+        # (1)
+        fig = plt.figure(figsize=(10,12))
 
-        axs["normal"] = plt.subplot2grid((4,2), (0,0), rowspan=3, colspan=1)
-        axs["logy"]   = plt.subplot2grid((4,2), (0,1), rowspan=3, colspan=1)
+        axs["normal"] = plt.subplot2grid((7,1), (0,0), rowspan=3, colspan=1)
+        axs["logy"]   = plt.subplot2grid((7,1), (3,0), rowspan=3, colspan=1)
 
-        axs["pull_normal"] = plt.subplot2grid((4,2), (3,0), rowspan=1, sharex=axs["normal"])
-        axs["pull_logy"]   = plt.subplot2grid((4,2), (3,1), rowspan=1, sharex=axs["logy"])
+        axs["pull_normal"] = plt.subplot2grid((7,1), (6,0), rowspan=1, sharex=axs["normal"])
     elif add_logx and not add_logy:
         # structure with gridding
         # normal | logx (3) 
@@ -251,7 +252,7 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=
     if fprops["feature_type"] == "categorical":
         hist_categorical_feature_by_label(axs["normal"], axs["pull_normal"], df, fkey, fprops, lkey, lvalues, lvalue_names)
         if "logy" in axs.keys():
-            hist_categorical_feature_by_label(axs["logy"], axs["pull_logy"], df, fkey, fprops, lkey, lvalues, lvalue_names)
+            hist_categorical_feature_by_label(axs["logy"], None, df, fkey, fprops, lkey, lvalues, lvalue_names)
     elif fprops["feature_type"] == "numerical":
         for ax_key in ["normal", "logx", "logy", "logx_logy"]:
             if ax_key in axs.keys():
