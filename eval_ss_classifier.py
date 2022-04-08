@@ -16,6 +16,8 @@ from utils.merge_pdfs import merge_pdfs
 # %%
 # Constants
 output_dir = paths.plots_dir/"eval_ss_classifier"
+output_dir.mkdir(parents=True, exist_ok=True)
+
 output_file = paths.plots_dir/"eval_ss_classifier.pdf"
 
 # %%
@@ -45,10 +47,10 @@ with open(paths.ss_classifier_train_test_split_file, "r") as file:
     ttsplit = json.load(file)
     
 # Apply the train test split
-X_train = X[ttsplit["train_idxs"]]
+X_train = X.loc[ttsplit["train_idxs"],:]
 y_train = y[ttsplit["train_idxs"]]
 
-X_test = X[ttsplit["test_idxs"]]
+X_test = X.loc[ttsplit["test_idxs"],:]
 y_test = y[ttsplit["test_idxs"]]
 
 # %%
@@ -66,7 +68,7 @@ with open(paths.ss_classifier_parameters_file, "r") as file:
 # Plot the training history of multiple metrics
 train_history = model.evals_result()
 for i, metric in enumerate(train_params["eval_metrics"]):
-    iteration = range(len(train_history["validation_0"][metric]))
+    iteration = list(range(len(train_history["validation_0"][metric])))
     plt.figure(figsize=(8, 6))
     plt.title(f"training performance ({metric})")
     plt.plot(iteration, train_history["validation_0"][metric], label="training data")
@@ -83,7 +85,7 @@ for i, metric in enumerate(train_params["eval_metrics"]):
 # get predictions
 y_pred_proba = model.predict_proba(X_test)
 
-y_pred_train_proba = model.predic_proba(X_train)
+y_pred_train_proba = model.predict_proba(X_train)
 
 # %%
 # Probability Distribution of the train data
@@ -92,7 +94,7 @@ plt.title("Distribution of the prediction output (train data)")
 plt.hist(y_pred_train_proba[y_train==0][:,1], histtype="step", bins=200, range=(0.0, 1.0), density=True, label="other (ground truth)")
 plt.hist(y_pred_train_proba[y_train==1][:,1], histtype="step", bins=200, range=(0.0, 1.0), density=True, label="SS (ground truth)")
 plt.yscale("log")
-plt.xlabel("Prediction Probability of SS")
+plt.xlabel("Prediction Output of the SS classifier")
 plt.ylabel("density (logarithmic)")
 plt.legend()
 plt.savefig(output_dir/"02_01_hist_proba_train.pdf")
@@ -105,7 +107,7 @@ plt.title("Distribution of the prediction output (test data)")
 plt.hist(y_pred_proba[y_test==0][:,1], histtype="step", bins=200, range=(0.0, 1.0), density=True, label="other (ground truth)")
 plt.hist(y_pred_proba[y_test==1][:,1], histtype="step", bins=200, range=(0.0, 1.0), density=True, label="SS (ground truth)")
 plt.yscale("log")
-plt.xlabel("Prediction Probability of SS")
+plt.xlabel("Prediction Output of the SS classifier")
 plt.ylabel("density (logarithmic)")
 plt.legend()
 plt.savefig(output_dir/"02_02_hist_proba_test.pdf")
