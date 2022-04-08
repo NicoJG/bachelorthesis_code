@@ -121,6 +121,9 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
     axs["pull_normal"].set_ylabel("pull")
     axs["pull_normal"].set_xlabel(fkey)
     
+    if "logy" in axs.keys():
+        axs["logy"].set_ylabel("density")
+    
     if "pull_logx" in axs.keys():
         axs["pull_logx"].set_xlabel(fkey)
     
@@ -249,19 +252,22 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=
         plot_title += f"\nwithout the error value {error_val} (proportion: {error_val_proportion*100:.2f}%)"
     fig.suptitle(plot_title)
         
-    if fprops["feature_type"] == "categorical":
-        hist_categorical_feature_by_label(axs["normal"], axs["pull_normal"], df, fkey, fprops, lkey, lvalues, lvalue_names)
-        if "logy" in axs.keys():
-            hist_categorical_feature_by_label(axs["logy"], None, df, fkey, fprops, lkey, lvalues, lvalue_names)
-    elif fprops["feature_type"] == "numerical":
-        for ax_key in ["normal", "logx", "logy", "logx_logy"]:
-            if ax_key in axs.keys():
-                is_logx = "logx" in ax_key
-                if f"pull_{ax_key}" in axs.keys():
-                    pull_ax = axs[f"pull_{ax_key}"]
-                else:
-                    pull_ax = None
-                hist_numerical_feature_by_label(axs[ax_key], pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names)
+    # fill all the axes with the according histogram
+    for ax_key in ["normal", "logx", "logy", "logx_logy"]:
+        if ax_key in axs.keys():
+            ax = axs[ax_key]
+            is_logx = "logx" in ax_key
+            if f"pull_{ax_key}" in axs.keys():
+                pull_ax = axs[f"pull_{ax_key}"]
+            else:
+                pull_ax = None
+        
+            if fprops["feature_type"] == "categorical":
+                hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names)
+            elif fprops["feature_type"] == "numerical":
+                hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names)
+        
+        ax.legend(loc="best")
     
     fig.tight_layout()
     fig.savefig(output_file)
@@ -282,10 +288,10 @@ def plot_feature(label_key, feature_key):
                           add_logy=True)
     
 for label_key in label_keys:
-    output_label_dir = output_dir / f"features_by_{label_key}_"
+    output_label_dir = output_dir / f"features_by_{label_key}"
     output_label_dir.mkdir(parents=True, exist_ok=True)
     
-    output_label_file = output_dir / f"features_by_{label_key}_.pdf"
+    output_label_file = output_dir / f"features_by_{label_key}.pdf"
     
     with Pool(50) as p:
         list(tqdm(p.imap(partial(plot_feature, label_key), feature_keys), 
