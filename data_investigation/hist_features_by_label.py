@@ -286,53 +286,5 @@ for label_key in label_keys:
                               add_logy=True)
         
     merge_pdfs(output_label_dir, output_label_file)
-
-
-
+    
 # %%
-
-# strange Features:
-
-# B flavour:
-# Tr_diff_pt
-# Tr_T_ACHI2DOCA
-# Tr_T_ShareSamePVasSignal
-
-# look weird:
-# Tr_T_Best_PAIR_DCHI
-# Tr_T_IPCHI2_trMother
-# Tr_T_VeloCharge (zackig)
-# Tr_T_IP_trMother
-
-
-# SS vs other:
-# Tr_T_VeloCharge
-# Tr_T_AALLSAMEBP
-# Tr_T_ShareSamePVasSignal
-# Tr_T_SumMinBDT_ult
-
-# Features with visual difference
-
-# B flavour
-# Tr_diff_pt
-# Tr_diff_p 
-# Tr_diff_eta
-# Tr_T_ACHI2DOCA
-# Tr_T_SumBDT_sigtr
-# Tr_T_SumBDT_ult
-# Tr_T_NbNonIsoTr_MinBDT_ult
-# Tr_T_SumMinBDT_ult 
-
-# SS vs other
-# Tr_diff_z
-# Tr_diff_eta 
-# Tr_T_Sum_of_trackp
-# Tr_T_Ntr_incone
-# Tr_T_THETA
-# Tr_T_Sum_of_trackpt
-# Tr_T_SumBDT_ult
-# Tr_T_Cone_asym_Pt
-# Tr_T_Eta
-# Tr_T_PT
-# Tr_T_ConIso_pt_ult
-# Tr_T_ConIso_p_ult
