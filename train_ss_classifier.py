@@ -28,10 +28,10 @@ output_file = paths.plots_dir/"eval_ss_classification.pdf"
 params = {
     "test_size" : 0.4,
     "n_estimators" : 500,
-    "max_depth" : 4,
-    "learning_rate" : 0.15, # 0.3 is default
+    "max_depth" : 5,
+    "learning_rate" : 0.1, # 0.3 is default
     "n_threads" : 50,
-    "early_stopping_rounds" : 20,
+    "early_stopping_rounds" : 50,
     "objective" : "binary:logistic",
     "eval_metrics" : ["logloss", "error", "auc"]
 }
@@ -47,7 +47,7 @@ fprops = load_feature_properties()
 # Read in the data
 print("Read in the data...")
 df_data = load_preprocessed_data(features=feature_keys, 
-                                 N_entries_max=100000000)
+                                 N_entries_max=1000)
 print("Done reading input")
 
 
@@ -131,38 +131,6 @@ for i, metric in enumerate(params["eval_metrics"]):
     plt.show()
 
 # %%
-# Feature Importance
-# https://towardsdatascience.com/be-careful-when-interpreting-your-features-importance-in-xgboost-6e16132588e7
-# Build the dataframe
-df_fi = pd.DataFrame({"feature":feature_keys})
-importance_types = ["weight", "gain", "total_gain", "cover", "total_cover"]
-for imp_type in importance_types:
-    scores = model.get_booster().get_score(importance_type=imp_type)
-    df_fi[imp_type] = df_fi["feature"].map(scores)
-    # norm on 1
-    df_fi[imp_type] /= df_fi[imp_type].sum()
-
-# Sort the features
-df_fi.sort_values(by="gain", ascending=False, inplace=True)
-
-# Show in Text version
-#with pd.option_context('display.min_rows',14):
-#    print(df_fi)
-df_fi.to_csv(output_dir_plots/"feature_importance.csv")
-
-# Plot the Feature importance
-fig, axs = plt.subplots(len(importance_types), 1,figsize=(len(feature_keys), len(importance_types)*5), sharex=True)
-fig.suptitle("Feature Importance", fontsize=40, y=0.995)
-for i, (imp_type, ax) in enumerate(zip(importance_types, axs)):
-    ax.bar(df_fi["feature"], df_fi[imp_type], color=f"C{i}",zorder=3)
-    ax.set_ylabel(imp_type, fontsize=30)
-    ax.grid(zorder=0)
-    ax.tick_params(axis="x", labelbottom=True, labelrotation=45)
-plt.tight_layout()
-plt.savefig(output_dir_plots/"01_feature_importance.pdf")
-plt.show()
-
-# %%
 # Evaluate the model on test data
 
 # get predictions
@@ -211,12 +179,17 @@ tp,fp,fn,tn = np.apply_along_axis(rates_for_cut, 1,cut_linspace[:,np.newaxis], y
 
 # %%
 # Plot the rates for every cut
+tpr = tp/(tp+fn)
+fnr = fn/(tp+fn)
+tnr = tn/(tn+fp)
+fpr = fp/(tn+fp)
+
 plt.figure(figsize=(8,6))
 plt.title("Prediction rates for every cut")
-plt.plot(cut_linspace, tp, label="tp (True Positive)", linestyle="dashed")
-plt.plot(cut_linspace, fn, label="fn (False Negative)", linestyle="dashed")
-plt.plot(cut_linspace, tn, label="tn (True Negative)")
-plt.plot(cut_linspace, fp, label="fp (False Positive)")
+plt.plot(cut_linspace, tpr, label="tpr (True Positive Rate)", linestyle="dashed")
+plt.plot(cut_linspace, fnr, label="fnr (False Negative Rate)", linestyle="dashed")
+plt.plot(cut_linspace, tnr, label="tnr (True Negative Rate)")
+plt.plot(cut_linspace, fpr, label="fpr (False Positive Rate)")
 plt.xlabel("Cut")
 #plt.yscale("log")
 plt.legend()
