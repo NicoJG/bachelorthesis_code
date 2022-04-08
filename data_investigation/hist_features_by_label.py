@@ -92,7 +92,7 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
         # -------------
         # pull   | pull          (1)
         # (1)    | (1)
-        fig = plt.figure(figsize=(10,14))
+        fig = plt.figure(figsize=(10,12))
 
         axs["normal"] = plt.subplot2grid((7,2), (0,0), rowspan=3, colspan=1)
         axs["logx"]   = plt.subplot2grid((7,2), (0,1), rowspan=3, colspan=1)
@@ -125,7 +125,8 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
     
     return fig, axs
 
-def hist_categorical_feature_by_label(axs, df, fkey, fprops, lkey, lvalues, lvalue_names):
+
+def hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names):
     # save the histogrammed values for the pull plot
     x = []
     sigma = []
@@ -154,7 +155,7 @@ def hist_categorical_feature_by_label(axs, df, fkey, fprops, lkey, lvalues, lval
             tick_labels = [f"{fval}" for fval in fvalues]
             
         # plot the bar plot
-        axs["normal"].bar(tick_labels, x_normed, yerr=sigma_normed,
+        ax.bar(tick_labels, x_normed, yerr=sigma_normed,
                           tick_label=tick_labels,
                           fill=False,
                           label=lvalue_name,
@@ -163,11 +164,12 @@ def hist_categorical_feature_by_label(axs, df, fkey, fprops, lkey, lvalues, lval
                           linestyle=ls)
     
     # plot the pull plot
-    if "pull_normal" in axs.keys():
+    if pull_ax is not None:
         pull = calc_pull(x[0], x[1], sigma[0], sigma[1])
-        axs["pull_normal"].bar(tick_labels, pull, tick_label=tick_labels)
+        pull_ax.bar(tick_labels, pull, tick_label=tick_labels)
     
-def hist_numerical_feature_by_label(axs, df, fkey, fprops, lkey, lvalues, lvalue_names):
+    
+def hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names):
     # save the histogrammed values for the pull plot
     x = []
     sigma = []
@@ -182,7 +184,7 @@ def hist_numerical_feature_by_label(axs, df, fkey, fprops, lkey, lvalues, lvalue
                                 lower_quantile=0.0001,
                                 higher_quantile=0.9999,
                                 allow_logx=False,
-                                force_logx=False)
+                                force_logx=is_logx)
     bin_edges, bin_centers, _ = bin_res
         
     
@@ -194,7 +196,7 @@ def hist_numerical_feature_by_label(axs, df, fkey, fprops, lkey, lvalues, lvalue
         sigma.append(sigma_normed)
         
         # plot the hist with errorbars
-        axs["normal"].hist(bin_centers, 
+        ax.hist(bin_centers, 
                            weights=x_normed, 
                            bins=bin_edges, 
                            histtype="step", 
@@ -202,21 +204,20 @@ def hist_numerical_feature_by_label(axs, df, fkey, fprops, lkey, lvalues, lvalue
                            color=c,
                            linestyle=ls,
                            alpha=0.8)
-        axs["normal"].errorbar(bin_centers, x_normed, 
+        ax.errorbar(bin_centers, x_normed, 
                                yerr=sigma_normed, 
                                fmt="none", 
                                color=c,
                                alpha=0.8)
     
     # plot the pull plot
-    if "pull_normal" in axs.keys():
+    if pull_ax is not None:
         pull = calc_pull(x[0], x[1], sigma[0], sigma[1])
         
-        axs["pull_normal"].hist(bin_centers, 
-                                weights=pull, 
-                                bins=bin_edges, 
-                                histtype="stepfilled")
-        
+        pull_ax.hist(bin_centers, 
+                     weights=pull, 
+                     bins=bin_edges, 
+                     histtype="stepfilled")
     
 
 def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=False, add_logy=False):
@@ -232,8 +233,8 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=
         
     draw_pull = len(lvalues)==2
     
-    # only add logarithmic x axis if the feature is float numerical
-    add_logx = add_logx and fprops["feature_type"]=="numerical" and not fprops["int_only"]
+    # only add logarithmic x axis if the feature is float numerical and x_min>0
+    add_logx = add_logx and fprops["feature_type"]=="numerical" and not fprops["int_only"] and fprops["quantile_0.0001"]>0.0
     
     # prepare the subplots
     fig, axs = prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey)
@@ -248,9 +249,18 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=
     fig.suptitle(plot_title)
         
     if fprops["feature_type"] == "categorical":
-        hist_categorical_feature_by_label(axs, df, fkey, fprops, lkey, lvalues, lvalue_names)
+        hist_categorical_feature_by_label(axs["normal"], axs["pull_normal"], df, fkey, fprops, lkey, lvalues, lvalue_names)
+        if "logy" in axs.keys():
+            hist_categorical_feature_by_label(axs["logy"], axs["pull_logy"], df, fkey, fprops, lkey, lvalues, lvalue_names)
     elif fprops["feature_type"] == "numerical":
-        hist_numerical_feature_by_label(axs, df, fkey, fprops, lkey, lvalues, lvalue_names)
+        for ax_key in ["normal", "logx", "logy", "logx_logy"]:
+            if ax_key in axs.keys():
+                is_logx = "logx" in ax_key
+                if f"pull_{ax_key}" in axs.keys():
+                    pull_ax = axs[f"pull_{ax_key}"]
+                else:
+                    pull_ax = None
+                hist_numerical_feature_by_label(axs[ax_key], pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names)
     
     fig.tight_layout()
     fig.savefig(output_file)
