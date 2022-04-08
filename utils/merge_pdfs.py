@@ -21,6 +21,8 @@ def merge_pdfs(input_dir, output_file):
 
     pdf_files = [str(file) for file in input_dir.glob("*.pdf") if file.is_file()]
     
+    assert len(pdf_files) > 0, f"There are no PDF files in '{str(input_dir)}' to merge."
+    
     pdf_files = sorted(pdf_files)
 
     merger = PdfFileMerger()
