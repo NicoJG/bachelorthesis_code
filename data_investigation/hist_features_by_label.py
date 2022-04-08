@@ -66,7 +66,7 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
         # -------
         # pull   (1)
         # (1)
-        fig = plt.figure(figsize=(10,12))
+        fig = plt.figure(figsize=(5,10))
 
         axs["normal"] = plt.subplot2grid((7,1), (0,0), rowspan=3, colspan=1)
         axs["logy"]   = plt.subplot2grid((7,1), (3,0), rowspan=3, colspan=1)
@@ -93,7 +93,7 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
         # -------------
         # pull   | pull          (1)
         # (1)    | (1)
-        fig = plt.figure(figsize=(10,12))
+        fig = plt.figure(figsize=(10,10))
 
         axs["normal"] = plt.subplot2grid((7,2), (0,0), rowspan=3, colspan=1)
         axs["logx"]   = plt.subplot2grid((7,2), (0,1), rowspan=3, colspan=1)
@@ -269,22 +269,29 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=
 
 # %%
 # Hist of all features by all labels
+from multiprocessing import Pool
+from functools import partial
 
+def plot_feature(label_key, feature_key):
+    output_file = output_label_dir/f"{feature_key}.pdf"
+    hist_feature_by_label(df, 
+                          feature_key, feature_props[feature_key], 
+                          label_key, feature_props[label_key],
+                          output_file,
+                          add_logx=True,
+                          add_logy=True)
+    
 for label_key in label_keys:
-    output_label_dir = output_dir / f"features_by_{label_key}"
+    output_label_dir = output_dir / f"features_by_{label_key}_"
     output_label_dir.mkdir(parents=True, exist_ok=True)
     
-    output_label_file = output_dir / f"features_by_{label_key}.pdf"
-
-    for feature_key in tqdm(feature_keys, f"Features by {label_key}"):
-        output_file = output_label_dir/f"{feature_key}.pdf"
-        hist_feature_by_label(df, 
-                              feature_key, feature_props[feature_key], 
-                              label_key, feature_props[label_key],
-                              output_file,
-                              add_logx=True,
-                              add_logy=True)
-        
-    merge_pdfs(output_label_dir, output_label_file)
+    output_label_file = output_dir / f"features_by_{label_key}_.pdf"
     
+    with Pool(50) as p:
+        list(tqdm(p.imap(partial(plot_feature, label_key), feature_keys), 
+                  total=len(feature_keys),
+                  desc=f"Features by {label_key}"))
+
+    merge_pdfs(output_label_dir, output_label_file)
+
 # %%
