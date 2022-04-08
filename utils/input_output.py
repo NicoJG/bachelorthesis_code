@@ -45,6 +45,10 @@ def load_feature_keys(include_keys, exclude_keys=None):
             features_to_remove = features_dict[k]
             for f in features_to_remove:
                 feature_keys.remove(f)
+                
+    # remove all duplicates and only keep the first occurence
+    # https://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-whilst-preserving-order
+    feature_keys = list(dict.fromkeys(feature_keys))
         
     return feature_keys
 
