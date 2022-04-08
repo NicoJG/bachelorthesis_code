@@ -47,7 +47,7 @@ fprops = load_feature_properties()
 # Read in the data
 print("Read in the data...")
 df_data = load_preprocessed_data(features=feature_keys, 
-                                 N_entries_max=1000)
+                                 N_entries_max=100000000)
 print("Done reading input")
 
 
