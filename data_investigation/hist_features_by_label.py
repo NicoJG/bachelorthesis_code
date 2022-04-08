@@ -1,6 +1,7 @@
 # %%
 # Imports
 import sys
+from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,10 +9,11 @@ from tqdm.auto import tqdm
 from matplotlib.backends.backend_pdf import PdfPages
 
 # Imports from this project
-sys.path.insert(0,'..')
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils import paths
 from utils.input_output import load_feature_keys, load_feature_properties, load_preprocessed_data
 from utils.histograms import find_good_binning, get_hist, calc_pull
+from utils.merge_pdfs import merge_pdfs
 
 # %%
 # Constant variables
@@ -32,172 +34,248 @@ feature_props = load_feature_properties()
 # %%
 # Read the input data
 print("Read in the data...")
-df = load_preprocessed_data(N_entries_max=10000000000)
+df = load_preprocessed_data(N_entries_max=100000)
 print("Done reading input")
 
 # %%
-# Histogram function
-def hist_feature_by_label(df, fkey, fprops, lkey, lname, output_pdf, allow_logx=True, force_logx=False):
+# Histogram functions
+def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
+    "Returns the figure and axes of what to plot on in a grid depending on whether to also plot additional plots with logarthmic axes"
+    if not draw_pull:
+        raise RuntimeError("Not drawing a pull plot is not implemented")
     
-    is_feature_int_only = fprops[fkey]["int_only"]
-    is_label_binary = len(fprops[lkey]["category_values"]) == 2
-    is_feature_categorical = fprops[fkey]["feature_type"] == "categorical"
-    is_feature_numerical = fprops[fkey]["feature_type"] == "numerical"
-    assert is_feature_categorical or is_feature_numerical, f"The feature {fkey} is not categorical and not numerical..."
+    axs = {}
     
-    lvalues = fprops[lkey]["category_values"]
-    lvalue_names = fprops[lkey]["category_names"]
-    if not lvalue_names:
-        lvalue_names = lvalues
+    if not add_logx and not add_logy:
+        # structure with gridding
+        # normal (3) 
+        # ------
+        # pull   (1)
+        # (1)
+        fig = plt.figure(figsize=(5,7))
+
+        axs["normal"] = plt.subplot2grid((4,1), (0,0), rowspan=3, colspan=1)
+
+        axs["pull_normal"] = plt.subplot2grid((4,1), (3,0), rowspan=1, sharex=axs["normal"])
     
-    # prepare the subplots
-    if is_label_binary:
-        # prepare the pull plot
+    elif add_logy and not add_logx:
+        # structure with gridding
+        # normal | logy (3) 
+        # -------------
+        # pull   | pull (1)
+        # (1)    | (1)
         fig = plt.figure(figsize=(10,7))
 
-        ax0 = plt.subplot2grid((4,2), (0,0), rowspan=3, colspan=1)
-        ax1 = plt.subplot2grid((4,2), (0,1), rowspan=3, colspan=1)
-        axs = [ax0, ax1]
+        axs["normal"] = plt.subplot2grid((4,2), (0,0), rowspan=3, colspan=1)
+        axs["logy"]   = plt.subplot2grid((4,2), (0,1), rowspan=3, colspan=1)
 
-        ax0 = plt.subplot2grid((4,2), (3,0), rowspan=1, sharex=ax0)
-        ax1 = plt.subplot2grid((4,2), (3,1), rowspan=1, sharex=ax1)
-        axs_pull = [ax0, ax1]
-    else:
-        fig, axs = plt.subplots(1, 2, figsize=(10,5), sharex=True)
+        axs["pull_normal"] = plt.subplot2grid((4,2), (3,0), rowspan=1, sharex=axs["normal"])
+        axs["pull_logy"]   = plt.subplot2grid((4,2), (3,1), rowspan=1, sharex=axs["logy"])
+    elif add_logx and not add_logy:
+        # structure with gridding
+        # normal | logx (3) 
+        # -------------
+        # pull   | pull (1)
+        # (1)    | (1)
+        fig = plt.figure(figsize=(10,7))
 
-    if "error_value" in fprops[fkey].keys():
-        error_val = fprops[fkey]['error_value']
-        error_val_counts = (df[fkey] == error_val).sum()
-        error_val_proportion = error_val_counts / df.shape[0]
-        fig.suptitle(f"{fkey} by {lname} ({lkey})\n without the error value {error_val} (proportion: {error_val_proportion*100:.2f}%)")
-    else:
-        fig.suptitle(f"{fkey} by {lname} ({lkey})")
+        axs["normal"] = plt.subplot2grid((4,2), (0,0), rowspan=3, colspan=1)
+        axs["logx"]   = plt.subplot2grid((4,2), (0,1), rowspan=3, colspan=1)
+
+        axs["pull_normal"] = plt.subplot2grid((4,2), (3,0), rowspan=1, sharex=axs["normal"])
+        axs["pull_logx"]   = plt.subplot2grid((4,2), (3,1), rowspan=1, sharex=axs["logx"])
+    elif add_logx and add_logx:
+        # structure with gridding
+        # normal | logx          (3) 
+        # -------------
+        # logy   | logx and logy (3) 
+        # -------------
+        # pull   | pull          (1)
+        # (1)    | (1)
+        fig = plt.figure(figsize=(10,14))
+
+        axs["normal"] = plt.subplot2grid((7,2), (0,0), rowspan=3, colspan=1)
+        axs["logx"]   = plt.subplot2grid((7,2), (0,1), rowspan=3, colspan=1)
+        
+        axs["logy"]        = plt.subplot2grid((7,2), (3,0), rowspan=3, sharex=axs["normal"])
+        axs["logx_logy"]   = plt.subplot2grid((7,2), (3,1), rowspan=3, sharex=axs["logx"])
+
+        axs["pull_normal"] = plt.subplot2grid((7,2), (6,0), rowspan=1, sharex=axs["normal"])
+        axs["pull_logx"]   = plt.subplot2grid((7,2), (6,1), rowspan=1, sharex=axs["logx"])
+        
+    # set up the x and y scales
+    if "logx" in axs.keys():
+        axs["logx"].set_xscale("log")
+    if "logy" in axs.keys():
+        axs["logy"].set_yscale("log")
+    if "logx_logy" in axs.keys():
+        axs["logx_logy"].set_xscale("log")
+        axs["logx_logy"].set_yscale("log")
+        
+    if "pull_logx" in axs.keys():
+        axs["pull_logx"].set_xscale("log")
     
-    if is_feature_numerical:
-        bin_edges, bin_centers, is_logx = find_good_binning(fprops[fkey], 
-                                                            n_bins_max=300, 
-                                                            lower_quantile=0.0001,
-                                                            higher_quantile=0.9999,
-                                                            allow_logx=allow_logx,
-                                                            force_logx=force_logx)
-    elif is_feature_categorical:
-        fvalues = fprops[fkey]["category_values"]
-        fvalue_names = fprops[fkey]["category_names"]
-        is_logx = False
-    else:
-        raise RuntimeError(f"The feature {fkey} is not categorical and not numerical")
+    # set up the axis labels
+    axs["normal"].set_ylabel("density")
+    axs["pull_normal"].set_ylabel("pull")
+    axs["pull_normal"].set_xlabel(fkey)
     
+    if "pull_logx" in axs.keys():
+        axs["pull_logx"].set_xlabel(fkey)
+    
+    return fig, axs
+
+def hist_categorical_feature_by_label(axs, df, fkey, fprops, lkey, lvalues, lvalue_names):
+    # save the histogrammed values for the pull plot
+    x = []
+    sigma = []
+    
+    # different colors and linestyles for each label value
+    line_styles = ["solid","solid","dotted","dotted","dased","dashed"]
+    colors = [f"C{i}" for i in range(10)]
+    
+    # get the binning (category values)
+    fvalues = fprops["category_values"]
+    fvalue_names = fprops["category_names"]
+    
+    # iterate through each label value
+    for lvalue, lvalue_name, ls, c in zip(lvalues, lvalue_names, line_styles, colors):
+        x_normed, sigma_normed = get_hist(x=df.query(f"{lkey}=={lvalue}")[fkey],
+                                          is_categorical=True,
+                                          categorical_values=fvalues,
+                                          normed=True)
+        
+        x.append(x_normed)
+        sigma.append(sigma_normed)
+        
+        if fvalue_names:
+            tick_labels = [f"{fval}\n{fval_name}" for fval, fval_name in zip(fvalues, fvalue_names)]
+        else:
+            tick_labels = [f"{fval}" for fval in fvalues]
+            
+        # plot the bar plot
+        axs["normal"].bar(tick_labels, x_normed, yerr=sigma_normed,
+                          tick_label=tick_labels,
+                          fill=False,
+                          label=lvalue_name,
+                          edgecolor=c,
+                          ecolor=c,
+                          linestyle=ls)
+    
+    # plot the pull plot
+    if "pull_normal" in axs.keys():
+        pull = calc_pull(x[0], x[1], sigma[0], sigma[1])
+        axs["pull_normal"].bar(tick_labels, pull, tick_label=tick_labels)
+    
+def hist_numerical_feature_by_label(axs, df, fkey, fprops, lkey, lvalues, lvalue_names):
+    # save the histogrammed values for the pull plot
     x = []
     sigma = []
 
+    # different colors and linestyles for each label value
     line_styles = ["solid","solid","dotted","dotted","dased","dashed"]
     colors = [f"C{i}" for i in range(10)]
-
-    for lvalue, lvalue_name, ls, c in zip(lvalues, lvalue_names, line_styles, colors):
+    
+    # calculate the binning
+    bin_res = find_good_binning(fprops, 
+                                n_bins_max=300, 
+                                lower_quantile=0.0001,
+                                higher_quantile=0.9999,
+                                allow_logx=False,
+                                force_logx=False)
+    bin_edges, bin_centers, _ = bin_res
         
-        if is_feature_numerical:
-            x_normed, sigma_normed = get_hist(x=df.query(f"{lkey}=={lvalue}")[fkey], 
-                                              bin_edges=bin_edges, 
-                                              normed=True)
-        elif is_feature_categorical:
-            x_normed, sigma_normed = get_hist(x=df.query(f"{lkey}=={lvalue}")[fkey],
-                                              is_categorical=True,
-                                              categorical_values=fvalues,
-                                              normed=True)
-            
+    
+    # iterate through each label value
+    for lvalue, lvalue_name, ls, c in zip(lvalues, lvalue_names, line_styles, colors):
+        x_normed, sigma_normed = get_hist(x=df.query(f"{lkey}=={lvalue}")[fkey], bin_edges=bin_edges, normed=True)
+        
         x.append(x_normed)
         sigma.append(sigma_normed)
-
-        for ax in axs:
-            if is_feature_categorical:
-                if fvalue_names:
-                    tick_labels = [f"{fval}\n{fval_name}" for fval, fval_name in zip(fvalues, fvalue_names)]
-                else:
-                    tick_labels = [f"{fval}" for fval in fvalues]
-                ax.bar(tick_labels, x_normed, yerr=sigma_normed,
-                       tick_label=tick_labels,
-                       fill=False,
-                       label=lvalue_name,
-                       edgecolor=c,
-                       ecolor=c,
-                       linestyle=ls)
-                
-            elif is_feature_numerical:
-                ax.hist(bin_centers, 
-                        weights=x_normed, 
-                        bins=bin_edges, 
-                        histtype="step", 
-                        label=lvalue_name, 
-                        color=c,
-                        linestyle=ls,
-                        alpha=0.8)
-                ax.errorbar(bin_centers, x_normed, yerr=sigma_normed, 
-                            fmt="none", 
-                            color=c,
-                            alpha=0.8)
-
-    axs[0].set_ylabel("Frequency")
-    axs[0].legend(loc="best")
-
-    axs[1].set_yscale("log")
-    axs[1].legend(loc="best")
-
-    if is_logx:
-        axs[0].set_xscale("log")
-        axs[1].set_xscale("log")
-
-    if is_label_binary:
-        pull = calc_pull(x[0], x[1], sigma[0], sigma[1])
-
-        for ax in axs_pull:
-            if is_feature_categorical:
-                ax.bar(tick_labels, pull, tick_label=tick_labels)
-            elif is_feature_numerical:
-                ax.hist(bin_centers, weights=pull, bins=bin_edges, histtype="stepfilled")
-
-            ax.set_xlabel(fkey)
         
-        axs_pull[0].set_ylabel("Pull")
-    else:
-        for ax in axs:
-            ax.set_xlabel(fkey)
+        # plot the hist with errorbars
+        axs["normal"].hist(bin_centers, 
+                           weights=x_normed, 
+                           bins=bin_edges, 
+                           histtype="step", 
+                           label=lvalue_name, 
+                           color=c,
+                           linestyle=ls,
+                           alpha=0.8)
+        axs["normal"].errorbar(bin_centers, x_normed, 
+                               yerr=sigma_normed, 
+                               fmt="none", 
+                               color=c,
+                               alpha=0.8)
+    
+    # plot the pull plot
+    if "pull_normal" in axs.keys():
+        pull = calc_pull(x[0], x[1], sigma[0], sigma[1])
+        
+        axs["pull_normal"].hist(bin_centers, 
+                                weights=pull, 
+                                bins=bin_edges, 
+                                histtype="stepfilled")
+        
+    
+
+def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=False, add_logy=False):
+    
+    assert lprops["feature_type"] == "categorical", f"The label ({lkey}) has to be categorical."
+    
+    assert fprops["feature_type"] in ["categorical", "numerical"], f"The feature ({fkey}) is not categorical and not numerical..."
+    
+    lvalues = lprops["category_values"]
+    lvalue_names = lprops["category_names"]
+    if not lvalue_names:
+        lvalue_names = lvalues
+        
+    draw_pull = len(lvalues)==2
+    
+    # only add logarithmic x axis if the feature is float numerical
+    add_logx = add_logx and fprops["feature_type"]=="numerical" and not fprops["int_only"]
+    
+    # prepare the subplots
+    fig, axs = prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey)
+
+    # set the figure title
+    plot_title = f"{fkey} by {lkey}"
+    if "error_value" in fprops.keys():
+        error_val = fprops['error_value']
+        error_val_counts = (df[fkey] == error_val).sum()
+        error_val_proportion = error_val_counts / df.shape[0]
+        plot_title += f"\nwithout the error value {error_val} (proportion: {error_val_proportion*100:.2f}%)"
+    fig.suptitle(plot_title)
+        
+    if fprops["feature_type"] == "categorical":
+        hist_categorical_feature_by_label(axs, df, fkey, fprops, lkey, lvalues, lvalue_names)
+    elif fprops["feature_type"] == "numerical":
+        hist_numerical_feature_by_label(axs, df, fkey, fprops, lkey, lvalues, lvalue_names)
     
     fig.tight_layout()
-
-    assert isinstance(output_pdf, PdfPages), "output_pdf must be matplotlib.backends.backend_pdf.PdfPages"
-    output_pdf.savefig(fig)
-    
+    fig.savefig(output_file)
     plt.close()
-
-    return is_logx
 
 # %%
 # Hist of all features by all labels
 
 for label_key in label_keys:
-    output_file = output_dir / f"features_by_{label_key}.pdf"
-
-    output_pdf = PdfPages(output_file)
+    output_label_dir = output_dir / f"features_by_{label_key}"
+    output_label_dir.mkdir(parents=True, exist_ok=True)
     
-    output_logx_file = output_dir / f"features_by_{label_key}_logx.pdf"
-
-    output_logx_pdf = PdfPages(output_logx_file)
+    output_label_file = output_dir / f"features_by_{label_key}.pdf"
 
     for feature_key in tqdm(feature_keys, f"Features by {label_key}"):
-        hist_feature_by_label(df, feature_key, feature_props, 
-                              label_key, 
-                              label_names[label_key],
-                              output_pdf,
-                              allow_logx=False)
+        output_file = output_label_dir/f"{feature_key}.pdf"
+        hist_feature_by_label(df, 
+                              feature_key, feature_props[feature_key], 
+                              label_key, feature_props[label_key],
+                              output_file,
+                              add_logx=True,
+                              add_logy=True)
         
-        hist_feature_by_label(df, feature_key, feature_props, 
-                              label_key, 
-                              label_names[label_key],
-                              output_logx_pdf,
-                              force_logx=True)
+    merge_pdfs(output_label_dir, output_label_file)
 
-    output_pdf.close()
-    output_logx_pdf.close()
 
 
 # %%
