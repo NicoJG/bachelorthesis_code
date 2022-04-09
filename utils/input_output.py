@@ -89,7 +89,9 @@ def load_data_from_root(file_path, tree_key="DecayTree", features=None, N_entrie
     # Read the input data
 
     df = pd.DataFrame()
-    with uproot.open(file_path)[tree_key] as tree:
+    with uproot.open(file_path, 
+                     file_handler=uproot.MultithreadedFileSource, 
+                     num_workers=10)[tree_key] as tree:
         tree_iter = tree.iterate(entry_stop=N_entries, 
                                  step_size=batch_size, 
                                  filter_name=features,
@@ -99,7 +101,7 @@ def load_data_from_root(file_path, tree_key="DecayTree", features=None, N_entrie
     
     return df
 
-def load_preprocessed_data(features=None, N_entries_max=np.Infinity, batch_size=100000):
+def load_preprocessed_data(features=None, N_entries_max=np.Infinity, batch_size=1000000):
     """Read in the already preprocessed data
 
     Args:
