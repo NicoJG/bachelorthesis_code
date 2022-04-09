@@ -24,7 +24,7 @@ params = {
         "max_depth" : 5,
         "learning_rate" : 0.3, # 0.3 is default
         "scale_pos_weight" : "TO BE SET",
-        "max_delta_step" : 0,
+        "max_delta_step" : 10,
         "objective" : "binary:logistic",
         "nthreads" : 50,
         "tree_method" : "hist",

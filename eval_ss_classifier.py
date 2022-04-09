@@ -19,7 +19,7 @@ from utils.histograms import get_hist
 output_dir = paths.plots_dir/"eval_ss_classifier"
 output_dir.mkdir(parents=True, exist_ok=True)
 
-output_file = paths.plots_dir/"eval_ss_classifier.pdf"
+output_file = paths.ss_classifier_dir/"eval_ss_classifier.pdf"
 
 # %%
 # Read in the feature keys
