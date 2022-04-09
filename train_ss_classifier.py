@@ -19,14 +19,23 @@ paths.ss_classifier_dir.mkdir(parents=True, exist_ok=True)
 # Parameters of the model
 params = {
     "test_size" : 0.4,
-    "n_estimators" : 2000,
-    "max_depth" : 5,
-    "learning_rate" : 0.1, # 0.3 is default
-    "n_threads" : 50,
-    "early_stopping_rounds" : 5000000,
-    "objective" : "binary:logistic",
-    "eval_metrics" : ["logloss", "error", "auc"]
-}
+    "model_params" : {
+        "n_estimators" : 1000,
+        "max_depth" : 5,
+        "learning_rate" : 0.3, # 0.3 is default
+        "scale_pos_weight" : "TO BE SET",
+        "max_delta_step" : 0,
+        "objective" : "binary:logistic",
+        "nthreads" : 50,
+        "tree_method" : "hist",
+    },
+    "train_params" : {
+        #"early_stopping_rounds" : 50,
+        "eval_metric" : ["logloss", "error", "auc", "map"],
+        "verbose" : 0,
+    }
+    }
+    # training parameters
 
 # %%
 # Read in the feature keys
@@ -62,28 +71,19 @@ X_train, X_test, y_train, y_test = temp
 print(f"Training Tracks: {len(y_train)}")
 print(f"Test Tracks: {len(y_test)}")
 
-# Save the indices of the train test split
-train_idxs = X_train.index.to_list()
-test_idxs = X_test.index.to_list()
+params["n_tracks"] = len(y)
+params["n_tracks_train"] = len(y_train)
+params["n_tracks_test"] = len(y_test)
 
-with open(paths.ss_classifier_train_test_split_file, "w") as file:
-    json.dump({"train_idxs":train_idxs,"test_idxs":test_idxs}, 
-              fp=file, 
-              indent=2)
 
 # %%
 # Build the BDT
-params["scale_pos_weight"] = np.sum(y == 0)/np.sum(y == 1)
+scale_pos_weight = np.sum(y == 0)/np.sum(y == 1)
+params["model_params"]["scale_pos_weight"] = scale_pos_weight
 
-print(f"scale_pos_weight = {params['scale_pos_weight']}")
+print(f"scale_pos_weight = {scale_pos_weight}")
 
-model = xgb.XGBClassifier(n_estimators=params["n_estimators"],
-                    max_depth=params["max_depth"], 
-                    learning_rate=params["learning_rate"],
-                    nthread=params["n_threads"],
-                    objective=params["objective"],
-                    scale_pos_weight=params["scale_pos_weight"],
-                    use_label_encoder=False)
+model = xgb.XGBClassifier(**params["model_params"], use_label_encoder=False)
 
 # %%
 # Callback for a progress bar of the training
@@ -104,14 +104,20 @@ class XGBProgressCallback(xgb.callback.TrainingCallback):
 # Train the BDT
 model.fit(X_train, y_train, 
           eval_set=[(X_train, y_train), (X_test, y_test)], 
-          eval_metric=params["eval_metrics"],
-          early_stopping_rounds=params["early_stopping_rounds"],
-          verbose=0,
-          callbacks=[XGBProgressCallback(rounds=params["n_estimators"], 
-                                         desc="BDT Train")]
+          **params["train_params"],
+          callbacks=[XGBProgressCallback(rounds=params["model_params"]["n_estimators"], desc="BDT Train")]
           )
 
 # %%
+# Save the indices of the train test split
+train_idxs = X_train.index.to_list()
+test_idxs = X_test.index.to_list()
+
+with open(paths.ss_classifier_train_test_split_file, "w") as file:
+    json.dump({"train_idxs":train_idxs,"test_idxs":test_idxs}, 
+              fp=file, 
+              indent=2)
+    
 # Save the parameters
 with open(paths.ss_classifier_parameters_file, "w") as file:
     json.dump(params, file, indent=2)
