@@ -94,9 +94,6 @@ y_pred_proba_test = model.predict_proba(X_test)
 
 # %%
 # Probability Distribution of both the train and the test data
-plt.figure(figsize=(8,6))
-plt.title("distribution of the prediction output of the BDT")
-
 # binning
 n_bins = 200
 hist_range = (0.0, 1.0)
@@ -116,6 +113,10 @@ colors = ["C0", "C1", "C0", "C1"]
 plot_types = ["hist", "hist", "errorbar", "errorbar"]
 alphas = [0.5, 0.5, 0.5, 0.5]
 
+# Plot with log y-axis
+plt.figure(figsize=(8,6))
+plt.title("distribution of the prediction output of the BDT")
+
 for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, alphas):
     x, sigma = get_hist(y_pred_proba, bin_edges, normed=True)
     if pt == "hist":
@@ -127,7 +128,24 @@ plt.yscale("log")
 plt.xlabel("BDT output")
 plt.ylabel("density")
 plt.legend()
-plt.savefig(output_dir/"02_hist_output.pdf")
+plt.savefig(output_dir/"02_hist_output_logy.pdf")
+plt.show()
+
+# Plot with normal y-axis
+plt.figure(figsize=(8,6))
+plt.title("distribution of the prediction output of the BDT")
+
+for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, alphas):
+    x, sigma = get_hist(y_pred_proba, bin_edges, normed=True)
+    if pt == "hist":
+        plt.hist(bin_centers, weights=x, bins=bin_edges, histtype="stepfilled", color=c, alpha=a, label=l)
+    elif pt == "errorbar":
+        plt.errorbar(bin_centers, x, yerr=sigma, xerr=bin_widths/2, ecolor=c, label=l, fmt="none", elinewidth=1.0)
+
+plt.xlabel("BDT output")
+plt.ylabel("density")
+plt.legend()
+plt.savefig(output_dir/"02_hist_output_normal.pdf")
 plt.show()
 
 # %%
@@ -157,14 +175,29 @@ fnr = fn/(tp+fn)
 tnr = tn/(tn+fp)
 fpr = fp/(tn+fp)
 
+# for training data
+tp_train,fp_train,fn_train,tn_train = np.apply_along_axis(rates_for_cut, 
+                                  1,
+                                  cut_linspace[:,np.newaxis], 
+                                  y_train, y_pred_proba_train, 
+                                  tqdm(total=len(cut_linspace), 
+                                       desc="Calc tp,fp,fn,tn")).T
+
+# calculate the rates
+tpr_train = tp_train/(tp_train+fn_train)
+fpr_train = fp_train/(tn_train+fp_train)
+
 # %%
 # ROC curve
 auc = skmetrics.auc(fpr, tpr)
+auc_train = skmetrics.auc(fpr_train, tpr_train)
 plt.figure(figsize=(8, 6))
-plt.title(f"ROC curve, AUC={auc:.4f}")
-plt.plot(fpr, tpr)
+plt.title(f"ROC curve, AUC=(test: {auc:.4f}, train: {auc_train:.4f})")
+plt.plot(fpr, tpr, label="test data")
+plt.plot(fpr_train, tpr_train, alpha=0.5, label="train data")
 plt.xlabel("False positive rate (background)")
 plt.ylabel("True positive rate (sameside)")
+plt.legend()
 plt.savefig(output_dir/"03_roc.pdf")
 plt.show()
 
@@ -201,6 +234,12 @@ plt.plot(cut_linspace, balanced_accuracy, label="balanced accuracy")
 plt.plot(cut_linspace, recall, linestyle="dashed", label="recall/efficiency for SS/TPR")
 plt.plot(cut_linspace, specificity, linestyle="dotted", label="specificity/efficiency for other/TNR")
 #plt.plot(cut_linspace, f1_score, linestyle="dashdot", label="F1 score")
+
+max_balanced_acc_idx = np.argmax(balanced_accuracy)
+max_balanced_acc_cut = cut_linspace[max_balanced_acc_idx]
+max_balanced_acc = balanced_accuracy[max_balanced_acc_idx]
+
+plt.axvline(max_balanced_acc_cut, alpha=0.3, linestyle="dotted", label=f"max balanced acc : ({max_balanced_acc_cut:.4f}, {max_balanced_acc:.4f})")
 
 plt.xlim(0.2,0.8)
 plt.ylim(0.2,1.0)
