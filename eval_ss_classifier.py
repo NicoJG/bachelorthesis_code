@@ -22,8 +22,14 @@ output_dir.mkdir(parents=True, exist_ok=True)
 output_file = paths.ss_classifier_dir/"eval_ss_classifier.pdf"
 
 # %%
-# Read in the feature keys
-feature_keys = load_feature_keys(["label_ss_classifier","features_ss_classifier"])
+# Read in the model parameters
+with open(paths.ss_classifier_parameters_file, "r") as file:
+    params = json.load(file)
+    train_params = params["train_params"]
+    model_params = params["model_params"]
+
+label_key = params["label_key"]
+feature_keys = params["feature_keys"]
 
 # Read in the feature properties
 fprops = load_feature_properties()
@@ -31,15 +37,12 @@ fprops = load_feature_properties()
 # %%
 # Read in the data
 print("Read in the data...")
-df_data = load_preprocessed_data(features=feature_keys, 
+df_data = load_preprocessed_data(features=[label_key]+feature_keys, 
                                  N_entries_max=1000000000)
 print("Done reading input")
     
 # %%
 # Prepare the data
-label_key = "Tr_is_SS"
-feature_keys.remove(label_key)
-
 X = df_data[feature_keys]
 y = df_data[label_key].to_numpy()
 
@@ -187,16 +190,21 @@ accuracy = (tp+tn)/(tp+tn+fp+fn)
 recall = tp/(tp+fn)
 specificity = tn/(tn+fp)
 balanced_accuracy = (recall+specificity)/2
-signal_over_bkg = tp/(tn+fp+fn)
+#f1_score = 2*tp/(2*tp+fp+fn)
+#signal_over_bkg = tp/(tn+fp+fn)
 
 plt.figure(figsize=(8,6))
 plt.title("Various metrics for every cut")
 plt.plot(cut_linspace, accuracy, label="accuracy")
 plt.plot(cut_linspace, balanced_accuracy, label="balanced accuracy")
 #plt.plot(cut_linspace, precision, label="precision")
-plt.plot(cut_linspace, recall, linestyle="dashed", label="recall/efficiency for SS")
-plt.plot(cut_linspace, specificity, linestyle="dotted", label="specificity/efficiency for other")
-plt.plot(cut_linspace, signal_over_bkg, linestyle="dashdot", label="TP/(TN+FP+FN)")
+plt.plot(cut_linspace, recall, linestyle="dashed", label="recall/efficiency for SS/TPR")
+plt.plot(cut_linspace, specificity, linestyle="dotted", label="specificity/efficiency for other/TNR")
+#plt.plot(cut_linspace, f1_score, linestyle="dashdot", label="F1 score")
+
+plt.xlim(0.2,0.8)
+plt.ylim(0.2,1.0)
+
 plt.xlabel("Cut")
 plt.legend()
 plt.savefig(output_dir/"05_metrics.pdf")

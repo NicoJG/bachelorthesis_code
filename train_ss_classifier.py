@@ -31,7 +31,7 @@ params = {
     },
     "train_params" : {
         #"early_stopping_rounds" : 50,
-        "eval_metric" : ["logloss", "error", "auc", "map"],
+        "eval_metric" : ["logloss", "error", "auc", "aucpr", "map"],
         "verbose" : 0,
     }
     }
@@ -56,6 +56,9 @@ print("Done reading input")
 # Prepare the data
 label_key = "Tr_is_SS"
 feature_keys.remove(label_key)
+
+params["label_key"] = label_key
+params["feature_keys"] = feature_keys
 
 X = df_data[feature_keys]
 y = df_data[label_key].to_numpy()
