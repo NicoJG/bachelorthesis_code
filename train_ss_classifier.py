@@ -7,6 +7,7 @@ import xgboost as xgb
 from sklearn.model_selection import train_test_split
 import json
 import pickle
+from datetime import datetime
 
 # Imports from this project
 from utils import paths
@@ -14,20 +15,26 @@ from utils.input_output import load_feature_keys, load_feature_properties, load_
 
 # %%
 # Constant variables
+datetime_str = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+paths.update_ss_classifier_dir(f"SS_classifier_{datetime_str}")
+
 paths.ss_classifier_dir.mkdir(parents=True, exist_ok=True)
 
 # Parameters of the model
 params = {
     "test_size" : 0.4,
     "model_params" : {
-        "n_estimators" : 1000,
-        "max_depth" : 5,
-        "learning_rate" : 0.3, # 0.3 is default
-        "scale_pos_weight" : "TO BE SET",
-        "max_delta_step" : 10,
+        "n_estimators" : 100,
+        "max_depth" : 4,
+        "learning_rate" : 0.1, # 0.3 is default
+        #"max_delta_step" : 0,
+        #"reg_lambda" : 1.0, # L2 regularization
+        #"subsample" : 1.0,
+        "scale_pos_weight" : "TO BE SET", # sum(negative instances) / sum(positive instances)
         "objective" : "binary:logistic",
         "nthreads" : 50,
         "tree_method" : "hist",
+        #"num_parallel_tree" : 1
     },
     "train_params" : {
         #"early_stopping_rounds" : 50,

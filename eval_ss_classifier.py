@@ -16,10 +16,10 @@ from utils.histograms import get_hist
 
 # %%
 # Constants
-output_dir = paths.plots_dir/"eval_ss_classifier"
-output_dir.mkdir(parents=True, exist_ok=True)
+paths.update_ss_classifier_dir("SS_classifier")
 
-output_file = paths.ss_classifier_dir/"eval_ss_classifier.pdf"
+output_dir = paths.ss_classifier_eval_dir
+output_dir.mkdir(exist_ok=True)
 
 # %%
 # Read in the model parameters
@@ -251,6 +251,6 @@ plt.show()
 
 # %%
 # Merge all evaluation plots
-merge_pdfs(output_dir, output_file)
+merge_pdfs(output_dir, paths.ss_classifier_eval_file)
 
 # %%
