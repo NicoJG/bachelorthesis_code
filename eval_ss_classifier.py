@@ -7,6 +7,7 @@ from tqdm.auto import tqdm
 import json
 import pickle
 import sklearn.metrics as skmetrics
+from argparse import ArgumentParser
 
 # Imports from this project
 from utils import paths
@@ -16,7 +17,14 @@ from utils.histograms import get_hist
 
 # %%
 # Constants
-paths.update_ss_classifier_dir("SS_classifier")
+parser = ArgumentParser()
+parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
+args = parser.parse_args()
+
+if "model_name" in args:
+    paths.update_ss_classifier_name(args.model_name)
+else:
+    paths.update_ss_classifier_name("SS_classifier")
 
 output_dir = paths.ss_classifier_eval_dir
 output_dir.mkdir(exist_ok=True)
@@ -83,7 +91,7 @@ for i, metric in enumerate(train_params["eval_metric"]):
     plt.ylabel(metric)
     plt.legend()
     plt.savefig(output_dir/f"00_train_performance_{i:02d}_{metric}.pdf")
-    plt.show()
+    plt.close()
 
 # %%
 # Evaluate the model on test data
@@ -129,7 +137,7 @@ plt.xlabel("BDT output")
 plt.ylabel("density")
 plt.legend()
 plt.savefig(output_dir/"02_hist_output_logy.pdf")
-plt.show()
+plt.close()
 
 # Plot with normal y-axis
 plt.figure(figsize=(8,6))
@@ -146,7 +154,7 @@ plt.xlabel("BDT output")
 plt.ylabel("density")
 plt.legend()
 plt.savefig(output_dir/"02_hist_output_normal.pdf")
-plt.show()
+plt.close()
 
 # %%
 # Analysis of different cuts
@@ -199,7 +207,7 @@ plt.xlabel("False positive rate (background)")
 plt.ylabel("True positive rate (sameside)")
 plt.legend()
 plt.savefig(output_dir/"03_roc.pdf")
-plt.show()
+plt.close()
 
 # %%
 # Plot the rates for every cut
@@ -214,7 +222,7 @@ plt.xlabel("Cut")
 #plt.yscale("log")
 plt.legend()
 plt.savefig(output_dir/"04_pred_rates.pdf")
-plt.show()
+plt.close()
 
 # %%
 # Plot various metrics for every cut
@@ -247,7 +255,7 @@ plt.ylim(0.2,1.0)
 plt.xlabel("Cut")
 plt.legend()
 plt.savefig(output_dir/"05_metrics.pdf")
-plt.show()
+plt.close()
 
 # %%
 # Merge all evaluation plots

@@ -19,7 +19,7 @@ preprocessed_data_file = data_dir/"preprocessed_mc_Sim9b.root"
 models_dir = Path("/ceph/users/nguth/models")
 
 # Paths to trained models for SS classification
-def update_ss_classifier_dir(dir_name):
+def update_ss_classifier_name(dir_name):
     global ss_classifier_dir, ss_classifier_model_file, ss_classifier_parameters_file, ss_classifier_train_test_split_file, ss_classifier_eval_dir, ss_classifier_eval_file
     
     assert isinstance(dir_name, str), f"Please provide a str of what to add after '{str(models_dir)}/'!"
@@ -31,7 +31,7 @@ def update_ss_classifier_dir(dir_name):
     ss_classifier_eval_dir = ss_classifier_dir/"eval_plots"
     ss_classifier_eval_file = ss_classifier_dir/"eval_ss_classifier.pdf"
     
-update_ss_classifier_dir("SS_classifier")
+update_ss_classifier_name("SS_classifier")
 
 
 # Create directories that do not exist, that should exist always

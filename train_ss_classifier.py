@@ -7,7 +7,7 @@ import xgboost as xgb
 from sklearn.model_selection import train_test_split
 import json
 import pickle
-from datetime import datetime
+from argparse import ArgumentParser
 
 # Imports from this project
 from utils import paths
@@ -15,8 +15,15 @@ from utils.input_output import load_feature_keys, load_feature_properties, load_
 
 # %%
 # Constant variables
-datetime_str = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-paths.update_ss_classifier_dir(f"SS_classifier_{datetime_str}")
+parser = ArgumentParser()
+parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
+parser.add_argument("-g", "--gpu", dest="train_on_gpu", action="store_true")
+args = parser.parse_args()
+
+if "model_name" in args:
+    paths.update_ss_classifier_name(args.model_name)
+else:
+    paths.update_ss_classifier_name("SS_classifier")
 
 paths.ss_classifier_dir.mkdir(parents=True, exist_ok=True)
 
@@ -24,7 +31,7 @@ paths.ss_classifier_dir.mkdir(parents=True, exist_ok=True)
 params = {
     "test_size" : 0.4,
     "model_params" : {
-        "n_estimators" : 100,
+        "n_estimators" : 2000,
         "max_depth" : 4,
         "learning_rate" : 0.1, # 0.3 is default
         #"max_delta_step" : 0,
@@ -32,7 +39,7 @@ params = {
         #"subsample" : 1.0,
         "scale_pos_weight" : "TO BE SET", # sum(negative instances) / sum(positive instances)
         "objective" : "binary:logistic",
-        "nthreads" : 50,
+        #"nthreads" : 50,
         "tree_method" : "hist",
         #"num_parallel_tree" : 1
     },
@@ -43,6 +50,9 @@ params = {
     }
     }
     # training parameters
+if args.train_on_gpu:
+    params["tree_method"] = "gpu_hist"
+    print("Training on GPUs")
 
 # %%
 # Read in the feature keys
