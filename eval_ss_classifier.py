@@ -19,6 +19,7 @@ from utils.histograms import get_hist
 # Constants
 parser = ArgumentParser()
 parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
+parser.add_argument("-f", help="Dummy argument for IPython")
 args = parser.parse_args()
 
 if "model_name" in args:

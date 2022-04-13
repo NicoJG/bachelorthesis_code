@@ -23,7 +23,7 @@ rule train_ss_classifier:
         request_memory=1024*50, # 50GB
         request_cpus=50,
         request_gpus=1
-    shell: f"python train_ss_classifier.py -n {ss_classifier_name}"
+    shell: f"python train_ss_classifier.py -g -n {ss_classifier_name}"
 
 rule eval_ss_classifier:
     input: str(paths.ss_classifier_model_file)

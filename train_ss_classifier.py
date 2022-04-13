@@ -18,6 +18,7 @@ from utils.input_output import load_feature_keys, load_feature_properties, load_
 parser = ArgumentParser()
 parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
 parser.add_argument("-g", "--gpu", dest="train_on_gpu", action="store_true")
+parser.add_argument("-f", help="Dummy argument for IPython")
 args = parser.parse_args()
 
 if "model_name" in args:
