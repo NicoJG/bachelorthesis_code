@@ -1,7 +1,7 @@
 from sympy import isprime
 import numpy as np
 
-def find_good_binning(fprops, n_bins_max=50, lower_quantile=0.01, higher_quantile=0.99, allow_logx=True, force_logx=False):
+def find_good_binning(fprops, n_bins_max=50, lower_quantile=0.01, higher_quantile=0.99, allow_logx=True, force_logx=False, is_inv_logx=False):
     """Find bin edges for a feature based on the feature properties dictionary
     Only works for numerical features
 
@@ -50,9 +50,14 @@ def find_good_binning(fprops, n_bins_max=50, lower_quantile=0.01, higher_quantil
         x_min -= 0.5
         x_max += 0.5
         
-    if is_logx:
+    if is_logx and not is_inv_logx:
         x_min = np.log10(x_min)
         x_max = np.log10(x_max)
+    if is_logx and is_inv_logx:
+        temp_x_min = x_min
+        temp_x_max = x_max
+        x_max = np.log10(np.ceil(temp_x_max)-temp_x_min)
+        x_min = np.log10(np.ceil(temp_x_max)-temp_x_max)
     
     bin_edges = np.linspace(x_min, x_max, n_bins+1)
 

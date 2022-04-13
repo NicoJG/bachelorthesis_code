@@ -39,14 +39,14 @@ print("Done reading input")
 
 # %%
 # Histogram functions
-def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
+def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey, add_inv_logx=False):
     "Returns the figure and axes of what to plot on in a grid depending on whether to also plot additional plots with logarthmic axes"
     if not draw_pull:
         raise RuntimeError("Not drawing a pull plot is not implemented")
     
     axs = {}
     
-    if not add_logx and not add_logy:
+    if not add_logx and not add_logy and not add_inv_logx:
         # structure with gridding
         # normal (3) 
         # ------
@@ -58,7 +58,7 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
 
         axs["pull_normal"] = plt.subplot2grid((4,1), (3,0), rowspan=1, sharex=axs["normal"])
     
-    elif add_logy and not add_logx:
+    elif add_logy and not add_logx and not add_inv_logx:
         # structure with gridding
         # normal (3) 
         # --------
@@ -72,7 +72,7 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
         axs["logy"]   = plt.subplot2grid((7,1), (3,0), rowspan=3, colspan=1)
 
         axs["pull_normal"] = plt.subplot2grid((7,1), (6,0), rowspan=1, sharex=axs["normal"])
-    elif add_logx and not add_logy:
+    elif add_logx and not add_logy and not add_inv_logx:
         # structure with gridding
         # normal | logx       (3) 
         # -------------
@@ -85,7 +85,7 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
 
         axs["pull_normal"] = plt.subplot2grid((4,2), (3,0), rowspan=1, sharex=axs["normal"])
         axs["pull_logx"]   = plt.subplot2grid((4,2), (3,1), rowspan=1, sharex=axs["logx"])
-    elif add_logx and add_logx:
+    elif add_logx and add_logx and not add_inv_logx:
         # structure with gridding
         # normal | logx          (3) 
         # -------------
@@ -103,12 +103,38 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
 
         axs["pull_normal"] = plt.subplot2grid((7,2), (6,0), rowspan=1, sharex=axs["normal"])
         axs["pull_logx"]   = plt.subplot2grid((7,2), (6,1), rowspan=1, sharex=axs["logx"])
+    elif add_logx and add_logy and add_inv_logx:
+        # to add log(x_max - x)
+        # structure with gridding
+        # normal | logx          | inv_logx          (3) 
+        # ---------------------------------------
+        # logy   | logx and logy | inv_logx and logy (3) 
+        # ---------------------------------------
+        # pull   | pull_logx     | pull_inv_logx     (1)
+        # (1)    | (1)           | (1)
+        fig = plt.figure(figsize=(15,10))
+
+        axs["normal"] = plt.subplot2grid((7,3), (0,0), rowspan=3, colspan=1)
+        axs["logx"]   = plt.subplot2grid((7,3), (0,1), rowspan=3, colspan=1)
+        axs["inv_logx"]   = plt.subplot2grid((7,3), (0,2), rowspan=3, colspan=1)
+        
+        axs["logy"]        = plt.subplot2grid((7,3), (3,0), rowspan=3, sharex=axs["normal"])
+        axs["logx_logy"]   = plt.subplot2grid((7,3), (3,1), rowspan=3, sharex=axs["logx"])
+        axs["inv_logx_logy"]   = plt.subplot2grid((7,3), (3,2), rowspan=3, sharex=axs["inv_logx"])
+
+        axs["pull_normal"] = plt.subplot2grid((7,3), (6,0), rowspan=1, sharex=axs["normal"])
+        axs["pull_logx"]   = plt.subplot2grid((7,3), (6,1), rowspan=1, sharex=axs["logx"])
+        axs["pull_inv_logx"]   = plt.subplot2grid((7,3), (6,2), rowspan=1, sharex=axs["inv_logx"])
+    else:
+        raise RuntimeError("This combination of logx, logy, inv_logx is not implemented!")
         
     # set up the x and y scales
     if "logy" in axs.keys():
         axs["logy"].set_yscale("log")
     if "logx_logy" in axs.keys():
         axs["logx_logy"].set_yscale("log")
+    if "inv_logx_logy" in axs.keys():
+        axs["inv_logx_logy"].set_yscale("log")
     
     # set up the axis labels
     axs["normal"].set_ylabel("density")
@@ -120,6 +146,9 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
     
     if "pull_logx" in axs.keys():
         axs["pull_logx"].set_xlabel(f"log10( {fkey} )")
+        
+    if "pull_inv_logx" in axs.keys():
+        axs["pull_inv_logx"].set_xlabel(f"log10( ceil(x_max) - {fkey} )")
     
     return fig, axs
 
@@ -165,14 +194,15 @@ def hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalu
     # plot the pull plot
     if pull_ax is not None:
         pull = calc_pull(x[0], x[1], sigma[0], sigma[1])
-        pull_ax.bar(tick_labels, pull, tick_label=tick_labels)
+        pull_ax.bar(tick_labels, pull, tick_label=tick_labels, alpha=0.7)
     
     
 def hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names,
                                     line_styles=["solid","solid","dotted","dotted","dashed","dashed"],
                                     colors=[f"C{i}" for i in range(6)],
                                     alpha=0.8,
-                                    histtype="step"):
+                                    histtype="step",
+                                    is_inv_logx=False):
     # save the histogrammed values for the pull plot
     x = []
     sigma = []
@@ -183,9 +213,9 @@ def hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey
                                 lower_quantile=0.0001,
                                 higher_quantile=0.9999,
                                 allow_logx=False,
-                                force_logx=is_logx)
+                                force_logx=is_logx,
+                                is_inv_logx=is_inv_logx)
     bin_edges, bin_centers, is_logx = bin_res
-        
     
     # iterate through each label value
     for lvalue, lvalue_name, ls, c in zip(lvalues, lvalue_names, line_styles, colors):
@@ -196,8 +226,10 @@ def hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey
         
         x_raw = df.query(query_str)[fkey]
         
-        if is_logx:
+        if is_logx and not is_inv_logx:
             x_raw = np.log10(x_raw)
+        elif is_logx and is_inv_logx:
+            x_raw = np.log10(np.ceil(fprops['quantile_0.9999'])+10**(-10)-x_raw)
         
         x_normed, sigma_normed = get_hist(x=x_raw, bin_edges=bin_edges, normed=True)
         
@@ -226,10 +258,11 @@ def hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey
         pull_ax.hist(bin_centers, 
                      weights=pull, 
                      bins=bin_edges, 
-                     histtype="stepfilled")
+                     histtype="stepfilled",
+                     alpha=0.7)
     
 
-def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=False, add_logy=False, add_cut=False, cut_query=None, cut_label=None):
+def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=False, add_logy=False, add_inv_logx=False, add_cut=False, cut_query=None, cut_label=None):
     
     assert lprops["feature_type"] == "categorical", f"The label ({lkey}) has to be categorical."
     
@@ -251,13 +284,15 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=
     # only add logarithmic x axis if the feature is float numerical and x_min>0
     add_logx = add_logx and fprops["feature_type"]=="numerical" and not fprops["int_only"] and fprops["quantile_0.0001"]>0.0
     
+    add_inv_logx = add_inv_logx and add_logx
+    
     # prepare the subplots
-    fig, axs = prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey)
+    fig, axs = prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey, add_inv_logx)
 
     # set the figure title
     plot_title = f"{fkey} by {lkey}"
     if add_cut:
-        plot_title += f"(with: {cut_query})"
+        plot_title += f" (with: {cut_query})"
     
     if "error_value" in fprops.keys():
         error_val = fprops['error_value']
@@ -270,10 +305,11 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=
     colors = [f"C{i}" for i in range(6)]
         
     # fill all the axes with the according histogram
-    for ax_key in ["normal", "logx", "logy", "logx_logy"]:
+    for ax_key in ["normal", "logx", "logy", "logx_logy", "inv_logx", "inv_logx_logy"]:
         if ax_key in axs.keys():
             ax = axs[ax_key]
             is_logx = "logx" in ax_key
+            is_inv_logx = "inv_logx" in ax_key
             if f"pull_{ax_key}" in axs.keys():
                 pull_ax = axs[f"pull_{ax_key}"]
             else:
@@ -283,14 +319,19 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=
                 if fprops["feature_type"] == "categorical":
                     hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names, line_styles=line_styles, colors=colors)
                 elif fprops["feature_type"] == "numerical":
-                    hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names, line_styles=line_styles, colors=colors)
+                    hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names, line_styles=line_styles, colors=colors, is_inv_logx=is_inv_logx)
             else:
                 if fprops["feature_type"] == "categorical":
                     hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names, line_styles=line_styles, colors=colors, fill=True, alpha=0.5)
                     hist_categorical_feature_by_label(ax, pull_ax, df.query(cut_query), fkey, fprops, lkey, lvalues, lvalue_names_cut, line_styles=line_styles, colors=colors)
                 elif fprops["feature_type"] == "numerical":
-                    hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names, line_styles=line_styles, colors=colors, histtype="stepfilled", alpha=0.5)
-                    hist_numerical_feature_by_label(ax, pull_ax, is_logx, df.query(cut_query), fkey, fprops, lkey, lvalues, lvalue_names_cut, line_styles=line_styles, colors=colors)
+                    hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names, line_styles=line_styles, colors=colors, histtype="stepfilled", alpha=0.5, is_inv_logx=is_inv_logx)
+                    hist_numerical_feature_by_label(ax, pull_ax, is_logx, df.query(cut_query), fkey, fprops, lkey, lvalues, lvalue_names_cut, line_styles=line_styles, colors=colors, is_inv_logx=is_inv_logx)
+                    
+                if pull_ax is not None:
+                    pull_ax.legend(["all", "cut"], loc="best", fontsize=5)
+                    if is_inv_logx:
+                        pull_ax.set_xlabel(f"log10( {np.ceil(fprops['quantile_0.9999'])} - {fkey} )")
         
         ax.legend(loc="best")
     
@@ -305,15 +346,19 @@ from functools import partial
 
 def plot_feature(label_key, output_label_dir, feature_key, cut_query=None, cut_label=None):
     output_file = output_label_dir/f"{feature_key}.pdf"
+    add_inv_logx = feature_key in features_with_inv_logx
     hist_feature_by_label(df, 
                           feature_key, feature_props[feature_key], 
                           label_key, feature_props[label_key],
                           output_file,
                           add_logx=True,
                           add_logy=True,
+                          add_inv_logx=add_inv_logx,
                           add_cut=(cut_query is not None),
                           cut_query=cut_query,
                           cut_label=cut_label)
+
+features_with_inv_logx = ["Tr_T_PROBNNe","Tr_T_PROBNNghost","Tr_T_PROBNNk","Tr_T_PROBNNmu","Tr_T_PROBNNp","Tr_T_PROBNNpi","Tr_T_TRPCHI2"]
 
 # %%    
 # Hist of all features by all labels
