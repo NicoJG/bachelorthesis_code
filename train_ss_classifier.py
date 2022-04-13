@@ -40,7 +40,7 @@ params = {
         #"subsample" : 1.0,
         "scale_pos_weight" : "TO BE SET", # sum(negative instances) / sum(positive instances)
         "objective" : "binary:logistic",
-        #"nthreads" : 50,
+        "nthread" : 50,
         "tree_method" : "hist",
         #"num_parallel_tree" : 1
     },
