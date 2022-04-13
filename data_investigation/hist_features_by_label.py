@@ -74,9 +74,9 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
         axs["pull_normal"] = plt.subplot2grid((7,1), (6,0), rowspan=1, sharex=axs["normal"])
     elif add_logx and not add_logy:
         # structure with gridding
-        # normal | logx (3) 
+        # normal | logx       (3) 
         # -------------
-        # pull   | pull (1)
+        # pull   | pull_log_x (1)
         # (1)    | (1)
         fig = plt.figure(figsize=(10,7))
 
@@ -91,7 +91,7 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
         # -------------
         # logy   | logx and logy (3) 
         # -------------
-        # pull   | pull          (1)
+        # pull   | pull_logx     (1)
         # (1)    | (1)
         fig = plt.figure(figsize=(10,10))
 
@@ -105,16 +105,10 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
         axs["pull_logx"]   = plt.subplot2grid((7,2), (6,1), rowspan=1, sharex=axs["logx"])
         
     # set up the x and y scales
-    if "logx" in axs.keys():
-        axs["logx"].set_xscale("log")
     if "logy" in axs.keys():
         axs["logy"].set_yscale("log")
     if "logx_logy" in axs.keys():
-        axs["logx_logy"].set_xscale("log")
         axs["logx_logy"].set_yscale("log")
-        
-    if "pull_logx" in axs.keys():
-        axs["pull_logx"].set_xscale("log")
     
     # set up the axis labels
     axs["normal"].set_ylabel("density")
@@ -125,7 +119,7 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
         axs["logy"].set_ylabel("density")
     
     if "pull_logx" in axs.keys():
-        axs["pull_logx"].set_xlabel(fkey)
+        axs["pull_logx"].set_xlabel(f"log10( {fkey} )")
     
     return fig, axs
 
@@ -190,12 +184,22 @@ def hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey
                                 higher_quantile=0.9999,
                                 allow_logx=False,
                                 force_logx=is_logx)
-    bin_edges, bin_centers, _ = bin_res
+    bin_edges, bin_centers, is_logx = bin_res
         
     
     # iterate through each label value
     for lvalue, lvalue_name, ls, c in zip(lvalues, lvalue_names, line_styles, colors):
-        x_normed, sigma_normed = get_hist(x=df.query(f"{lkey}=={lvalue}")[fkey], bin_edges=bin_edges, normed=True)
+        
+        query_str = f"({lkey}=={lvalue})"
+        query_str += f"&({fkey}>={fprops['quantile_0.0001']})"
+        query_str += f"&({fkey}<={fprops['quantile_0.9999']})"
+        
+        x_raw = df.query(query_str)[fkey]
+        
+        if is_logx:
+            x_raw = np.log10(x_raw)
+        
+        x_normed, sigma_normed = get_hist(x=x_raw, bin_edges=bin_edges, normed=True)
         
         x.append(x_normed)
         sigma.append(sigma_normed)
@@ -346,4 +350,5 @@ with Pool(50) as p:
                 desc=f"Features by {label_key} with {cut_query}"))
 
 merge_pdfs(output_label_dir, output_label_file)
+
 # %%

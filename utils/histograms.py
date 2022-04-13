@@ -25,6 +25,9 @@ def find_good_binning(fprops, n_bins_max=50, lower_quantile=0.01, higher_quantil
 
     x_min = fprops[f"quantile_{lower_quantile}"]
     x_max = fprops[f"quantile_{higher_quantile}"]
+    
+    is_logx = (fprops["logx"] and allow_logx) or (force_logx and x_min > 0.0)
+    is_logx = is_logx and not int_only
 
     # better binning for integer values (workaround)
     # it works but it's not good 
@@ -47,13 +50,11 @@ def find_good_binning(fprops, n_bins_max=50, lower_quantile=0.01, higher_quantil
         x_min -= 0.5
         x_max += 0.5
         
-    is_logx = (fprops["logx"] and allow_logx) or (force_logx and x_min > 0.0)
-
     if is_logx:
-        bin_edges = np.geomspace(x_min, x_max, n_bins+1)
-    else:
-        is_logx = False
-        bin_edges = np.linspace(x_min, x_max, n_bins+1)
+        x_min = np.log10(x_min)
+        x_max = np.log10(x_max)
+    
+    bin_edges = np.linspace(x_min, x_max, n_bins+1)
 
     bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
 
