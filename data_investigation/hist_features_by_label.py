@@ -130,14 +130,14 @@ def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey):
     return fig, axs
 
 
-def hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names):
+def hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names, 
+                                      line_styles=["solid","solid","dotted","dotted","dashed","dashed"],
+                                      colors=[f"C{i}" for i in range(6)],
+                                      alpha=0.8,
+                                      fill=False):
     # save the histogrammed values for the pull plot
     x = []
     sigma = []
-    
-    # different colors and linestyles for each label value
-    line_styles = ["solid","solid","dotted","dotted","dased","dashed"]
-    colors = [f"C{i}" for i in range(10)]
     
     # get the binning (category values)
     fvalues = fprops["category_values"]
@@ -160,12 +160,13 @@ def hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalu
             
         # plot the bar plot
         ax.bar(tick_labels, x_normed, yerr=sigma_normed,
-                          tick_label=tick_labels,
-                          fill=False,
-                          label=lvalue_name,
-                          edgecolor=c,
-                          ecolor=c,
-                          linestyle=ls)
+               tick_label=tick_labels,
+               fill=fill,
+               label=lvalue_name,
+               edgecolor=c,
+               ecolor=c,
+               linestyle=ls,
+               alpha=alpha)
     
     # plot the pull plot
     if pull_ax is not None:
@@ -173,14 +174,14 @@ def hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalu
         pull_ax.bar(tick_labels, pull, tick_label=tick_labels)
     
     
-def hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names):
+def hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names,
+                                    line_styles=["solid","solid","dotted","dotted","dashed","dashed"],
+                                    colors=[f"C{i}" for i in range(6)],
+                                    alpha=0.8,
+                                    histtype="step"):
     # save the histogrammed values for the pull plot
     x = []
     sigma = []
-
-    # different colors and linestyles for each label value
-    line_styles = ["solid","solid","dotted","dotted","dased","dashed"]
-    colors = [f"C{i}" for i in range(10)]
     
     # calculate the binning
     bin_res = find_good_binning(fprops, 
@@ -201,18 +202,18 @@ def hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey
         
         # plot the hist with errorbars
         ax.hist(bin_centers, 
-                           weights=x_normed, 
-                           bins=bin_edges, 
-                           histtype="step", 
-                           label=lvalue_name, 
-                           color=c,
-                           linestyle=ls,
-                           alpha=0.8)
+                weights=x_normed, 
+                bins=bin_edges, 
+                histtype=histtype, 
+                label=lvalue_name, 
+                color=c,
+                linestyle=ls,
+                alpha=alpha)
         ax.errorbar(bin_centers, x_normed, 
                                yerr=sigma_normed, 
                                fmt="none", 
                                color=c,
-                               alpha=0.8)
+                               alpha=alpha)
     
     # plot the pull plot
     if pull_ax is not None:
@@ -224,7 +225,7 @@ def hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey
                      histtype="stepfilled")
     
 
-def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=False, add_logy=False):
+def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=False, add_logy=False, add_cut=False, cut_query=None, cut_label=None):
     
     assert lprops["feature_type"] == "categorical", f"The label ({lkey}) has to be categorical."
     
@@ -234,6 +235,12 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=
     lvalue_names = lprops["category_names"]
     if not lvalue_names:
         lvalue_names = lvalues
+    
+    if add_cut:
+        assert isinstance(cut_query, str), "Please provide a cut_query for pandas.DataFrame.query."
+        if cut_label is None:
+            cut_label = cut_query
+        lvalue_names_cut = [f"{lval_name} ({cut_label})" for lval_name in lvalue_names]
         
     draw_pull = len(lvalues)==2
     
@@ -245,12 +252,18 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=
 
     # set the figure title
     plot_title = f"{fkey} by {lkey}"
+    if add_cut:
+        plot_title += f"(with: {cut_query})"
+    
     if "error_value" in fprops.keys():
         error_val = fprops['error_value']
         error_val_counts = (df[fkey] == error_val).sum()
         error_val_proportion = error_val_counts / df.shape[0]
         plot_title += f"\nwithout the error value {error_val} (proportion: {error_val_proportion*100:.2f}%)"
     fig.suptitle(plot_title)
+    
+    line_styles = ["solid","solid","dotted","dotted","dashed","dashed"]
+    colors = [f"C{i}" for i in range(6)]
         
     # fill all the axes with the according histogram
     for ax_key in ["normal", "logx", "logy", "logx_logy"]:
@@ -262,10 +275,18 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=
             else:
                 pull_ax = None
         
-            if fprops["feature_type"] == "categorical":
-                hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names)
-            elif fprops["feature_type"] == "numerical":
-                hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names)
+            if not add_cut:
+                if fprops["feature_type"] == "categorical":
+                    hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names, line_styles=line_styles, colors=colors)
+                elif fprops["feature_type"] == "numerical":
+                    hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names, line_styles=line_styles, colors=colors)
+            else:
+                if fprops["feature_type"] == "categorical":
+                    hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names, line_styles=line_styles, colors=colors, fill=True, alpha=0.5)
+                    hist_categorical_feature_by_label(ax, pull_ax, df.query(cut_query), fkey, fprops, lkey, lvalues, lvalue_names_cut, line_styles=line_styles, colors=colors)
+                elif fprops["feature_type"] == "numerical":
+                    hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names, line_styles=line_styles, colors=colors, histtype="stepfilled", alpha=0.5)
+                    hist_numerical_feature_by_label(ax, pull_ax, is_logx, df.query(cut_query), fkey, fprops, lkey, lvalues, lvalue_names_cut, line_styles=line_styles, colors=colors)
         
         ax.legend(loc="best")
     
@@ -274,19 +295,24 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=
     plt.close()
 
 # %%
-# Hist of all features by all labels
+# function for multiprocessing
 from multiprocessing import Pool
 from functools import partial
 
-def plot_feature(label_key, feature_key):
+def plot_feature(label_key, output_label_dir, feature_key, cut_query=None, cut_label=None):
     output_file = output_label_dir/f"{feature_key}.pdf"
     hist_feature_by_label(df, 
                           feature_key, feature_props[feature_key], 
                           label_key, feature_props[label_key],
                           output_file,
                           add_logx=True,
-                          add_logy=True)
-    
+                          add_logy=True,
+                          add_cut=(cut_query is not None),
+                          cut_query=cut_query,
+                          cut_label=cut_label)
+
+# %%    
+# Hist of all features by all labels
 for label_key in label_keys:
     output_label_dir = output_dir / f"features_by_{label_key}"
     output_label_dir.mkdir(parents=True, exist_ok=True)
@@ -294,10 +320,30 @@ for label_key in label_keys:
     output_label_file = output_dir / f"features_by_{label_key}.pdf"
     
     with Pool(50) as p:
-        list(tqdm(p.imap(partial(plot_feature, label_key), feature_keys), 
+        list(tqdm(p.imap(partial(plot_feature, label_key, output_label_dir), feature_keys), 
                   total=len(feature_keys),
                   desc=f"Features by {label_key}"))
 
     merge_pdfs(output_label_dir, output_label_file)
 
+
+# %%
+# Hist B_is_Strange with and without a cut on Tr_is_SS
+    
+label_key = "B_is_strange"
+
+cut_query = "Tr_is_SS == 1"
+cut_label = "is SS"
+
+output_label_dir = output_dir / f"features_by_{label_key}_with_cut_on_Tr_is_SS"
+output_label_dir.mkdir(parents=True, exist_ok=True)
+
+output_label_file = output_dir / f"features_by_{label_key}_with_cut_on_Tr_is_SS.pdf"
+
+with Pool(50) as p:
+    list(tqdm(p.imap(partial(plot_feature, label_key, output_label_dir, cut_query=cut_query, cut_label=cut_label), feature_keys), 
+                total=len(feature_keys),
+                desc=f"Features by {label_key} with {cut_query}"))
+
+merge_pdfs(output_label_dir, output_label_file)
 # %%
