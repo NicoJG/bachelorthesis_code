@@ -26,7 +26,8 @@ if "model_name" in args:
 else:
     paths.update_ss_classifier_name("SS_classifier")
 
-paths.ss_classifier_dir.mkdir(parents=True, exist_ok=True)
+assert not paths.ss_classifier_dir.is_dir(), f"The model '{paths.ss_classifier_dir}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
+paths.ss_classifier_dir.mkdir(parents=True)
 
 # Parameters of the model
 params = {
