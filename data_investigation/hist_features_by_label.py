@@ -26,9 +26,9 @@ output_dir.mkdir(parents=True, exist_ok=True)
 # required: "label_key", "full_grid"
 # optional: "cut_query", "cut_label"
 plots_props = [
-    {"label_key" : "Tr_is_SS", "full_grid" : True},
-    {"label_key" : "B_is_strange", "full_grid" : True},
-    {"label_key" : "B_is_strange", "full_grid" : True, "cut_query" : "Tr_is_SS == 1", "cut_label" : "is SS"}
+    {"label_key" : "Tr_is_SS", "full_grid" : False},
+    {"label_key" : "B_is_strange", "full_grid" : False},
+    {"label_key" : "B_is_strange", "full_grid" : False, "cut_query" : "Tr_is_SS == 1", "cut_label" : "is SS"}
 ]
 
 label_keys = ["Tr_is_SS", "B_is_strange", "B_is_strange"]
@@ -250,7 +250,7 @@ def hist_numerical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues
                      alpha=0.7)
     
 
-def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, full_grid=True, axes_type="normal", add_cut=False, cut_query=None, cut_label=None):
+def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, full_grid=True, add_cut=False, cut_query=None, cut_label=None):
     
     assert lprops["feature_type"] == "categorical", f"The label ({lkey}) has to be categorical."
     assert fprops["feature_type"] in ["categorical", "numerical"], f"The feature ({fkey}) is not categorical and not numerical..."
@@ -295,7 +295,13 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, full_grid
             axes_grid = [["normal"],
                          ["logy"]]
     elif not full_grid:
-        axes_grid = [[axes_type]]
+        best_axes = fprops["best_axes"]
+        if isinstance(best_axes, str):
+            axes_grid = [[best_axes]]
+        elif isinstance(best_axes[0], str):
+            axes_grid = [best_axes]
+        else:
+            axes_grid = best_axes
         
     fig, axs = prepare_subplots_grid(axes_grid, fkey, draw_pull)
 
@@ -365,6 +371,7 @@ def plot_feature(label_key, output_dir, enumerated_feature_key, full_grid=True, 
     global df, feature_props
     plot_idx, feature_key = enumerated_feature_key
     output_file = output_dir/f"{plot_idx:03d}_{feature_key}.pdf"
+    
     hist_feature_by_label(df, 
                           feature_key, feature_props[feature_key], 
                           label_key, feature_props[label_key],
@@ -387,8 +394,6 @@ for plot_props in plots_props:
         cut_query = None
         cut_label = None
     
-    assert full_grid, "Not plotting the full grid is not yet implemented"
-    
     name = f"features_by_{label_key}"
     if cut_query is not None:
         name += f"_cut_{cut_label.replace(' ', '_')}"
@@ -400,7 +405,7 @@ for plot_props in plots_props:
     
     # use multiprocessing to plot all features
     with Pool(processes=50) as p:
-        pfunc = partial(plot_feature, label_key, output_label_dir, cut_query=cut_query, cut_label=cut_label)
+        pfunc = partial(plot_feature, label_key, output_label_dir, full_grid=full_grid, cut_query=cut_query, cut_label=cut_label)
         iter = p.imap(pfunc, enumerate(feature_keys))
         pbar_iter = tqdm(iter, total=len(feature_keys), desc=name)
         # start processing, by evaluating the iterator:

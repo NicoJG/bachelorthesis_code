@@ -4,49 +4,56 @@
     "int_only": true,
     "feature_type": "categorical",
     "category_values": [0,1],
-    "category_names": ["other","SS"]
+    "category_names": ["other","SS"],
+    "best_axes" : "normal"
   },
   "B_is_strange": {
     "mc_only": true,
     "int_only": true,
     "feature_type": "categorical",
     "category_values": [0,1],
-    "category_names": ["Bd","Bs"]
+    "category_names": ["Bd","Bs"],
+    "best_axes" : "normal"
   },
   "decay_id": {
     "mc_only": true,
     "int_only": true,
     "feature_type": "categorical",
     "category_values": [0,1],
-    "category_names": ["B2JpsiKstar","Bs2DsPi"]
+    "category_names": ["B2JpsiKstar","Bs2DsPi"],
+    "best_axes" : "normal"
   },
   "B_ID": {
     "mc_only": true,
     "int_only": true,
     "feature_type": "categorical",
     "category_values": [-511,511],
-    "category_names": ["B0","B0_anti"]
+    "category_names": ["B0","B0_anti"],
+    "best_axes" : ["normal","logy"]
   },
   "B_TRUEID": {
     "mc_only": true,
     "int_only": true,
     "feature_type": "categorical",
     "category_values": [-531,-511,511,531],
-    "category_names": ["Bs_anti","Bd_anti","Bd","Bs"]
+    "category_names": ["Bs_anti","Bd_anti","Bd","Bs"],
+    "best_axes" : ["normal","logy"]
   },
   "Tr_ORIG_FLAGS": {
     "mc_only": true,
     "int_only": true,
     "feature_type": "categorical",
     "category_values": [-1,1,2,3,4,5,102,103,104,105],
-    "category_names": []
+    "category_names": [],
+    "best_axes" : "normal"
   },
   "input_file_id": {
     "mc_only": false,
     "int_only": true,
     "feature_type": "categorical",
     "category_values": [0,1],
-    "category_names": []
+    "category_names": [],
+    "best_axes" : "normal"
   },
   "Tr_diff_z": {
     "mc_only": false,
@@ -59,7 +66,8 @@
     "quantile_0.5": 170.94745089111328,
     "quantile_0.99": 654.5577291015625,
     "quantile_0.9999": 737.2941715520323,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_p_proj": {
     "mc_only": false,
@@ -72,7 +80,8 @@
     "quantile_0.5": 6536078.39853847,
     "quantile_0.99": 96206185.49279515,
     "quantile_0.9999": 582940088.4637216,
-    "logx": false
+    "logx": false,
+    "best_axes" : "logx"
   },
   "Tr_diff_pt": {
     "mc_only": false,
@@ -85,7 +94,8 @@
     "quantile_0.5": 8094.305582519112,
     "quantile_0.99": 29739.50318056441,
     "quantile_0.9999": 64132.210908025554,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_diff_p": {
     "mc_only": false,
@@ -98,7 +108,8 @@
     "quantile_0.5": 104565.2280146771,
     "quantile_0.99": 519730.56298476167,
     "quantile_0.9999": 1260164.896253154,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_cos_diff_phi": {
     "mc_only": false,
@@ -111,7 +122,8 @@
     "quantile_0.5": -0.06801159186348686,
     "quantile_0.99": 0.999501221253384,
     "quantile_0.9999": 0.9999999463116317,
-    "logx": false
+    "logx": false,
+    "best_axes" : "logy"
   },
   "Tr_diff_eta": {
     "mc_only": false,
@@ -124,14 +136,16 @@
     "quantile_0.5": -0.16273513288727037,
     "quantile_0.99": 2.1599745655474196,
     "quantile_0.9999": 4.121952333427702,
-    "logx": false
+    "logx": false,
+    "best_axes" : ["normal","logy"]
   },
   "Tr_T_AALLSAMEBPV": {
     "mc_only": false,
     "int_only": true,
     "feature_type": "categorical",
     "category_values": [0,1],
-    "category_names": []
+    "category_names": [],
+    "best_axes" : "normal"
   },
   "Tr_T_ACHI2DOCA": {
     "mc_only": false,
@@ -144,7 +158,8 @@
     "quantile_0.5": 20.714725494384766,
     "quantile_0.99": 23870.156933593746,
     "quantile_0.9999": 591818.3693251219,
-    "logx": true
+    "logx": true,
+    "best_axes" : "logx"
   },
   "Tr_T_ADOCA": {
     "mc_only": false,
@@ -157,7 +172,8 @@
     "quantile_0.5": 0.3942570835351944,
     "quantile_0.99": 13.708434362411499,
     "quantile_0.9999": 75.45305978014272,
-    "logx": true
+    "logx": true,
+    "best_axes" : "logx"
   },
   "Tr_T_BPVIP": {
     "mc_only": false,
@@ -170,7 +186,8 @@
     "quantile_0.5": 0.09006773680448532,
     "quantile_0.99": 22.584187717437736,
     "quantile_0.9999": 126.81943307267278,
-    "logx": true
+    "logx": true,
+    "best_axes" : "logx"
   },
   "Tr_T_BPVIPCHI2": {
     "mc_only": false,
@@ -183,7 +200,8 @@
     "quantile_0.5": 1.4762181043624878,
     "quantile_0.99": 9610.770166015613,
     "quantile_0.9999": 353712.7727567679,
-    "logx": true
+    "logx": true,
+    "best_axes" : "logx"
   },
   "Tr_T_Best_PAIR_D": {
     "mc_only": false,
@@ -196,14 +214,16 @@
     "quantile_0.5": 0.09482504054903984,
     "quantile_0.99": 12.77014337539672,
     "quantile_0.9999": 67.32994081344742,
-    "logx": true
+    "logx": true,
+    "best_axes" : "logx"
   },
   "Tr_T_Best_PAIR_DCHI2": {
     "mc_only": false,
     "int_only": true,
     "feature_type": "categorical",
     "category_values": [-1,0],
-    "category_names": []
+    "category_names": [],
+    "best_axes" : ["normal","logy"]
   },
   "Tr_T_Best_PAIR_M_fromiso": {
     "mc_only": false,
@@ -216,7 +236,8 @@
     "quantile_0.5": 434.28785705566406,
     "quantile_0.99": 2305.5852026367183,
     "quantile_0.9999": 6950.330650440574,
-    "logx": true
+    "logx": true,
+    "best_axes" : "logx"
   },
   "Tr_T_Best_PAIR_VCHI2": {
     "mc_only": false,
@@ -229,14 +250,16 @@
     "quantile_0.5": 1.2523878812789917,
     "quantile_0.99": 26376.944570312466,
     "quantile_0.9999": 709260.3103876011,
-    "logx": true
+    "logx": true,
+    "best_axes" : "logx"
   },
   "Tr_T_Charge": {
     "mc_only": false,
     "int_only": true,
     "feature_type": "categorical",
     "category_values": [-1,1],
-    "category_names": []
+    "category_names": [],
+    "best_axes" : "logy"
   },
   "Tr_T_ConIso_p_ult": {
     "mc_only": false,
@@ -249,7 +272,8 @@
     "quantile_0.5": 0.08902517706155777,
     "quantile_0.99": 1.0,
     "quantile_0.9999": 1.0,
-    "logx": false
+    "logx": false,
+    "best_axes" : ["normal","logx"]
   },
   "Tr_T_ConIso_pt_ult": {
     "mc_only": false,
@@ -262,7 +286,8 @@
     "quantile_0.5": 0.09175622835755348,
     "quantile_0.99": 1.0,
     "quantile_0.9999": 1.0,
-    "logx": false
+    "logx": false,
+    "best_axes" : ["normal","logx"]
   },
   "Tr_T_Cone_asym_P": {
     "mc_only": false,
@@ -275,7 +300,8 @@
     "quantile_0.5": 0.02805605996400118,
     "quantile_0.99": 1.0,
     "quantile_0.9999": 1.0,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_Cone_asym_Pt": {
     "mc_only": false,
@@ -288,7 +314,8 @@
     "quantile_0.5": -0.8164875507354736,
     "quantile_0.99": 1.0,
     "quantile_0.9999": 1.0,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_E": {
     "mc_only": false,
@@ -301,7 +328,8 @@
     "quantile_0.5": 6655.16357421875,
     "quantile_0.99": 78268.34296874999,
     "quantile_0.9999": 192930.70549375238,
-    "logx": false
+    "logx": false,
+    "best_axes" : "logx"
   },
   "Tr_T_Eta": {
     "mc_only": false,
@@ -314,7 +342,8 @@
     "quantile_0.5": 3.526289939880371,
     "quantile_0.99": 4.967459850311279,
     "quantile_0.9999": 5.111434485673907,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_IPCHI2_trMother": {
     "mc_only": false,
@@ -327,7 +356,8 @@
     "quantile_0.5": 1.2721344828605652,
     "quantile_0.99": 30562.78746093747,
     "quantile_0.9999": 1154532.90752515,
-    "logx": true
+    "logx": true,
+    "best_axes" : "logx"
   },
   "Tr_T_IP_trMother": {
     "mc_only": false,
@@ -340,7 +370,8 @@
     "quantile_0.5": 0.09482616186141968,
     "quantile_0.99": 12.77014337539672,
     "quantile_0.9999": 67.32994081344742,
-    "logx": true
+    "logx": true,
+    "best_axes" : "logx"
   },
   "Tr_T_IP_trPUS": {
     "mc_only": false,
@@ -354,14 +385,16 @@
     "quantile_0.5": 6.171996116638184,
     "quantile_0.99": 453.7559851074225,
     "quantile_0.9999": 1251.2889433348994,
-    "logx": true
+    "logx": true,
+    "best_axes" : "logx"
   },
   "Tr_T_ISMUON": {
     "mc_only": false,
     "int_only": true,
     "feature_type": "categorical",
     "category_values": [0,1],
-    "category_names": []
+    "category_names": [],
+    "best_axes" : "normal"
   },
   "Tr_T_MinBDT_sigtr": {
     "mc_only": false,
@@ -374,7 +407,8 @@
     "quantile_0.5": 0.98320072889328,
     "quantile_0.99": 0.9999452829360962,
     "quantile_0.9999": 0.9999908804893494,
-    "logx": false
+    "logx": false,
+    "best_axes" : "logy"
   },
   "Tr_T_MinBDT_ult": {
     "mc_only": false,
@@ -387,7 +421,8 @@
     "quantile_0.5": 0.24923796206712723,
     "quantile_0.99": 0.9976005554199219,
     "quantile_0.9999": 0.9997784150719644,
-    "logx": false
+    "logx": false,
+    "best_axes" : "logy"
   },
   "Tr_T_MinIP": {
     "mc_only": false,
@@ -400,7 +435,8 @@
     "quantile_0.5": 0.09005868434906006,
     "quantile_0.99": 22.18824987411498,
     "quantile_0.9999": 126.18826060105977,
-    "logx": true
+    "logx": true,
+    "best_axes" : "logx"
   },
   "Tr_T_MinIPChi2": {
     "mc_only": false,
@@ -413,7 +449,8 @@
     "quantile_0.5": 1.4762181043624878,
     "quantile_0.99": 9610.770166015613,
     "quantile_0.9999": 353712.7727567679,
-    "logx": true
+    "logx": true,
+    "best_axes" : "logx"
   },
   "Tr_T_Mother_VtxChi2": {
     "mc_only": false,
@@ -426,7 +463,8 @@
     "quantile_0.5": 1.252404510974884,
     "quantile_0.99": 26376.944570312466,
     "quantile_0.9999": 709260.3103876011,
-    "logx": true
+    "logx": true,
+    "best_axes" : "logx"
   },
   "Tr_T_NbNonIsoTr_MinBDT_ult": {
     "mc_only": false,
@@ -439,7 +477,8 @@
     "quantile_0.5": 3.0,
     "quantile_0.99": 9.0,
     "quantile_0.9999": 12.0,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_NbNonIsoTr_ult": {
     "mc_only": false,
@@ -452,7 +491,8 @@
     "quantile_0.5": 0.0,
     "quantile_0.99": 6.0,
     "quantile_0.9999": 40.0,
-    "logx": false
+    "logx": false,
+    "best_axes" : "logy"
   },
   "Tr_T_NbTrNonIso_sigtr": {
     "mc_only": false,
@@ -465,7 +505,8 @@
     "quantile_0.5": 0.0,
     "quantile_0.99": 1.0,
     "quantile_0.9999": 4.0,
-    "logx": false
+    "logx": false,
+    "best_axes" : "logy"
   },
   "Tr_T_Ntr_incone": {
     "mc_only": false,
@@ -478,7 +519,8 @@
     "quantile_0.5": 8.0,
     "quantile_0.99": 27.0,
     "quantile_0.9999": 44.0,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_P": {
     "mc_only": false,
@@ -491,7 +533,8 @@
     "quantile_0.5": 6653.7001953125,
     "quantile_0.99": 78268.21796874999,
     "quantile_0.9999": 192930.65861875238,
-    "logx": false
+    "logx": false,
+    "best_axes" : "logx"
   },
   "Tr_T_PIDK": {
     "mc_only": false,
@@ -504,7 +547,8 @@
     "quantile_0.5": -1.7312999963760376,
     "quantile_0.99": 38.78892559051509,
     "quantile_0.9999": 103.89991000367672,
-    "logx": false
+    "logx": false,
+    "best_axes" : ["normal","logy"]
   },
   "Tr_T_PIDe": {
     "mc_only": false,
@@ -517,7 +561,8 @@
     "quantile_0.5": -5.074711561203003,
     "quantile_0.99": 7.187344107627867,
     "quantile_0.9999": 14.478292831230377,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_PIDmu": {
     "mc_only": false,
@@ -530,7 +575,8 @@
     "quantile_0.5": -4.563192844390869,
     "quantile_0.99": 6.982071919441223,
     "quantile_0.9999": 12.703410505676288,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_PIDp": {
     "mc_only": false,
@@ -543,7 +589,8 @@
     "quantile_0.5": -1.9474999904632568,
     "quantile_0.99": 36.0077018737793,
     "quantile_0.9999": 84.00451110078131,
-    "logx": false
+    "logx": false,
+    "best_axes" : ["normal","logy"]
   },
   "Tr_T_PROBNNe": {
     "mc_only": false,
@@ -556,7 +603,8 @@
     "quantile_0.5": 1.2416657227731775e-05,
     "quantile_0.99": 0.9291134327650064,
     "quantile_0.9999": 0.9999843835830688,
-    "logx": true
+    "logx": true,
+    "best_axes" : ["logy","logx_logy","inv_logx_logy"]
   },
   "Tr_T_PROBNNghost": {
     "mc_only": false,
@@ -569,7 +617,8 @@
     "quantile_0.5": 0.010681321378797293,
     "quantile_0.99": 0.9533767807483673,
     "quantile_0.9999": 0.9950590636491778,
-    "logx": true
+    "logx": true,
+    "best_axes" : ["logy","logx_logy","inv_logx_logy"]
   },
   "Tr_T_PROBNNk": {
     "mc_only": false,
@@ -582,7 +631,8 @@
     "quantile_0.5": 0.04120723344385624,
     "quantile_0.99": 0.9944064021110535,
     "quantile_0.9999": 0.9995235204696655,
-    "logx": true
+    "logx": true,
+    "best_axes" : ["logy","logx_logy","inv_logx_logy"]
   },
   "Tr_T_PROBNNmu": {
     "mc_only": false,
@@ -596,7 +646,8 @@
     "quantile_0.5": 0.003342050826177001,
     "quantile_0.99": 0.9408621430397024,
     "quantile_0.9999": 0.9998749031662941,
-    "logx": true
+    "logx": true,
+    "best_axes" : ["logy","logx_logy","inv_logx_logy"]
   },
   "Tr_T_PROBNNp": {
     "mc_only": false,
@@ -609,7 +660,8 @@
     "quantile_0.5": 0.022707968950271606,
     "quantile_0.99": 0.9619548535346985,
     "quantile_0.9999": 0.9998748898506165,
-    "logx": true
+    "logx": true,
+    "best_axes" : ["logy","logx_logy","inv_logx_logy"]
   },
   "Tr_T_PROBNNpi": {
     "mc_only": false,
@@ -622,7 +674,8 @@
     "quantile_0.5": 0.8181373775005341,
     "quantile_0.99": 0.9985222220420837,
     "quantile_0.9999": 0.9996237661600116,
-    "logx": false
+    "logx": false,
+    "best_axes" : ["logy","logx_logy","inv_logx_logy"]
   },
   "Tr_T_PT": {
     "mc_only": false,
@@ -635,7 +688,8 @@
     "quantile_0.5": 453.3335418701172,
     "quantile_0.99": 3278.404201660155,
     "quantile_0.9999": 14550.117804591871,
-    "logx": false
+    "logx": false,
+    "best_axes" : "logx"
   },
   "Tr_T_PX": {
     "mc_only": false,
@@ -648,7 +702,8 @@
     "quantile_0.5": -6.262330055236816,
     "quantile_0.99": 1885.608575439453,
     "quantile_0.9999": 8522.86181386777,
-    "logx": false
+    "logx": false,
+    "best_axes" : ["normal","logy"]
   },
   "Tr_T_PY": {
     "mc_only": false,
@@ -661,7 +716,8 @@
     "quantile_0.5": -0.5884305834770203,
     "quantile_0.99": 1843.8724645996085,
     "quantile_0.9999": 8930.527338088621,
-    "logx": false
+    "logx": false,
+    "best_axes" : ["normal","logy"]
   },
   "Tr_T_PZ": {
     "mc_only": false,
@@ -674,7 +730,8 @@
     "quantile_0.5": 6619.573974609375,
     "quantile_0.99": 78214.6121875,
     "quantile_0.9999": 192790.5861937576,
-    "logx": false
+    "logx": false,
+    "best_axes" : "logx"
   },
   "Tr_T_Phi": {
     "mc_only": false,
@@ -687,14 +744,16 @@
     "quantile_0.5": -0.004349522991105914,
     "quantile_0.99": 3.0683529376983643,
     "quantile_0.9999": 3.1404316425323486,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_ShareSamePVasSignal": {
     "mc_only": false,
     "int_only": true,
     "feature_type": "categorical",
     "category_values": [0,1],
-    "category_names": []
+    "category_names": [],
+    "best_axes" : "normal"
   },
   "Tr_T_SumBDT_sigtr": {
     "mc_only": false,
@@ -707,7 +766,8 @@
     "quantile_0.5": -102.99372863769531,
     "quantile_0.99": -101.1023178100586,
     "quantile_0.9999": -100.3442153930664,
-    "logx": false
+    "logx": false,
+    "best_axes" : ["normal","logy"]
   },
   "Tr_T_SumBDT_ult": {
     "mc_only": false,
@@ -720,7 +780,8 @@
     "quantile_0.5": -35.89737129211426,
     "quantile_0.99": -6.569833202362062,
     "quantile_0.9999": -1.2663681416987664,
-    "logx": false
+    "logx": false,
+    "best_axes" : ["normal","logy"]
   },
   "Tr_T_SumMinBDT_ult": {
     "mc_only": false,
@@ -733,7 +794,8 @@
     "quantile_0.5": 22.764497756958008,
     "quantile_0.99": 93.38291915893552,
     "quantile_0.9999": 148.52620921173173,
-    "logx": false
+    "logx": false,
+    "best_axes" : ["normal","logy"]
   },
   "Tr_T_Sum_of_trackp": {
     "mc_only": false,
@@ -746,7 +808,8 @@
     "quantile_0.5": 81697.15234375,
     "quantile_0.99": 448113.6021875,
     "quantile_0.9999": 873813.2046750132,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_Sum_of_trackpt": {
     "mc_only": false,
@@ -759,7 +822,8 @@
     "quantile_0.5": 4809.4638671875,
     "quantile_0.99": 21945.958046874992,
     "quantile_0.9999": 52140.14359570478,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_THETA": {
     "mc_only": false,
@@ -772,7 +836,8 @@
     "quantile_0.5": 0.058810727670788765,
     "quantile_0.99": 0.28495178610086425,
     "quantile_0.9999": 0.3844859506845477,
-    "logx": false
+    "logx": false,
+    "best_axes" : ["normal","logx"]
   },
   "Tr_T_TRCHI2DOF": {
     "mc_only": false,
@@ -785,7 +850,8 @@
     "quantile_0.5": 1.027642548084259,
     "quantile_0.99": 3.2654478764533996,
     "quantile_0.9999": 3.9897988266229785,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_TRFITMATCHCHI2": {
     "mc_only": false,
@@ -799,7 +865,8 @@
     "quantile_0.5": 4.745556354522705,
     "quantile_0.99": 62.71180541992179,
     "quantile_0.9999": 113.920195697018,
-    "logx": false
+    "logx": false,
+    "best_axes" : "logx"
   },
   "Tr_T_TRFITTCHI2": {
     "mc_only": false,
@@ -813,7 +880,8 @@
     "quantile_0.5": 14.357473373413086,
     "quantile_0.99": 33.862333221435506,
     "quantile_0.9999": 61.34065965270894,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_TRFITVELOCHI2NDOF": {
     "mc_only": false,
@@ -826,7 +894,8 @@
     "quantile_0.5": 0.990907609462738,
     "quantile_0.99": 3.4003377366065974,
     "quantile_0.9999": 18.086321181876116,
-    "logx": true
+    "logx": true,
+    "best_axes" : "normal"
   },
   "Tr_T_TRGHOSTPROB": {
     "mc_only": false,
@@ -839,7 +908,8 @@
     "quantile_0.5": 0.007767894770950079,
     "quantile_0.99": 0.32468105435371397,
     "quantile_0.9999": 0.3497432596027852,
-    "logx": false
+    "logx": false,
+    "best_axes" : "logx"
   },
   "Tr_T_TRPCHI2": {
     "mc_only": false,
@@ -852,14 +922,16 @@
     "quantile_0.5": 0.4220792204141617,
     "quantile_0.99": 0.9904224872589111,
     "quantile_0.9999": 0.999929666519165,
-    "logx": true
+    "logx": true,
+    "best_axes" : "logy"
   },
   "Tr_T_TRTYPE": {
     "mc_only": false,
     "int_only": true,
     "feature_type": "categorical",
     "category_values": [3,4],
-    "category_names": []
+    "category_names": [],
+    "best_axes" : "normal"
   },
   "Tr_T_TrFIRSTHITZ": {
     "mc_only": false,
@@ -872,7 +944,8 @@
     "quantile_0.5": 169.32479858398438,
     "quantile_0.99": 634.371826171875,
     "quantile_0.9999": 648.9129028320312,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_TrFITTCHI2NDOF": {
     "mc_only": false,
@@ -885,7 +958,8 @@
     "quantile_0.5": 1.0,
     "quantile_0.99": 2.3462267780303954,
     "quantile_0.9999": 5.852347795058268,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_VeloCharge": {
     "mc_only": false,
@@ -898,7 +972,8 @@
     "quantile_0.5": 0.898876428604126,
     "quantile_0.99": 1.516853928565979,
     "quantile_0.9999": 2.6228933334350586,
-    "logx": false
+    "logx": false,
+    "best_axes" : ["normal","logy"]
   },
   "Tr_T_x": {
     "mc_only": false,
@@ -911,7 +986,8 @@
     "quantile_0.5": -0.2496432587504387,
     "quantile_0.99": 538.0142877197266,
     "quantile_0.9999": 831.5624836487018,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_xfirst": {
     "mc_only": false,
@@ -924,7 +1000,8 @@
     "quantile_0.5": 0.39719998836517334,
     "quantile_0.99": 3.483599901199341,
     "quantile_0.9999": 21.215319578565754,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_y": {
     "mc_only": false,
@@ -937,7 +1014,8 @@
     "quantile_0.5": -0.4712217152118683,
     "quantile_0.99": 518.5230767822266,
     "quantile_0.9999": 666.1437901489289,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   },
   "Tr_T_yfirst": {
     "mc_only": false,
@@ -950,6 +1028,7 @@
     "quantile_0.5": -0.08820000290870667,
     "quantile_0.99": 2.6603000164031982,
     "quantile_0.9999": 22.4826290182191,
-    "logx": false
+    "logx": false,
+    "best_axes" : "normal"
   }
 }
