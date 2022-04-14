@@ -6,7 +6,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
-from matplotlib.backends.backend_pdf import PdfPages
+from multiprocessing import Pool
+from functools import partial
+import shutil
 
 # Imports from this project
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -20,13 +22,22 @@ from utils.merge_pdfs import merge_pdfs
 output_dir = paths.plots_dir
 output_dir.mkdir(parents=True, exist_ok=True)
 
-label_keys = ["Tr_is_SS", "B_is_strange"]
-label_names = {"Tr_is_SS": "Track membership", "B_is_strange": "Signal meson flavour"}
+# Customize this to choose what will be plotted 
+# required: "label_key", "full_grid"
+# optional: "cut_query", "cut_label"
+plots_props = [
+    {"label_key" : "Tr_is_SS", "full_grid" : True},
+    {"label_key" : "B_is_strange", "full_grid" : True},
+    {"label_key" : "B_is_strange", "full_grid" : True, "cut_query" : "Tr_is_SS == 1", "cut_label" : "is SS"}
+]
 
+label_keys = ["Tr_is_SS", "B_is_strange", "B_is_strange"]
+cut_queries = [None, None, "Tr_is_SS == 1"]
+cut_labels = [None, None, "is SS"]
 
 # %%
 # Read in the feature keys
-feature_keys = load_feature_keys(["extracted_mc", "direct_mc","extracted", "direct"])
+feature_keys = load_feature_keys(["extracted", "direct","extracted_mc", "direct_mc"])
 
 # Read in the feature properties
 feature_props = load_feature_properties()
@@ -39,116 +50,89 @@ print("Done reading input")
 
 # %%
 # Histogram functions
-def prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey, add_inv_logx=False):
-    "Returns the figure and axes of what to plot on in a grid depending on whether to also plot additional plots with logarthmic axes"
-    if not draw_pull:
-        raise RuntimeError("Not drawing a pull plot is not implemented")
+def prepare_subplots_grid(axes_grid, fkey, draw_pull=True):
+    """Returns the figure and axes of what to plot on in a grid depending on which axes types are requested
+    
+    The full grid would look like:
+    | normal | logx          | inv_logx          (3) 
+    ---------------------------------------
+    | logy   | logx and logy | inv_logx and logy (3) 
+    ---------------------------------------
+    | pull   | pull_logx     | pull_inv_logx     (1)
+    | (1)    | (1)           | (1)
+
+    Arguments:
+        axes_grid , list(list(str)): 2d grid of axes and their positions (without pull axes)
+            available axes types: "normal", "logx", "logy", "logx_logy", "inv_logx", "inv_logx_logy"
+            Every type is allowed only once!
+            Example:
+            [["normal", "logx"],
+             ["logy",   "logx_logy]]
+            2nd Example:
+            [["normal", "logy"]]
+            3rd Example:
+            [["inv_logx_logy"]]
+
+    Returns:
+        Figure: figure of the plots
+        dict(Axes): all generated axes with the corresponding axes type as key
+    """    
+    
+    assert draw_pull, "Not drawing a pull plot is not implemented"
+    assert isinstance(fkey, str), "Please provide a string of the feature key"
+    assert isinstance(axes_grid, list) and isinstance(axes_grid[0], list) and isinstance(axes_grid[0][0], str), "Please provide a 2d nested list of strings as axes_grid"
+    
+    axes_grid = np.array(axes_grid)
+    
+    _, counts =np.unique(axes_grid, return_counts=True)
+    assert np.all(counts==1), "Due to the workings of the return dictionary every axes type is allowed only once."
     
     axs = {}
     
-    if not add_logx and not add_logy and not add_inv_logx:
-        # structure with gridding
-        # normal (3) 
-        # ------
-        # pull   (1)
-        # (1)
-        fig = plt.figure(figsize=(5,7))
-
-        axs["normal"] = plt.subplot2grid((4,1), (0,0), rowspan=3, colspan=1)
-
-        axs["pull_normal"] = plt.subplot2grid((4,1), (3,0), rowspan=1, sharex=axs["normal"])
+    fig_height = 4 * axes_grid.shape[0] + 2
+    fig_width = 5 * axes_grid.shape[1]
     
-    elif add_logy and not add_logx and not add_inv_logx:
-        # structure with gridding
-        # normal (3) 
-        # --------
-        # logy   (3)
-        # -------
-        # pull   (1)
-        # (1)
-        fig = plt.figure(figsize=(5,10))
-
-        axs["normal"] = plt.subplot2grid((7,1), (0,0), rowspan=3, colspan=1)
-        axs["logy"]   = plt.subplot2grid((7,1), (3,0), rowspan=3, colspan=1)
-
-        axs["pull_normal"] = plt.subplot2grid((7,1), (6,0), rowspan=1, sharex=axs["normal"])
-    elif add_logx and not add_logy and not add_inv_logx:
-        # structure with gridding
-        # normal | logx       (3) 
-        # -------------
-        # pull   | pull_log_x (1)
-        # (1)    | (1)
-        fig = plt.figure(figsize=(10,7))
-
-        axs["normal"] = plt.subplot2grid((4,2), (0,0), rowspan=3, colspan=1)
-        axs["logx"]   = plt.subplot2grid((4,2), (0,1), rowspan=3, colspan=1)
-
-        axs["pull_normal"] = plt.subplot2grid((4,2), (3,0), rowspan=1, sharex=axs["normal"])
-        axs["pull_logx"]   = plt.subplot2grid((4,2), (3,1), rowspan=1, sharex=axs["logx"])
-    elif add_logx and add_logx and not add_inv_logx:
-        # structure with gridding
-        # normal | logx          (3) 
-        # -------------
-        # logy   | logx and logy (3) 
-        # -------------
-        # pull   | pull_logx     (1)
-        # (1)    | (1)
-        fig = plt.figure(figsize=(10,10))
-
-        axs["normal"] = plt.subplot2grid((7,2), (0,0), rowspan=3, colspan=1)
-        axs["logx"]   = plt.subplot2grid((7,2), (0,1), rowspan=3, colspan=1)
+    fig = plt.figure(figsize=(fig_width, fig_height))
+    
+    grid_rows = axes_grid.shape[0] * 3 + 1
+    grid_cols = axes_grid.shape[1]
+    
+    # construct the grid of the main axes
+    for row in range(axes_grid.shape[0]):
+        for col in range(axes_grid.shape[1]):
+            axes_type = axes_grid[row, col]
+            axs[axes_type] = plt.subplot2grid(shape=(grid_rows, grid_cols),
+                                              loc=(row*3, col),
+                                              rowspan=3,
+                                              colspan=1,
+                                              fig=fig)
         
-        axs["logy"]        = plt.subplot2grid((7,2), (3,0), rowspan=3, sharex=axs["normal"])
-        axs["logx_logy"]   = plt.subplot2grid((7,2), (3,1), rowspan=3, sharex=axs["logx"])
-
-        axs["pull_normal"] = plt.subplot2grid((7,2), (6,0), rowspan=1, sharex=axs["normal"])
-        axs["pull_logx"]   = plt.subplot2grid((7,2), (6,1), rowspan=1, sharex=axs["logx"])
-    elif add_logx and add_logy and add_inv_logx:
-        # to add log(x_max - x)
-        # structure with gridding
-        # normal | logx          | inv_logx          (3) 
-        # ---------------------------------------
-        # logy   | logx and logy | inv_logx and logy (3) 
-        # ---------------------------------------
-        # pull   | pull_logx     | pull_inv_logx     (1)
-        # (1)    | (1)           | (1)
-        fig = plt.figure(figsize=(15,10))
-
-        axs["normal"] = plt.subplot2grid((7,3), (0,0), rowspan=3, colspan=1)
-        axs["logx"]   = plt.subplot2grid((7,3), (0,1), rowspan=3, colspan=1)
-        axs["inv_logx"]   = plt.subplot2grid((7,3), (0,2), rowspan=3, colspan=1)
+    # construct the remaining grid of the pull axes
+    for i, axes_type in enumerate(axes_grid[-1]):
+        axs[f"pull_{axes_type}"] = plt.subplot2grid(shape=(grid_rows, grid_cols),
+                                          loc=(grid_rows-1, i),
+                                          rowspan=1,
+                                          colspan=1,
+                                          fig=fig)
         
-        axs["logy"]        = plt.subplot2grid((7,3), (3,0), rowspan=3, sharex=axs["normal"])
-        axs["logx_logy"]   = plt.subplot2grid((7,3), (3,1), rowspan=3, sharex=axs["logx"])
-        axs["inv_logx_logy"]   = plt.subplot2grid((7,3), (3,2), rowspan=3, sharex=axs["inv_logx"])
-
-        axs["pull_normal"] = plt.subplot2grid((7,3), (6,0), rowspan=1, sharex=axs["normal"])
-        axs["pull_logx"]   = plt.subplot2grid((7,3), (6,1), rowspan=1, sharex=axs["logx"])
-        axs["pull_inv_logx"]   = plt.subplot2grid((7,3), (6,2), rowspan=1, sharex=axs["inv_logx"])
-    else:
-        raise RuntimeError("This combination of logx, logy, inv_logx is not implemented!")
-        
-    # set up the x and y scales
-    if "logy" in axs.keys():
-        axs["logy"].set_yscale("log")
-    if "logx_logy" in axs.keys():
-        axs["logx_logy"].set_yscale("log")
-    if "inv_logx_logy" in axs.keys():
-        axs["inv_logx_logy"].set_yscale("log")
+    # set up the y scales
+    for axes_type in axs.keys():
+        if "logy" in axes_type and not "pull" in axes_type:
+            axs[axes_type].set_yscale("log")
     
     # set up the axis labels
-    axs["normal"].set_ylabel("density")
-    axs["pull_normal"].set_ylabel("pull")
-    axs["pull_normal"].set_xlabel(fkey)
-    
-    if "logy" in axs.keys():
-        axs["logy"].set_ylabel("density")
-    
-    if "pull_logx" in axs.keys():
-        axs["pull_logx"].set_xlabel(f"log10( {fkey} )")
-        
-    if "pull_inv_logx" in axs.keys():
-        axs["pull_inv_logx"].set_xlabel(f"log10( ceil(x_max) - {fkey} )")
+    for axes_type in axs.keys():
+        if "pull" in axes_type:
+            axs[axes_type].set_ylabel("pull")
+        else:
+            axs[axes_type].set_ylabel("density")
+            
+        if "inv_logx" in axes_type:
+            axs[axes_type].set_xlabel(f"log10( ceil(x_max) - {fkey} )")
+        elif "logx" in axes_type:
+            axs[axes_type].set_xlabel(f"log10( {fkey} )")
+        else:
+            axs[axes_type].set_xlabel(f"{fkey}")
     
     return fig, axs
 
@@ -158,6 +142,7 @@ def hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalu
                                       colors=[f"C{i}" for i in range(6)],
                                       alpha=0.8,
                                       fill=False):
+    
     # save the histogrammed values for the pull plot
     x = []
     sigma = []
@@ -197,11 +182,12 @@ def hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalu
         pull_ax.bar(tick_labels, pull, tick_label=tick_labels, alpha=0.7)
     
     
-def hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names,
+def hist_numerical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names,
                                     line_styles=["solid","solid","dotted","dotted","dashed","dashed"],
                                     colors=[f"C{i}" for i in range(6)],
                                     alpha=0.8,
-                                    histtype="step",
+                                    fill=False,
+                                    is_logx=False,
                                     is_inv_logx=False):
     # save the histogrammed values for the pull plot
     x = []
@@ -236,6 +222,8 @@ def hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey
         x.append(x_normed)
         sigma.append(sigma_normed)
         
+        histtype = "step" if not fill else "stepfilled"
+        
         # plot the hist with errorbars
         ax.hist(bin_centers, 
                 weights=x_normed, 
@@ -262,10 +250,9 @@ def hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey
                      alpha=0.7)
     
 
-def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=False, add_logy=False, add_inv_logx=False, add_cut=False, cut_query=None, cut_label=None):
+def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, full_grid=True, axes_type="normal", add_cut=False, cut_query=None, cut_label=None):
     
     assert lprops["feature_type"] == "categorical", f"The label ({lkey}) has to be categorical."
-    
     assert fprops["feature_type"] in ["categorical", "numerical"], f"The feature ({fkey}) is not categorical and not numerical..."
     
     lvalues = lprops["category_values"]
@@ -281,13 +268,36 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=
         
     draw_pull = len(lvalues)==2
     
-    # only add logarithmic x axis if the feature is float numerical and x_min>0
-    add_logx = add_logx and fprops["feature_type"]=="numerical" and not fprops["int_only"] and fprops["quantile_0.0001"]>0.0
+    if fprops["feature_type"]=="numerical":
+        x_min = fprops["quantile_0.0001"]
+        x_max = fprops["quantile_0.9999"]
+        
+        # only add logarithmic x axis if the feature is float numerical and x_min>0
+        logx_possible = not fprops["int_only"] and x_min > 0.0
+        # only add inverse logarithmic x axis if logx_possible and x_max < ceil(x_max)
+        inv_logx_possible = logx_possible and x_max < np.ceil(x_max)
+        
+        # manually allowed inv_logx features:
+        allowed_inv_logx = ["Tr_T_PROBNNe", "Tr_T_PROBNNghost", "Tr_T_PROBNNk", "Tr_T_PROBNNmu", "Tr_T_PROBNNp", "Tr_T_PROBNNpi", "Tr_T_TRPCHI2"]
+        inv_logx_possible = logx_possible and fkey in allowed_inv_logx
+    else:
+        logx_possible = False
+        inv_logx_possible = False
     
-    add_inv_logx = add_inv_logx and add_logx
-    
-    # prepare the subplots
-    fig, axs = prepare_subplots_grid(draw_pull, add_logx, add_logy, fkey, add_inv_logx)
+    if full_grid:
+        if logx_possible and inv_logx_possible:
+            axes_grid = [["normal", "logx", "inv_logx"],
+                         ["logy", "logx_logy", "inv_logx_logy"]]
+        elif logx_possible:
+            axes_grid = [["normal", "logx"],
+                         ["logy", "logx_logy"]]
+        else:
+            axes_grid = [["normal"],
+                         ["logy"]]
+    elif not full_grid:
+        axes_grid = [[axes_type]]
+        
+    fig, axs = prepare_subplots_grid(axes_grid, fkey, draw_pull)
 
     # set the figure title
     plot_title = f"{fkey} by {lkey}"
@@ -301,99 +311,102 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, add_logx=
         plot_title += f"\nwithout the error value {error_val} (proportion: {error_val_proportion*100:.2f}%)"
     fig.suptitle(plot_title)
     
-    line_styles = ["solid","solid","dotted","dotted","dashed","dashed"]
-    colors = [f"C{i}" for i in range(6)]
         
     # fill all the axes with the according histogram
-    for ax_key in ["normal", "logx", "logy", "logx_logy", "inv_logx", "inv_logx_logy"]:
-        if ax_key in axs.keys():
-            ax = axs[ax_key]
-            is_logx = "logx" in ax_key
-            is_inv_logx = "inv_logx" in ax_key
-            if f"pull_{ax_key}" in axs.keys():
-                pull_ax = axs[f"pull_{ax_key}"]
-            else:
-                pull_ax = None
+    for ax_key in axs.keys():
+        if "pull" in ax_key:
+            continue
         
-            if not add_cut:
-                if fprops["feature_type"] == "categorical":
-                    hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names, line_styles=line_styles, colors=colors)
-                elif fprops["feature_type"] == "numerical":
-                    hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names, line_styles=line_styles, colors=colors, is_inv_logx=is_inv_logx)
-            else:
-                if fprops["feature_type"] == "categorical":
-                    hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names, line_styles=line_styles, colors=colors, fill=True, alpha=0.5)
-                    hist_categorical_feature_by_label(ax, pull_ax, df.query(cut_query), fkey, fprops, lkey, lvalues, lvalue_names_cut, line_styles=line_styles, colors=colors)
-                elif fprops["feature_type"] == "numerical":
-                    hist_numerical_feature_by_label(ax, pull_ax, is_logx, df, fkey, fprops, lkey, lvalues, lvalue_names, line_styles=line_styles, colors=colors, histtype="stepfilled", alpha=0.5, is_inv_logx=is_inv_logx)
-                    hist_numerical_feature_by_label(ax, pull_ax, is_logx, df.query(cut_query), fkey, fprops, lkey, lvalues, lvalue_names_cut, line_styles=line_styles, colors=colors, is_inv_logx=is_inv_logx)
-                    
-                if pull_ax is not None:
-                    pull_ax.legend(["all", "cut"], loc="best", fontsize=5)
-                    if is_inv_logx:
-                        pull_ax.set_xlabel(f"log10( {np.ceil(fprops['quantile_0.9999'])} - {fkey} )")
+        ax = axs[ax_key]
         
-        ax.legend(loc="best")
+        is_logx = "logx" in ax_key
+        is_inv_logx = "inv_logx" in ax_key
+        
+        if f"pull_{ax_key}" in axs.keys():
+            pull_ax = axs[f"pull_{ax_key}"]
+        else:
+            pull_ax = None
+            
+        if add_cut:
+            fill = True
+            alpha=0.5
+        else:
+            fill = False
+            alpha=0.8
+            
+        if fprops["feature_type"] == "categorical":
+            hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names, fill=fill, alpha=alpha)
+        elif fprops["feature_type"] == "numerical":
+            hist_numerical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names, fill=fill, alpha=alpha, is_logx=is_logx, is_inv_logx=is_inv_logx)
+        
+        if add_cut:
+            if fprops["feature_type"] == "categorical":
+                hist_categorical_feature_by_label(ax, pull_ax, df.query(cut_query), fkey, fprops, lkey, lvalues, lvalue_names_cut)
+            elif fprops["feature_type"] == "numerical":
+                hist_numerical_feature_by_label(ax, pull_ax, df.query(cut_query), fkey, fprops, lkey, lvalues, lvalue_names_cut, is_logx=is_logx, is_inv_logx=is_inv_logx)
+        
+        if is_inv_logx:
+            ax.set_xlabel(f"log10( {np.ceil(x_max)} - {fkey} )")    
+        
+        if pull_ax is not None:
+            if add_cut:
+                pull_ax.legend(["all", "cut"], loc="best", fontsize=5)
+            if is_inv_logx:
+                pull_ax.set_xlabel(f"log10( {np.ceil(x_max)} - {fkey} )")
+        
+        ax.legend(loc="best")    
     
     fig.tight_layout()
     fig.savefig(output_file)
-    plt.close()
+    plt.close(fig)
 
-# %%
 # function for multiprocessing
-from multiprocessing import Pool
-from functools import partial
-
-def plot_feature(label_key, output_label_dir, feature_key, cut_query=None, cut_label=None):
-    output_file = output_label_dir/f"{feature_key}.pdf"
-    add_inv_logx = feature_key in features_with_inv_logx
+def plot_feature(label_key, output_dir, enumerated_feature_key, full_grid=True, cut_query=None, cut_label=None):
+    global df, feature_props
+    plot_idx, feature_key = enumerated_feature_key
+    output_file = output_dir/f"{plot_idx:03d}_{feature_key}.pdf"
     hist_feature_by_label(df, 
                           feature_key, feature_props[feature_key], 
                           label_key, feature_props[label_key],
                           output_file,
-                          add_logx=True,
-                          add_logy=True,
-                          add_inv_logx=add_inv_logx,
+                          full_grid=full_grid,
                           add_cut=(cut_query is not None),
                           cut_query=cut_query,
                           cut_label=cut_label)
-
-features_with_inv_logx = ["Tr_T_PROBNNe","Tr_T_PROBNNghost","Tr_T_PROBNNk","Tr_T_PROBNNmu","Tr_T_PROBNNp","Tr_T_PROBNNpi","Tr_T_TRPCHI2"]
-
-# %%    
-# Hist of all features by all labels
-for label_key in label_keys:
-    output_label_dir = output_dir / f"features_by_{label_key}"
-    output_label_dir.mkdir(parents=True, exist_ok=True)
     
-    output_label_file = output_dir / f"features_by_{label_key}.pdf"
-    
-    with Pool(50) as p:
-        list(tqdm(p.imap(partial(plot_feature, label_key, output_label_dir), feature_keys), 
-                  total=len(feature_keys),
-                  desc=f"Features by {label_key}"))
-
-    merge_pdfs(output_label_dir, output_label_file)
-
-
 # %%
-# Hist B_is_Strange with and without a cut on Tr_is_SS
+# Hist of all features by all labels (potentially with a cut)
+for plot_props in plots_props:
     
-label_key = "B_is_strange"
+    label_key = plot_props["label_key"]
+    full_grid = plot_props["full_grid"]
+    if "cut_query" in plot_props:
+        cut_query = plot_props["cut_query"]
+        cut_label = plot_props["cut_label"]
+    else:
+        cut_query = None
+        cut_label = None
+    
+    assert full_grid, "Not plotting the full grid is not yet implemented"
+    
+    name = f"features_by_{label_key}"
+    if cut_query is not None:
+        name += f"_cut_{cut_label.replace(' ', '_')}"
+    
+    output_label_dir = output_dir / name
+    if output_label_dir.is_dir():
+        shutil.rmtree(output_label_dir)
+    output_label_dir.mkdir(parents=True)
+    
+    # use multiprocessing to plot all features
+    with Pool(processes=50) as p:
+        pfunc = partial(plot_feature, label_key, output_label_dir, cut_query=cut_query, cut_label=cut_label)
+        iter = p.imap(pfunc, enumerate(feature_keys))
+        pbar_iter = tqdm(iter, total=len(feature_keys), desc=name)
+        # start processing, by evaluating the iterator:
+        list(pbar_iter)
 
-cut_query = "Tr_is_SS == 1"
-cut_label = "is SS"
+    merge_pdfs(output_label_dir,  output_dir/f"{name}.pdf")
 
-output_label_dir = output_dir / f"features_by_{label_key}_with_cut_on_Tr_is_SS"
-output_label_dir.mkdir(parents=True, exist_ok=True)
-
-output_label_file = output_dir / f"features_by_{label_key}_with_cut_on_Tr_is_SS.pdf"
-
-with Pool(50) as p:
-    list(tqdm(p.imap(partial(plot_feature, label_key, output_label_dir, cut_query=cut_query, cut_label=cut_label), feature_keys), 
-                total=len(feature_keys),
-                desc=f"Features by {label_key} with {cut_query}"))
-
-merge_pdfs(output_label_dir, output_label_file)
 
 # %%
