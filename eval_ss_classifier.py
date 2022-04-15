@@ -70,12 +70,6 @@ y_test = y[ttsplit["test_idxs"]]
 # Read in the trained model
 with open(paths.ss_classifier_model_file, "rb") as file:
     model = pickle.load(file)
-    
-# Read in the model/training parameters
-with open(paths.ss_classifier_parameters_file, "r") as file:
-    params = json.load(file)
-    train_params = params["train_params"]
-    model_params = params["model_params"]
 
 # %%
 # Evaluate the training
