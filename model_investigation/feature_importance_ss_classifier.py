@@ -15,6 +15,7 @@ from sklearn import metrics as skmetrics
 from sklearn.inspection import permutation_importance
 from argparse import ArgumentParser
 import pickle
+import shap
 
 # Imports from this project
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -135,13 +136,47 @@ for metric in perm_imp_metrics:
 print("Done calculating the permutation feature importance")
 
 # %%
+# SHAP values
+print("Calculate the SHAP values")
+batch_size=10000
+shap_value_chunks = []
+X_idxs = X_test_reduced.index.to_numpy()
+chunks_masks = np.array_split(X_idxs, len(X_idxs)//batch_size)
+
+explainer = shap.Explainer(model)
+for chunk_mask in tqdm(chunks_masks, desc="SHAP values"):
+    shap_value_chunks.append(explainer(X_test_reduced.loc[chunk_mask, feature_keys]).values)
+
+shap_values = np.concatenate(shap_value_chunks)
+
+df_fi.loc[feature_keys,"shap_mean"] = np.mean(np.abs(shap_values), axis=0)
+df_fi.loc[feature_keys,"shap_max"] = np.max(np.abs(shap_values), axis=0)
+print("Done calculating the SHAP values")
+
+# %%
+# Which importance metrics should be evaluated
+importance_metrics = ["xgb_gain", "perm_balanced_accuracy", "perm_roc_auc", "perm_f1", "shap_mean", "shap_max"]
+
+# %%
+# Calculate a total score
+# Scale all of them to 0-1 (min to max within one metric)
+# then calculate the mean
+# and the max
+max_fi = np.max(df_fi[importance_metrics], axis=0)
+min_fi = np.min(df_fi[importance_metrics], axis=0)
+df_fi_normed = (df_fi[importance_metrics] - min_fi) / (max_fi - min_fi)
+
+df_fi["combined_mean"] = np.mean(df_fi_normed, axis=1)
+df_fi["combined_max"] = np.max(df_fi_normed, axis=1)
+
+importance_metrics = ["combined_mean", "combined_max"] + importance_metrics
+
+# %%
 # Sort the features
-df_fi.sort_values(by="perm_balanced_accuracy", ascending=False, inplace=True)
+df_fi.sort_values(by="combined_max", ascending=False, inplace=True)
 
 # %%
 # Plot the feature importances
-importance_metrics = ["xgb_gain", "xgb_cover", "perm_balanced_accuracy", "perm_roc_auc", "perm_f1"]
-
 fig, axs = plt.subplots(len(importance_metrics),1, 
                         figsize=(len(feature_keys)/1.5, len(importance_metrics)*5), 
                         sharex=True)
@@ -151,15 +186,41 @@ fig, axs = plt.subplots(len(importance_metrics),1,
 for i, (ax, metric) in enumerate(zip(axs, importance_metrics)):
     ax.set_title(f"feature importance metric: {metric}")
     if f"{metric}_std" in df_fi.columns:
-        yerr = df_fi[f"{metric}_std"]
+        err = df_fi[f"{metric}_std"]
     else:
-        yerr = None
-    ax.bar(df_fi.index, df_fi[metric], yerr=yerr, color=f"C{i}", alpha=0.8)
+        err = None
+    ax.bar(df_fi.index, df_fi[metric], yerr=err, color=f"C{i}", alpha=0.8)
     ax.set_ylabel(metric)
     ax.tick_params(axis="x", labelbottom=True, labelrotation=60)
 
 plt.tight_layout()
-plt.savefig(output_dir/"00_selected_importances.pdf")
+plt.savefig(output_dir/"00_selected_importances_horizontal.pdf")
+plt.close()
+
+# %%
+# Plot the feature importances
+fig, axs = plt.subplots(1,len(importance_metrics), 
+                        figsize=(len(importance_metrics)*7, len(feature_keys)/1.5), 
+                        sharey=False)
+
+#fig.suptitle(f"Feature Importance")
+
+for i, (ax, metric) in enumerate(zip(axs, importance_metrics)):
+    ax.set_title(f"feature importance metric: {metric}")
+    if f"{metric}_std" in df_fi.columns:
+        err = df_fi[f"{metric}_std"]
+    else:
+        err = None
+    ax.barh(df_fi.index, df_fi[metric], xerr=err, color=f"C{i}", alpha=0.8, zorder=3)
+
+    ax.set_xlabel(metric)
+    ax.tick_params(axis="y", left=True, labelleft=True)
+    ax.tick_params(axis="x", bottom=True, top=True, labeltop=True)
+    ax.grid(zorder=0)
+    ax.invert_yaxis()
+
+plt.tight_layout()
+plt.savefig(output_dir/"01_selected_importances_vertical.pdf")
 plt.close()
 
 # %%
