@@ -1,4 +1,7 @@
 {
+"output_ss_classifier" : [
+    "Tr_ProbSS"
+],
 "label_ss_classifier" : [
     "Tr_is_SS"
 ],

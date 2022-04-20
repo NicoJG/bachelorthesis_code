@@ -14,6 +14,7 @@ Bs2DsPi_file = Path("/ceph/FlavourTagging/NTuples/ift/MC/Bs2DsPi/Mar_2022_wgprod
 data_dir = Path("/ceph/users/nguth/data")
 
 preprocessed_data_file = data_dir/"preprocessed_mc_Sim9b.root"
+ss_classified_data_file = data_dir/"SS_classified_mc_Sim9b.root"
 
 # Paths to models trained by this project
 models_dir = Path("/ceph/users/nguth/models")

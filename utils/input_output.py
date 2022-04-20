@@ -101,7 +101,7 @@ def load_data_from_root(file_path, tree_key="DecayTree", features=None, N_entrie
     
     return df
 
-def load_preprocessed_data(features=None, N_entries_max=np.Infinity, batch_size=1000000):
+def load_preprocessed_data(features=None, N_entries_max=np.Infinity, batch_size=1000000, input_file=paths.preprocessed_data_file):
     """Read in the already preprocessed data
 
     Args:
@@ -116,7 +116,7 @@ def load_preprocessed_data(features=None, N_entries_max=np.Infinity, batch_size=
         features = features.copy()
         features.extend(["index", "event_id", "track_id"])
     
-    df = load_data_from_root(paths.preprocessed_data_file, features=features, N_entries_max=N_entries_max, batch_size=batch_size)
+    df = load_data_from_root(input_file, features=features, N_entries_max=N_entries_max, batch_size=batch_size)
     df.set_index("index", inplace=True)
     
     return df
