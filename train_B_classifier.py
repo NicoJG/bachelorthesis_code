@@ -133,9 +133,11 @@ class DeepSetModel(nn.Module):
         )
 
         def SumLayer(x, ids):
+            # get an event_index_by_track array
             idxs = torch.zeros_like(ids)
             idxs[1:] = torch.cumsum(ids[1:] != ids[:-1], 0)
             
+            # sum up the latent features of all tracks per event
             temp = torch.zeros(idxs[-1]+1, n_latent_features)
             return temp.index_add(0, idxs, x)
             
@@ -172,10 +174,8 @@ class DeepSetDataLoader:
         self.event_ids, self.event_first_idxs = np.unique(event_ids_by_track.numpy(), return_index=True)
         # numpy unique sorts the values, so we have to "unsort" them
         unsort_mask = np.argsort(self.event_first_idxs)
-        self.event_ids = self.event_ids[unsort_mask]
-        self.event_first_idxs = self.event_first_idxs[unsort_mask]
-        self.event_ids = torch.from_numpy(self.event_ids)
-        self.event_first_idxs = torch.from_numpy(self.event_first_idxs)
+        self.event_ids = torch.from_numpy(self.event_ids[unsort_mask])
+        self.event_first_idxs = torch.from_numpy(self.event_first_idxs[unsort_mask])
         
         self.batch_size = batch_size
         
@@ -197,14 +197,11 @@ class DeepSetDataLoader:
         batch_start_event_idx = self.current_event_idx
         batch_stop_event_idx = batch_start_event_idx + self.batch_size # index of the first event that is not in the batch
         
-        is_last = batch_stop_event_idx >= self.n_events
-        
-        if is_last:
-            batch_stop_event_idx = self.n_events
-        
         batch_start_track_idx = self.event_first_idxs[batch_start_event_idx]
         
-        if is_last:
+        if batch_stop_event_idx >= self.n_events:
+            # last batch in the dataset
+            batch_stop_event_idx = self.n_events
             batch_stop_track_idx = self.n_tracks
         else:
             batch_stop_track_idx = self.event_first_idxs[batch_stop_event_idx]
@@ -222,14 +219,16 @@ class DeepSetDataLoader:
     def __len__(self):
         return self.n_batches
         
-train_dataloader = DeepSetDataLoader(X_train, y_train, event_ids_train_by_track, batch_size=1000)
-test_dataloader = DeepSetDataLoader(X_test, y_test, event_ids_test_by_track, batch_size=1000)
+train_dataloader = DeepSetDataLoader(X_train, y_train, event_ids_train_by_track, batch_size=params["train_params"]["batch_size"])
+test_dataloader = DeepSetDataLoader(X_test, y_test, event_ids_test_by_track, batch_size=params["train_params"]["batch_size"])
             
 # %%
 # Define the training loop functions
 def train_one_epoch(dataloader, model, loss_fn, optimizer, pbar=None):
-    train_loss = 0
-    train_error_count = 0
+    loss_sum = 0
+    error_count = 0
+    
+    model.train()
     
     for X, y, event_ids_by_track, event_ids in dataloader:
         # Compute prediction and loss
@@ -241,29 +240,32 @@ def train_one_epoch(dataloader, model, loss_fn, optimizer, pbar=None):
         loss.backward()
         optimizer.step()
 
-        train_loss += loss.item()
-        train_error_count += ((y_pred > 0.5) != y).sum().item()
+        loss_sum += loss.item()
+        error_count += ((y_pred > 0.5) != y).sum().item()
         if pbar is not None:
             pbar.update()
         
-    train_loss /= dataloader.n_batches
-    train_error = train_error_count / dataloader.n_events
+    loss = loss_sum / dataloader.n_batches
+    error = error_count / dataloader.n_events
     
-    return train_loss, train_error
+    return loss, error
 
 def test_one_epoch(dataloader, model, loss_fn):
-    test_loss = 0
+    loss_sum = 0
     error_count = 0
+    
+    model.eval()
+    
     with torch.no_grad():
         for X, y, event_ids_by_track, event_ids in dataloader:
             y_pred = model(X, event_ids_by_track)
-            test_loss += loss_fn(y_pred, y).item()
+            loss_sum += loss_fn(y_pred, y).item()
             error_count += ((y_pred > 0.5) != y).sum().item()
 
-    test_loss /= dataloader.n_batches
-    test_error = error_count / dataloader.n_events
+    loss = loss_sum / dataloader.n_batches
+    error = error_count / dataloader.n_events
 
-    return test_loss, test_error
+    return loss, error
 
     
 
