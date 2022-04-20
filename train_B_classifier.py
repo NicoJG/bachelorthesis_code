@@ -30,9 +30,19 @@ assert not paths.B_classifier_dir.is_dir(), f"The model '{paths.B_classifier_dir
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
 
+# %%
 # Parameters of the model
 params = {
-    "test_size" : 0.4
+    "test_size" : 0.4,
+    "model_params" : {
+        
+    },
+    "train_params" : {
+        "batch_size" : 10000,
+        "learning_rate" : 0.001,
+        "epochs" : 10
+    }
+
 }
 
 # %%
@@ -96,13 +106,13 @@ params["n_events_test"] = len(event_ids_test)
 # Create PyTorch Tensors from the Numpy arrays
 
 
-X_train = torch.from_numpy(X_train)
-y_train = torch.from_numpy(y_train)
-event_ids_train_by_track = torch.from_numpy(event_ids_train_by_track)
+X_train = torch.from_numpy(X_train).float().to(device)
+y_train = torch.from_numpy(y_train).int().to(device)
+event_ids_train_by_track = torch.from_numpy(event_ids_train_by_track).int().to(device)
 
-X_test = torch.from_numpy(X_test)
-y_test = torch.from_numpy(y_test)
-event_ids_test_by_track = torch.from_numpy(event_ids_test_by_track)
+X_test = torch.from_numpy(X_test).float().to(device)
+y_test = torch.from_numpy(y_test).int().to(device)
+event_ids_test_by_track = torch.from_numpy(event_ids_test_by_track).int().to(device)
 
 
 # %%
@@ -121,7 +131,7 @@ class DeepSetModel(nn.Module):
             nn.Linear(n_features*2, n_latent_features),
             nn.ReLU()
         )
-        
+
         self.sum_layer = lambda x, ids: torch.zeros(len(ids.unique()), n_latent_features).index_add_(0, ids, x)
         
         self.rho_stack = nn.Sequential(
@@ -129,8 +139,8 @@ class DeepSetModel(nn.Module):
             nn.ReLU(),
             nn.Linear(n_latent_features*2, n_latent_features),
             nn.ReLU(),
-            nn.Linear(n_latent_features, 2),
-            nn.Softmax()
+            nn.Linear(n_latent_features, 1),
+            nn.Sigmoid()
         )
         
     def forward(self, x, event_ids):
@@ -170,7 +180,7 @@ class DeepSetDataLoader:
         
         self.n_events = len(self.event_ids)
         self.n_tracks = len(self.event_ids_by_track)
-        self.n_batches = np.ceil(self.n_events / self.batch_size)
+        self.n_batches = int(np.ceil(self.n_events / self.batch_size))
         
     def __iter__(self):
         self.current_event_idx = 0
@@ -198,19 +208,159 @@ class DeepSetDataLoader:
         batch_event_slice = slice(batch_start_event_idx, batch_stop_event_idx)
         batch_track_slice = slice(batch_start_track_idx, batch_stop_track_idx)
         
-        self.current_event_idx = batch_stop_event_idx
-        
-        return (self.X[batch_track_slice], 
-                self.y[batch_event_slice], 
+        return (self.X[batch_track_slice],
+                self.y[batch_event_slice],
                 self.event_ids_by_track[batch_track_slice],
                 self.event_ids[batch_event_slice]) 
         
+    def __len__(self):
+        return self.n_batches
+        
 train_dataloader = DeepSetDataLoader(X_train, y_train, event_ids_train_by_track, batch_size=1000)
+test_dataloader = DeepSetDataLoader(X_test, y_test, event_ids_test_by_track, batch_size=1000)
+            
+# %%
+# Define the training loop functions
+def train_one_epoch(dataloader, model, loss_fn, optimizer, pbar=None):
+    train_loss = 0
+    train_error_count = 0
+    
+    for X, y, event_ids_by_track, event_ids in dataloader:
+        # Compute prediction and loss
+        y_pred = model(X, event_ids_by_track)
+        loss = loss_fn(y_pred, y).item()
+
+        # Backpropagation
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        train_loss += loss.item()
+        train_error_count += ((y_pred > 0.5) != y).sum().item()
+        if pbar is not None:
+            pbar.update()
+        
+    train_loss /= len(dataloader)
+    train_error = train_error_count / len(dataloader.dataset)
+    
+    return train_loss, train_error
+
+def test_one_epoch(dataloader, model, loss_fn):
+    test_loss = 0
+    error_count = 0
+    with torch.no_grad():
+        for X, y, event_ids_by_track, event_ids in dataloader:
+            y_pred = model(X, event_ids_by_track)
+            test_loss += loss_fn(y_pred, y).item()
+            error_count += ((y_pred > 0.5) != y).sum().item()
+
+    test_loss /= len(dataloader)
+    test_error = error_count / len(dataloader.dataset)
+
+    return test_loss, test_error
+
+    
 
 # %%
-for X, y, event_ids_by_track, event_ids in train_dataloader:
-    print(X.shape)
-    print(y.shape)
-    print(event_ids_by_track.shape)
-    print(event_ids.shape)
+# Train the model
+torch.set_num_threads(50)
+loss_fn = nn.BCELoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=params["train_params"]["learning_rate"])
+
+train_history = {"epochs" : [],
+                 "train": {"loss":[],"error":[]},
+                 "test": {"loss":[],"error":[]}}
+
+
+for epoch_i in tqdm(range(params["train_params"]["epochs"]), desc="Train epochs"):
+    if epoch_i == 0:
+        pbar = tqdm(total=len(train_dataloader), desc="Batches")
+    else:
+        pbar.refresh()
+        pbar.reset()
+    train_loss, train_error = train_one_epoch(train_dataloader, model, loss_fn, optimizer, pbar)
+    test_loss, test_error = test_one_epoch(test_dataloader, model, loss_fn)
+    
+    train_history["epochs"].append(epoch_i)
+    train_history["train"]["loss"].append(train_loss)
+    train_history["train"]["error"].append(train_error)
+    train_history["test"]["loss"].append(test_loss)
+    train_history["test"]["error"].append(test_error)
+
+print("Done!")
+
+
+
+# %%
+# Define the training loop functions
+def train_one_epoch(dataloader, model, loss_fn, optimizer, pbar=None):
+    train_loss = 0
+    train_error_count = 0
+    
+    for X, y, event_ids_by_track, event_ids in dataloader:
+        # Compute prediction and loss
+        y_pred = model(X, event_ids_by_track)
+        loss = loss_fn(y_pred, y).item()
+
+        # Backpropagation
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        train_loss += loss.item()
+        train_error_count += ((y_pred > 0.5) != y).sum().item()
+        if pbar is not None:
+            pbar.update()
+        
+    train_loss /= len(dataloader)
+    train_error = train_error_count / len(dataloader.dataset)
+    
+    return train_loss, train_error
+
+def test_one_epoch(dataloader, model, loss_fn):
+    test_loss = 0
+    error_count = 0
+    with torch.no_grad():
+        for X, y, event_ids_by_track, event_ids in dataloader:
+            y_pred = model(X, event_ids_by_track)
+            test_loss += loss_fn(y_pred, y).item()
+            error_count += ((y_pred > 0.5) != y).sum().item()
+
+    test_loss /= len(dataloader)
+    test_error = error_count / len(dataloader.dataset)
+
+    return test_loss, test_error
+
+    
+
+# %%
+# Train the model
+torch.set_num_threads(50)
+loss_fn = nn.BCELoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=params["train_params"]["learning_rate"])
+
+train_history = {"epochs" : [],
+                 "train": {"loss":[],"error":[]},
+                 "test": {"loss":[],"error":[]}}
+
+
+for epoch_i in tqdm(range(params["train_params"]["epochs"]), desc="Train epochs"):
+    if epoch_i == 0:
+        pbar = tqdm(total=len(train_dataloader), desc="Batches")
+    else:
+        pbar.refresh()
+        pbar.reset()
+    train_loss, train_error = train_one_epoch(train_dataloader, model, loss_fn, optimizer, pbar)
+    test_loss, test_error = test_one_epoch(test_dataloader, model, loss_fn)
+    
+    train_history["epochs"].append(epoch_i)
+    train_history["train"]["loss"].append(train_loss)
+    train_history["train"]["error"].append(train_error)
+    train_history["test"]["loss"].append(test_loss)
+    train_history["test"]["error"].append(test_error)
+
+print("Done!")
+
+
+    
 # %%
