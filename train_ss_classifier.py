@@ -21,10 +21,8 @@ parser.add_argument("-g", "--gpu", dest="train_on_gpu", action="store_true")
 parser.add_argument("-f", help="Dummy argument for IPython")
 args = parser.parse_args()
 
-if "model_name" in args:
+if args.model_name is not None:
     paths.update_ss_classifier_name(args.model_name)
-else:
-    paths.update_ss_classifier_name("SS_classifier")
 
 assert not paths.ss_classifier_dir.is_dir(), f"The model '{paths.ss_classifier_dir}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
 paths.ss_classifier_dir.mkdir(parents=True)
@@ -58,7 +56,10 @@ if args.train_on_gpu:
 
 # %%
 # Read in the feature keys
-feature_keys = load_feature_keys(["label_ss_classifier","features_ss_classifier"])
+feature_keys = load_feature_keys(["features_ss_classifier"])
+label_key = load_feature_keys(["label_ss_classifier"])[0]
+params["label_key"] = label_key
+params["feature_keys"] = feature_keys
 
 # Read in the feature properties
 fprops = load_feature_properties()
@@ -73,11 +74,6 @@ print("Done reading input")
 
 # %%
 # Prepare the data
-label_key = "Tr_is_SS"
-feature_keys.remove(label_key)
-
-params["label_key"] = label_key
-params["feature_keys"] = feature_keys
 
 X = df_data[feature_keys]
 y = df_data[label_key].to_numpy()
