@@ -107,11 +107,11 @@ params["n_events_test"] = len(event_ids_test)
 
 
 X_train = torch.from_numpy(X_train).float().to(device)
-y_train = torch.from_numpy(y_train).int().to(device)
+y_train = torch.from_numpy(y_train).float().to(device)
 event_ids_train_by_track = torch.from_numpy(event_ids_train_by_track).int().to(device)
 
 X_test = torch.from_numpy(X_test).float().to(device)
-y_test = torch.from_numpy(y_test).int().to(device)
+y_test = torch.from_numpy(y_test).float().to(device)
 event_ids_test_by_track = torch.from_numpy(event_ids_test_by_track).int().to(device)
 
 
@@ -132,7 +132,14 @@ class DeepSetModel(nn.Module):
             nn.ReLU()
         )
 
-        self.sum_layer = lambda x, ids: torch.zeros(len(ids.unique()), n_latent_features).index_add_(0, ids, x)
+        def SumLayer(x, ids):
+            idxs = torch.zeros_like(ids)
+            idxs[1:] = torch.cumsum(ids[1:] != ids[:-1], 0)
+            
+            temp = torch.zeros(idxs[-1]+1, n_latent_features)
+            return temp.index_add(0, idxs, x)
+            
+        self.sum_layer = SumLayer
         
         self.rho_stack = nn.Sequential(
             nn.Linear(n_latent_features, n_latent_features*2),
@@ -159,7 +166,7 @@ model = DeepSetModel(len(feature_keys), 20).to(device)
 class DeepSetDataLoader:
     def __init__(self, X, y, event_ids_by_track, batch_size):
         self.X = X
-        self.y = y
+        self.y = y.unsqueeze(1)
         
         self.event_ids_by_track = event_ids_by_track
         self.event_ids, self.event_first_idxs = np.unique(event_ids_by_track.numpy(), return_index=True)
@@ -171,9 +178,6 @@ class DeepSetDataLoader:
         self.event_first_idxs = torch.from_numpy(self.event_first_idxs)
         
         self.batch_size = batch_size
-        
-        print(self.event_ids)
-        print(self.event_first_idxs)
         
         assert X.shape[0] == self.event_ids_by_track.shape[0], "X and event_ids_by_track must have the same length in the first dimension!"
         assert y.shape[0] == self.event_ids.shape[0], "y must have the same length as unique values in event_ids_by_track!"
@@ -208,6 +212,8 @@ class DeepSetDataLoader:
         batch_event_slice = slice(batch_start_event_idx, batch_stop_event_idx)
         batch_track_slice = slice(batch_start_track_idx, batch_stop_track_idx)
         
+        self.current_event_idx = batch_stop_event_idx
+        
         return (self.X[batch_track_slice],
                 self.y[batch_event_slice],
                 self.event_ids_by_track[batch_track_slice],
@@ -228,7 +234,7 @@ def train_one_epoch(dataloader, model, loss_fn, optimizer, pbar=None):
     for X, y, event_ids_by_track, event_ids in dataloader:
         # Compute prediction and loss
         y_pred = model(X, event_ids_by_track)
-        loss = loss_fn(y_pred, y).item()
+        loss = loss_fn(y_pred, y)
 
         # Backpropagation
         optimizer.zero_grad()
@@ -240,8 +246,8 @@ def train_one_epoch(dataloader, model, loss_fn, optimizer, pbar=None):
         if pbar is not None:
             pbar.update()
         
-    train_loss /= len(dataloader)
-    train_error = train_error_count / len(dataloader.dataset)
+    train_loss /= dataloader.n_batches
+    train_error = train_error_count / dataloader.n_events
     
     return train_loss, train_error
 
@@ -254,8 +260,8 @@ def test_one_epoch(dataloader, model, loss_fn):
             test_loss += loss_fn(y_pred, y).item()
             error_count += ((y_pred > 0.5) != y).sum().item()
 
-    test_loss /= len(dataloader)
-    test_error = error_count / len(dataloader.dataset)
+    test_loss /= dataloader.n_batches
+    test_error = error_count / dataloader.n_events
 
     return test_loss, test_error
 
@@ -288,5 +294,22 @@ for epoch_i in tqdm(range(params["train_params"]["epochs"]), desc="Train epochs"
     train_history["test"]["error"].append(test_error)
 
 print("Done!")
+
+# %%
+# Show the training history
+import matplotlib.pyplot as plt
+plt.title("Loss during training")
+plt.plot(train_history["epochs"], train_history["train"]["loss"], label="train")
+plt.plot(train_history["epochs"], train_history["test"]["loss"], label="test")
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+plt.title("Error rate during training")
+plt.plot(train_history["epochs"], train_history["train"]["error"], label="train")
+plt.plot(train_history["epochs"], train_history["test"]["error"], label="test")
+plt.legend()
+plt.tight_layout()
+plt.show()
 
 # %%
