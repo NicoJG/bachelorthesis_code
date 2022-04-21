@@ -8,6 +8,8 @@ import json
 from argparse import ArgumentParser
 import torch
 from torch import nn
+from sklearn.preprocessing import StandardScaler
+import pickle
 
 # Imports from this project
 from utils import paths
@@ -24,7 +26,7 @@ if args.model_name is not None:
     paths.update_B_classifier_name(args.model_name)
 
 assert not paths.B_classifier_dir.is_dir(), f"The model '{paths.B_classifier_dir}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
-# paths.B_classifier_dir.mkdir(parents=True)
+paths.B_classifier_dir.mkdir(parents=True)
 
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -72,6 +74,13 @@ df_data.set_index(["event_id", "track_id"], drop=True, inplace=True)
 y = df_data.loc[(slice(None), 0), label_key].to_numpy()
 
 # %%
+# Scale the features with sklearn.preprocessing.StandardScaler
+scaler = StandardScaler()
+df_data_scaled = df_data.copy()
+df_data_scaled[feature_keys] = scaler.fit_transform(df_data[feature_keys])
+df_data_scaled[label_key] = df_data[label_key]
+
+# %%
 # Split the data into train and test (with shuffling)
 print("Split the data in training and test...")
 event_ids_train, event_ids_test = train_test_split(event_ids, 
@@ -79,13 +88,13 @@ event_ids_train, event_ids_test = train_test_split(event_ids,
                                                    shuffle=True, 
                                                    stratify=y)
 
-temp_df = df_data.loc[event_ids_train,:]
+temp_df = df_data_scaled.loc[event_ids_train,:]
 event_ids_train_by_track = temp_df.reset_index().loc[:,"event_id"].to_numpy()
 X_train = temp_df.loc[:,feature_keys].to_numpy()
 y_train = temp_df.loc[(slice(None),0),label_key].to_numpy()
 del temp_df
 
-temp_df = df_data.loc[event_ids_test,:]
+temp_df = df_data_scaled.loc[event_ids_test,:]
 event_ids_test_by_track = temp_df.reset_index().loc[:,"event_id"].to_numpy()
 X_test = temp_df.loc[:,feature_keys].to_numpy()
 y_test = temp_df.loc[(slice(None),0),label_key].to_numpy()
@@ -117,8 +126,10 @@ event_ids_test_by_track = torch.from_numpy(event_ids_test_by_track).int().to(dev
 
 # %%
 # Define the model
+# similar to https://gitlab.cern.ch/nnolte/DeepSetTagging/-/blob/cf286579b7db4ff21341eb4b06fc8f726168a8c9/model.py
 class DeepSetModel(nn.Module):
     def __init__(self, n_features, n_latent_features):
+        global SumLayer
         super(DeepSetModel, self).__init__()
         
         self.n_features = n_features
@@ -160,7 +171,7 @@ class DeepSetModel(nn.Module):
         x = self.rho_stack(x)
         return x
         
-model = DeepSetModel(len(feature_keys), 20).to(device)
+model = DeepSetModel(len(feature_keys), len(feature_keys)).to(device)
 
 # %%
 # Define a dataloader
@@ -230,7 +241,7 @@ def train_one_epoch(dataloader, model, loss_fn, optimizer, pbar=None):
     
     model.train()
     
-    for X, y, event_ids_by_track, event_ids in dataloader:
+    for i, (X, y, event_ids_by_track, event_ids) in enumerate(dataloader):
         # Compute prediction and loss
         y_pred = model(X, event_ids_by_track)
         loss = loss_fn(y_pred, y)
@@ -239,9 +250,14 @@ def train_one_epoch(dataloader, model, loss_fn, optimizer, pbar=None):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        
+        batch_loss = loss.item()
+        batch_error = ((y_pred > 0.5) != y).sum().item()
+        
+        print(f"Batch {i:03d}/{dataloader.n_batches}: loss={batch_loss} error={batch_error/len(y)}")
 
-        loss_sum += loss.item()
-        error_count += ((y_pred > 0.5) != y).sum().item()
+        loss_sum += batch_loss
+        error_count += batch_error
         if pbar is not None:
             pbar.update()
         
@@ -313,5 +329,29 @@ plt.plot(train_history["epochs"], train_history["test"]["error"], label="test")
 plt.legend()
 plt.tight_layout()
 plt.show()
+
+# %%
+# Save everything to files
+
+# Save the model
+torch.save(model, paths.B_classifier_model_file)
+
+# Save the parameters
+with open(paths.B_classifier_parameters_file, "w") as file:
+    json.dump(params, file, indent=2)
+    
+# Save the train test split
+with open(paths.ss_classifier_train_test_split_file, "w") as file:
+    json.dump({"train_ids":event_ids_train.tolist(),"test_ids":event_ids_test.tolist()}, 
+              fp=file, 
+              indent=2)
+    
+# Save the training history
+with open(paths.B_classifier_training_history_file, "w") as file:
+    json.dump(train_history, file, indent=2)
+    
+# Save the sklearn.preprocessing.StandardScaler
+with open(paths.B_classifier_scaler_file, "wb") as file:
+    pickle.dump(scaler, file)
 
 # %%
