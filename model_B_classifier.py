@@ -28,6 +28,8 @@ class DeepSetModel(nn.Module):
         
         self.is_fitted = False
         
+        self.classes_ = [0., 1.]
+        
         # DeepSet Structur:
         
         # Neural Network for the tracks:
@@ -65,13 +67,16 @@ class DeepSetModel(nn.Module):
         idxs = torch.zeros_like(event_ids, dtype=int)
         idxs[1:] = torch.cumsum(event_ids[1:] != event_ids[:-1], 0)
         
+        if idxs[-1] > len(event_ids.unique()):
+            print("WARNING: Same event ids can not be seperated in X! Producing an error prediction!")
+            print("Usually this should result in an error, but for the permutation importance, this just produces a wrong prediction.")
+            return -1*torch.ones(len(event_ids.unique())).float()
+        
         # sum up the latent features of all tracks per event
         temp = torch.zeros(idxs[-1]+1, self.n_latent_features)
         X = temp.index_add(0, idxs, X)
     
         y = self.rho_stack(X)
-        
-        y = torch.flatten(y)
         
         return y
 
@@ -123,11 +128,20 @@ class DeepSetModel(nn.Module):
         return loss, error
     
     def _scale_X(self, X):
-        if self.scaler is not None:
-            temp = torch.from_numpy(self.scaler.fit_transform(X[:,1:].numpy()))
-            X = torch.cat([X[:,0].unsqueeze(1), temp], dim=1)
+        if isinstance(X, torch.Tensor):
+            is_tensor = True
+            X = X.numpy()
+        else:
+            is_tensor = False
             
-        return X.float()
+        if self.scaler is not None:
+            temp = self.scaler.transform(X[:,1:])
+            X = np.concatenate([X[:,0][:,np.newaxis], temp], axis=1)
+            
+        if is_tensor:
+            return torch.from_numpy(X).float()
+        else:
+            return X
     
     def fit(self, X, y, epochs=1, batch_size=1, verbose=1, X_val=None, y_val=None, device=None):
         assert not self.is_fitted, "This DeepSet is already fitted."
@@ -146,6 +160,11 @@ class DeepSetModel(nn.Module):
         X = self._scale_X(X)
         if is_validation_provided:
             X_val = self._scale_X(X_val)
+            
+        if len(y.shape) == 1:
+            y = y.unsqueeze(1)
+            if is_validation_provided:
+                y_val = y_val.unsqueeze(1)
                 
         if device is not None:
             X.to(device)
@@ -191,28 +210,41 @@ class DeepSetModel(nn.Module):
         self.train_history = train_history
         self.is_fitted = True
         
-    def predict_proba(self, X):
+    def decision_function(self, X, is_scaled=False):
+        # Output shape: (n_samples,)
         assert self.is_fitted, "This DeepSet is not yet fitted."
         
         if isinstance(X, np.ndarray):
             is_numpy = True
-            X = torch.from_numpy(X)
+            X = torch.from_numpy(X).float()
         else:
             is_numpy = False
         
-        X = self._scale_X(X)
+        if not is_scaled:
+            X = self._scale_X(X)
             
-        y = self(X)
+        y = self(X).squeeze()
         
         if is_numpy:
             return y.detach().numpy()
         else:
             return y
-    
-    def predict(self, X):
-        assert self.is_fitted, "This DeepSet is not yet fitted."
         
-        y = self.predict_proba(X)
+    def predict_proba_(self, X, is_scaled=False):
+        # output shape: (n_samples, n_classes)
+        y = self.decision_function(X, is_scaled=is_scaled)
+        
+        if isinstance(y, np.ndarray):
+            y = np.column_stack([1-y, y])
+        else:
+            y = torch.column_stack([1-y, y])
+            
+        return y
+        
+    
+    def predict(self, X, is_scaled=False):
+        # output shape: (n_samples,)
+        y = self.decision_function(X, is_scaled=is_scaled)
         
         if isinstance(y, np.ndarray):
             return (y > 0.5).astype(int)

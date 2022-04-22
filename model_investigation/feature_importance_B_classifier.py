@@ -1,6 +1,5 @@
 # %%
 # Imports
-from lib2to3.pgen2.token import RARROW
 import sys
 from pathlib import Path
 import pandas as pd
@@ -8,15 +7,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
 import json
-import pickle
 import shutil
 import torch
-from torch import nn
 from sklearn import metrics as skmetrics
 from sklearn.inspection import permutation_importance
 from argparse import ArgumentParser
 import shap
-import skorch
 
 # Imports from this project
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -25,9 +21,12 @@ from utils.input_output import load_feature_keys, load_feature_properties, load_
 from utils.histograms import find_good_binning, get_hist, calc_pull
 from utils.merge_pdfs import merge_pdfs
 from model_B_classifier import DeepSetModel
+from utils.data_handling import DataIteratorByEvents
 
 # %%
 # Constant variables
+N_events = 50000 # how many events to use for calculating permutation importance
+
 parser = ArgumentParser()
 parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
 parser.add_argument("-f", help="Dummy argument for IPython")
@@ -59,6 +58,8 @@ with open(paths.B_classifier_parameters_file, "r") as file:
 label_key = params["label_key"]
 feature_keys = params["feature_keys"]
 
+feature_keys_in_X = ["event_id"] + feature_keys
+
 # %%
 # Read in the data
 print("Read in the data...")
@@ -75,42 +76,32 @@ event_ids_train = ttsplit["train_ids"]
 event_ids_test = ttsplit["test_ids"]
 
 # %%
-# Load the StandardScaler
-with open(paths.B_classifier_scaler_file, "rb") as file:
-    scaler = pickle.load(file)
-    
-# %%
 # Prepare the data
 df_data.set_index(["event_id", "track_id"], drop=True, inplace=True)
 
-# Scale the data
-df_data_scaled = df_data.copy()
-df_data_scaled[feature_keys] = scaler.transform(df_data[feature_keys])
-df_data_scaled[label_key] = df_data[label_key]
-
 # Get only the test data
-temp_df = df_data_scaled.loc[event_ids_train,:]
-event_ids_train_by_track = temp_df.reset_index().loc[:,"event_id"].to_numpy()
-X_train = temp_df.loc[:,feature_keys].to_numpy()
-y_train = temp_df.loc[(slice(None),0),label_key].to_numpy()
-del temp_df
-
-temp_df = df_data_scaled.loc[event_ids_test,:]
-event_ids_test_by_track = temp_df.reset_index().loc[:,"event_id"].to_numpy()
-X_test = temp_df.loc[:,feature_keys].to_numpy()
+temp_df = df_data.loc[event_ids_test[:20000],:]
+X_test = temp_df.reset_index().loc[:,feature_keys_in_X].to_numpy()
 y_test = temp_df.loc[(slice(None),0),label_key].to_numpy()
 del temp_df
 
 # %%
 # Read in the trained model
-model = torch.load(paths.B_classifier_model_file)
-
-skorch_model = skorch.NeuralNetBinaryClassifier(model)
+model = torch.load(paths.B_classifier_model_file).to(device)
+    
     
 # %%
 # Prepare the Feature Importance DataFrame
-df_fi = pd.DataFrame({"feature":feature_keys})
+df_fi = pd.DataFrame({"feature":feature_keys_in_X})
 df_fi.set_index("feature", drop=True, inplace=True)
+
+# %%
+# Look at the weights of the first layer
+df_fi.loc[feature_keys, "weights_abs_mean"] = np.mean(np.abs(next(model.parameters()).data.numpy()), axis=0)
+df_fi.loc[feature_keys, "weights_abs_max"] = np.max(np.abs(next(model.parameters()).data.numpy()), axis=0)
+
+# %%
+torch.set_num_threads(20)
 
 # %%
 # Permutation Feature Importance through scikit-learn
@@ -118,8 +109,8 @@ df_fi.set_index("feature", drop=True, inplace=True)
 print("Calculate the permutation feature importance...")
 perm_imp_metrics = ["accuracy", "precision", "recall", "balanced_accuracy", "roc_auc", "f1"]
 
-n_repeats = 10
-pbar = tqdm(total=(len(feature_keys)*n_repeats)+1, desc="Permutation Importance")
+n_repeats = 5
+pbar = tqdm(total=(len(feature_keys_in_X)*n_repeats)+1, desc="Permutation Importance")
 
 def ProgressCallback(y_true, y_pred):
     pbar.update(1)
@@ -128,103 +119,33 @@ def ProgressCallback(y_true, y_pred):
 scoring_dict = {metric:metric for metric in perm_imp_metrics}
 scoring_dict["progress_callback"] = skmetrics.make_scorer(ProgressCallback)
 
-perm_fi = permutation_importance(skorch_model, 
+X_test = model._scale_X(X_test)
+
+temp_scaler = model.scaler
+model.scaler = None
+
+perm_fi = permutation_importance(model, 
                                  X_test, 
                                  y_test,
                                  scoring=scoring_dict,
                                  n_repeats=n_repeats,
                                  n_jobs=1)
 
+model.scaler = temp_scaler
+
 for metric in perm_imp_metrics:
-    df_fi.loc[feature_keys,f"perm_{metric}"] = perm_fi[metric]["importances_mean"]
-    df_fi.loc[feature_keys,f"perm_{metric}_std"] = perm_fi[metric]["importances_std"]
+    df_fi.loc[feature_keys_in_X,f"perm_{metric}"] = perm_fi[metric]["importances_mean"]
+    df_fi.loc[feature_keys_in_X,f"perm_{metric}_std"] = perm_fi[metric]["importances_std"]
     
 print("Done calculating the permutation feature importance")
 
-
-# %%    
-X_train = torch.from_numpy(X_train).float().to(device)
-y_train = torch.from_numpy(y_train).float().to(device)
-event_ids_train_by_track = torch.from_numpy(event_ids_train_by_track).int().to(device)
-
-X_test = torch.from_numpy(X_test).float().to(device)
-y_test = torch.from_numpy(y_test).float().to(device)
-event_ids_test_by_track = torch.from_numpy(event_ids_test_by_track).int().to(device)    
-
 # %%
-class DeepSetDataLoader:
-    def __init__(self, X, y, event_ids_by_track, batch_size):
-        self.X = X
-        self.y = y.unsqueeze(1)
-        
-        self.event_ids_by_track = event_ids_by_track
-        self.event_ids, self.event_first_idxs = np.unique(event_ids_by_track.numpy(), return_index=True)
-        # numpy unique sorts the values, so we have to "unsort" them
-        unsort_mask = np.argsort(self.event_first_idxs)
-        self.event_ids = torch.from_numpy(self.event_ids[unsort_mask])
-        self.event_first_idxs = torch.from_numpy(self.event_first_idxs[unsort_mask])
-        
-        self.batch_size = batch_size
-        
-        assert X.shape[0] == self.event_ids_by_track.shape[0], "X and event_ids_by_track must have the same length in the first dimension!"
-        assert y.shape[0] == self.event_ids.shape[0], "y must have the same length as unique values in event_ids_by_track!"
-        
-        self.n_events = len(self.event_ids)
-        self.n_tracks = len(self.event_ids_by_track)
-        self.n_batches = int(np.ceil(self.n_events / self.batch_size))
-        
-    def __iter__(self):
-        self.current_event_idx = 0
-        return self
-        
-    def __next__(self):
-        if self.current_event_idx >= self.n_events:
-            raise StopIteration
-        
-        batch_start_event_idx = self.current_event_idx
-        batch_stop_event_idx = batch_start_event_idx + self.batch_size # index of the first event that is not in the batch
-        
-        batch_start_track_idx = self.event_first_idxs[batch_start_event_idx]
-        
-        if batch_stop_event_idx >= self.n_events:
-            # last batch in the dataset
-            batch_stop_event_idx = self.n_events
-            batch_stop_track_idx = self.n_tracks
-        else:
-            batch_stop_track_idx = self.event_first_idxs[batch_stop_event_idx]
-            
-        batch_event_slice = slice(batch_start_event_idx, batch_stop_event_idx)
-        batch_track_slice = slice(batch_start_track_idx, batch_stop_track_idx)
-        
-        self.current_event_idx = batch_stop_event_idx
-        
-        return (self.X[batch_track_slice],
-                self.event_ids_by_track[batch_track_slice]) 
-        
-    def __len__(self):
-        return self.n_batches
-
-# %%
-# SHAP values
-print("Calculate the SHAP values")
-batch_size=1
-train_dataloader = DeepSetDataLoader(X_train, y_train, event_ids_train_by_track, batch_size=batch_size)
-test_dataloader = DeepSetDataLoader(X_test, y_test, event_ids_test_by_track, batch_size=batch_size)
-shap_value_chunks = []
-
-for X, y, event_ids_by_track, event_ids in tqdm(test_dataloader, desc="SHAP values"):
-    explainer = shap.DeepExplainer(model, X)
-    shap_value_chunks.append(explainer(X, event_ids_by_track).values)
-
-shap_values = np.concatenate(shap_value_chunks)
-
-df_fi.loc[feature_keys,"shap_mean"] = np.mean(np.abs(shap_values), axis=0)
-df_fi.loc[feature_keys,"shap_max"] = np.max(np.abs(shap_values), axis=0)
-print("Done calculating the SHAP values")
+# remove the event_id as feature
+df_fi.drop("event_id", inplace=True)
 
 # %%
 # Which importance metrics should be evaluated
-importance_metrics = ["perm_balanced_accuracy", "perm_roc_auc", "perm_f1", "perm_accuracy", "perm_precision", "perm_recall", "shap_mean", "shap_max"]
+importance_metrics = ["weights_abs_mean","weights_abs_max", "perm_balanced_accuracy", "perm_roc_auc", "perm_f1", "perm_accuracy", "perm_precision", "perm_recall"]
 
 # %%
 # Calculate a total score

@@ -1,6 +1,5 @@
 # %%
 # Imports
-from lib2to3.pgen2.token import RARROW
 import sys
 from pathlib import Path
 import pandas as pd
@@ -8,14 +7,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
 import json
-import pickle
 import shutil
 import torch
-from torch import nn
 from sklearn import metrics as skmetrics
-from sklearn.inspection import permutation_importance
 from argparse import ArgumentParser
-import shap
 
 # Imports from this project
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -114,8 +109,8 @@ for i, metric in enumerate(model.train_history["eval_metrics"]):
 # Evaluate the model on test data
 
 # get predictions
-y_pred_proba_train = model.predict_proba(X_train)
-y_pred_proba_test = model.predict_proba(X_test)
+y_pred_proba_train = model.decision_function(X_train)
+y_pred_proba_test = model.decision_function(X_test)
 
 
 # %%
