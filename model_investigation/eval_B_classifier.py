@@ -72,31 +72,19 @@ with open(paths.B_classifier_train_test_split_file, "r") as file:
     
 event_ids_train = ttsplit["train_ids"]
 event_ids_test = ttsplit["test_ids"]
-
-# %%
-# Load the StandardScaler
-with open(paths.B_classifier_scaler_file, "rb") as file:
-    scaler = pickle.load(file)
     
 # %%
 # Prepare the data
 df_data.set_index(["event_id", "track_id"], drop=True, inplace=True)
 
-# Scale the data
-df_data_scaled = df_data.copy()
-df_data_scaled[feature_keys] = scaler.transform(df_data[feature_keys])
-df_data_scaled[label_key] = df_data[label_key]
-
 # Get only the test data
-temp_df = df_data_scaled.loc[event_ids_train,:]
-event_ids_train_by_track = temp_df.reset_index().loc[:,"event_id"].to_numpy()
-X_train = temp_df.loc[:,feature_keys].to_numpy()
+temp_df = df_data.loc[event_ids_train,:]
+X_train = temp_df.reset_index().loc[:,["event_id"]+feature_keys].to_numpy()
 y_train = temp_df.loc[(slice(None),0),label_key].to_numpy()
 del temp_df
 
-temp_df = df_data_scaled.loc[event_ids_test,:]
-event_ids_test_by_track = temp_df.reset_index().loc[:,"event_id"].to_numpy()
-X_test = temp_df.loc[:,feature_keys].to_numpy()
+temp_df = df_data.loc[event_ids_test,:]
+X_test = temp_df.reset_index().loc[:,["event_id"]+feature_keys].to_numpy()
 y_test = temp_df.loc[(slice(None),0),label_key].to_numpy()
 del temp_df
 
@@ -108,17 +96,14 @@ model = torch.load(paths.B_classifier_model_file)
 # Evaluate the training
 
 # Read in the training history
-with open(paths.B_classifier_training_history_file, "r") as file:
-    train_history = json.load(file)
-
-epochs = train_history["epochs"]
+epochs = model.train_history["epochs"]
 
 # Plot the training history of multiple metrics
-for i, metric in enumerate(train_history["train"].keys()):
+for i, metric in enumerate(model.train_history["eval_metrics"]):
     plt.figure(figsize=(8, 6))
     plt.title(f"training performance ({metric})")
-    plt.plot(epochs, train_history["train"][metric], label="training data")
-    plt.plot(epochs, train_history["test"][metric], label="test data")
+    plt.plot(epochs, model.train_history["train"][metric], label="training data")
+    plt.plot(epochs, model.train_history["validation"][metric], label="test data")
     plt.xlabel("iteration")
     plt.ylabel(metric)
     plt.legend()
@@ -129,8 +114,9 @@ for i, metric in enumerate(train_history["train"].keys()):
 # Evaluate the model on test data
 
 # get predictions
-y_pred_proba_train = model(torch.from_numpy(X_train).float().to(device), torch.from_numpy(event_ids_train_by_track).int().to(device)).detach().numpy().flatten()
-y_pred_proba_test = model(torch.from_numpy(X_test).float().to(device), torch.from_numpy(event_ids_test_by_track).int().to(device)).detach().numpy().flatten()
+y_pred_proba_train = model.predict_proba(X_train)
+y_pred_proba_test = model.predict_proba(X_test)
+
 
 # %%
 # Probability Distribution of both the train and the test data
