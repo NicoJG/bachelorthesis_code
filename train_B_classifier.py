@@ -14,6 +14,7 @@ import pickle
 # Imports from this project
 from utils import paths
 from utils.input_output import load_feature_keys, load_preprocessed_data
+from model_B_classifier import DeepSetModel
 
 # %%
 # Constant variables
@@ -24,6 +25,8 @@ args = parser.parse_args()
 
 if args.model_name is not None:
     paths.update_B_classifier_name(args.model_name)
+else:
+    paths.update_B_classifier_name("B_classifier")
 
 assert not paths.B_classifier_dir.is_dir(), f"The model '{paths.B_classifier_dir}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
 paths.B_classifier_dir.mkdir(parents=True)
@@ -42,7 +45,7 @@ params = {
     "train_params" : {
         "batch_size" : 10000,
         "learning_rate" : 0.001,
-        "epochs" : 10
+        "epochs" : 100
     }
 
 }
@@ -125,52 +128,7 @@ event_ids_test_by_track = torch.from_numpy(event_ids_test_by_track).int().to(dev
 
 
 # %%
-# Define the model
-# similar to https://gitlab.cern.ch/nnolte/DeepSetTagging/-/blob/cf286579b7db4ff21341eb4b06fc8f726168a8c9/model.py
-class DeepSetModel(nn.Module):
-    def __init__(self, n_features, n_latent_features):
-        global SumLayer
-        super(DeepSetModel, self).__init__()
-        
-        self.n_features = n_features
-        self.n_latent_features = n_latent_features
-        
-        # Deep Set structure:
-        self.phi_stack = nn.Sequential(
-            nn.Linear(n_features, n_features*2),
-            nn.ReLU(),
-            nn.Linear(n_features*2, n_latent_features),
-            nn.ReLU()
-        )
-
-        def SumLayer(x, ids):
-            # get an event_index_by_track array
-            idxs = torch.zeros_like(ids)
-            idxs[1:] = torch.cumsum(ids[1:] != ids[:-1], 0)
-            
-            # sum up the latent features of all tracks per event
-            temp = torch.zeros(idxs[-1]+1, n_latent_features)
-            return temp.index_add(0, idxs, x)
-            
-        self.sum_layer = SumLayer
-        
-        self.rho_stack = nn.Sequential(
-            nn.Linear(n_latent_features, n_latent_features*2),
-            nn.ReLU(),
-            nn.Linear(n_latent_features*2, n_latent_features),
-            nn.ReLU(),
-            nn.Linear(n_latent_features, 1),
-            nn.Sigmoid()
-        )
-        
-    def forward(self, x, event_ids):
-        # x must have shape (tracks, features)
-        # event_ids must have shape (tracks,)
-        x = self.phi_stack(x)
-        x = self.sum_layer(x, event_ids)
-        x = self.rho_stack(x)
-        return x
-        
+# Build the model    
 model = DeepSetModel(len(feature_keys), len(feature_keys)).to(device)
 
 # %%
@@ -254,7 +212,7 @@ def train_one_epoch(dataloader, model, loss_fn, optimizer, pbar=None):
         batch_loss = loss.item()
         batch_error = ((y_pred > 0.5) != y).sum().item()
         
-        print(f"Batch {i:03d}/{dataloader.n_batches}: loss={batch_loss} error={batch_error/len(y)}")
+        # print(f"Batch {i:03d}/{dataloader.n_batches}: loss={batch_loss} error={batch_error/len(y)}")
 
         loss_sum += batch_loss
         error_count += batch_error
@@ -305,6 +263,8 @@ for epoch_i in tqdm(range(params["train_params"]["epochs"]), desc="Train epochs"
     train_loss, train_error = train_one_epoch(train_dataloader, model, loss_fn, optimizer, pbar)
     test_loss, test_error = test_one_epoch(test_dataloader, model, loss_fn)
     
+    print(f"Epoch {epoch_i:03d}/{params['train_params']['epochs']}: {train_loss = :.4f} ; {test_loss = :.4f} ; {train_error = :.4f} ; {test_error = :.4f}")
+    
     train_history["epochs"].append(epoch_i)
     train_history["train"]["loss"].append(train_loss)
     train_history["train"]["error"].append(train_error)
@@ -341,7 +301,7 @@ with open(paths.B_classifier_parameters_file, "w") as file:
     json.dump(params, file, indent=2)
     
 # Save the train test split
-with open(paths.ss_classifier_train_test_split_file, "w") as file:
+with open(paths.B_classifier_train_test_split_file, "w") as file:
     json.dump({"train_ids":event_ids_train.tolist(),"test_ids":event_ids_test.tolist()}, 
               fp=file, 
               indent=2)

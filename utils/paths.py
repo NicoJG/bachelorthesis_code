@@ -48,7 +48,7 @@ def update_B_classifier_name(dir_name):
     B_classifier_training_history_file = B_classifier_dir/"train_history.json"
     B_classifier_scaler_file = B_classifier_dir/"scaler.data"
     B_classifier_eval_dir = B_classifier_dir/"eval_plots"
-    B_classifier_eval_file = B_classifier_dir/"eval_ss_classifier.pdf"
+    B_classifier_eval_file = B_classifier_dir/"eval_B_classifier.pdf"
     
 update_B_classifier_name("B_classifier")
 
