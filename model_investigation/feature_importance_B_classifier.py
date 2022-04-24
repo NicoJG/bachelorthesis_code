@@ -166,7 +166,7 @@ importance_metrics = ["combined_mean", "combined_max"] + importance_metrics
 df_fi.sort_values(by="combined_max", ascending=False, inplace=True)
 
 # %%
-# Plot the feature importances
+# Plot the feature importances horizontal
 fig, axs = plt.subplots(len(importance_metrics),1, 
                         figsize=(len(feature_keys)/1.5, len(importance_metrics)*5), 
                         sharex=True)
@@ -188,7 +188,7 @@ plt.savefig(output_dir/"00_selected_importances_horizontal.pdf")
 plt.close()
 
 # %%
-# Plot the feature importances
+# Plot the feature importances vertical
 fig, axs = plt.subplots(1,len(importance_metrics), 
                         figsize=(len(importance_metrics)*7, len(feature_keys)/1.5), 
                         sharey=False)

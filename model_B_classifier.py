@@ -69,7 +69,7 @@ class DeepSetModel(nn.Module):
         
         if idxs[-1] > len(event_ids.unique()):
             print("WARNING: Same event ids can not be seperated in X! Producing an error prediction!")
-            print("Usually this should result in an error, but for the permutation importance, this just produces a wrong prediction.")
+            # this is for the Permutation Importance (it also permutates the first feature (event_ids))
             return -1*torch.ones(len(event_ids.unique())).float()
         
         # sum up the latent features of all tracks per event
@@ -157,6 +157,7 @@ class DeepSetModel(nn.Module):
         if isinstance(y_val, np.ndarray):
             y_val = torch.from_numpy(y_val).float()
         
+        self.scaler.fit(X[:,1:].numpy())
         X = self._scale_X(X)
         if is_validation_provided:
             X_val = self._scale_X(X_val)
@@ -230,7 +231,7 @@ class DeepSetModel(nn.Module):
         else:
             return y
         
-    def predict_proba_(self, X, is_scaled=False):
+    def predict_proba(self, X, is_scaled=False):
         # output shape: (n_samples, n_classes)
         y = self.decision_function(X, is_scaled=is_scaled)
         

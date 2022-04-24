@@ -29,7 +29,6 @@ else:
     paths.update_B_classifier_name("B_classifier")
 
 assert not paths.B_classifier_dir.is_dir(), f"The model '{paths.B_classifier_dir}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
-paths.B_classifier_dir.mkdir(parents=True)
 
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -45,7 +44,7 @@ params = {
     "train_params" : {
         "batch_size" : 10000,
         "learning_rate" : 0.001,
-        "epochs" : 10
+        "epochs" : 200
     }
 
 }
@@ -127,6 +126,7 @@ model.fit(X_train, y_train,
 
 # %%
 # Save everything to files
+paths.B_classifier_dir.mkdir(parents=True)
 
 # Save the model
 torch.save(model, paths.B_classifier_model_file)
