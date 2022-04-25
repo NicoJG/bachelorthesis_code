@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
 import json
@@ -223,48 +224,30 @@ plt.savefig(output_dir/"03_roc.pdf")
 plt.close()
 
 # %%
-# Plot the rates for every cut
+# Plot the confusion matrix with a few metrics
+y_pred_train = (y_pred_proba_train > 0.5).astype(int)
+y_pred_test = (y_pred_proba_test > 0.5).astype(int)
 
-plt.figure(figsize=(8,6))
-plt.title("Prediction rates for every cut")
-plt.plot(cut_linspace, tpr, label="tpr (True Positive Rate)", linestyle="dashed")
-plt.plot(cut_linspace, fnr, label="fnr (False Negative Rate)", linestyle="dashed")
-plt.plot(cut_linspace, tnr, label="tnr (True Negative Rate)")
-plt.plot(cut_linspace, fpr, label="fpr (False Positive Rate)")
-plt.xlabel("Cut")
-#plt.yscale("log")
-plt.legend()
-plt.savefig(output_dir/"04_pred_rates.pdf")
-plt.close()
+conf_mat = skmetrics.confusion_matrix(y_test, y_pred_test)
 
-# %%
-# Plot various metrics for every cut
-accuracy = (tp+tn)/(tp+tn+fp+fn)
-precision = tp/(tp+fp)
-recall = tp/(tp+fn)
-specificity = tn/(tn+fp)
-balanced_accuracy = (recall+specificity)/2
-#f1_score = 2*tp/(2*tp+fp+fn)
-#signal_over_bkg = tp/(tn+fp+fn)
+tn = conf_mat[0,0]
+fp = conf_mat[0,1]
+fn = conf_mat[1,0]
+tp = conf_mat[1,1]
 
-plt.figure(figsize=(8,6))
-plt.title("Various metrics for every cut")
-plt.plot(cut_linspace, accuracy, label="accuracy")
-plt.plot(cut_linspace, balanced_accuracy, label="balanced accuracy")
-plt.plot(cut_linspace, precision, label="precision")
-plt.plot(cut_linspace, recall, linestyle="dashed", label="recall/efficiency for Bs/TPR")
-plt.plot(cut_linspace, specificity, linestyle="dotted", label="specificity/efficiency for Bd/TNR")
-#plt.plot(cut_linspace, f1_score, linestyle="dashdot", label="F1 score")
+accuracy = (tp+tn)/(tp+fn+tn+fp)
+tpr = tp/(tp+fn)
+tnr = tn/(tn+fp)
 
-max_balanced_acc_idx = np.argmax(balanced_accuracy)
-max_balanced_acc_cut = cut_linspace[max_balanced_acc_idx]
-max_balanced_acc = balanced_accuracy[max_balanced_acc_idx]
+accuracy_train = skmetrics.accuracy_score(y_train, y_pred_train)
 
-plt.axvline(max_balanced_acc_cut, alpha=0.3, linestyle="dotted", label=f"max balanced acc : ({max_balanced_acc_cut:.4f}, {max_balanced_acc:.4f})")
-
-plt.xlabel("Cut")
-plt.legend()
-plt.savefig(output_dir/"05_metrics.pdf")
+fig, ax = plt.subplots(figsize=(8,6))
+conf_mat_display = skmetrics.ConfusionMatrixDisplay.from_predictions(y_test, y_pred_test, display_labels=["Bd", "Bs"], normalize="true", ax=ax, cmap="Blues", values_format=".4f")
+plt.title(f"""Confusion Matrix (normed on the true labels)
+accuracy(test):  {accuracy:.4f}
+accuracy(train): {accuracy_train:.4f}""")
+plt.tight_layout()
+plt.savefig(output_dir/"04_confusion_matrix.pdf")
 plt.close()
 
 # %%
