@@ -44,9 +44,10 @@ feature_props = load_feature_properties()
 
 # %%
 # Read the input data
-print("Read in the data...")
-df = load_preprocessed_data(N_entries_max=100000000)
-print("Done reading input")
+if __name__ == "__main__":
+    print("Read in the data...")
+    df = load_preprocessed_data(N_entries_max=100000000)
+    print("Done reading input")
 
 # %%
 # Histogram functions
@@ -188,16 +189,19 @@ def hist_numerical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues
                                     alpha=0.8,
                                     fill=False,
                                     is_logx=False,
-                                    is_inv_logx=False):
+                                    is_inv_logx=False,
+                                    n_bins_max=300,
+                                    lower_quantile=0.0001,
+                                    higher_quantile=0.9999):
     # save the histogrammed values for the pull plot
     x = []
     sigma = []
     
     # calculate the binning
     bin_res = find_good_binning(fprops, 
-                                n_bins_max=300, 
-                                lower_quantile=0.0001,
-                                higher_quantile=0.9999,
+                                n_bins_max=n_bins_max, 
+                                lower_quantile=lower_quantile,
+                                higher_quantile=higher_quantile,
                                 allow_logx=False,
                                 force_logx=is_logx,
                                 is_inv_logx=is_inv_logx)
@@ -207,15 +211,15 @@ def hist_numerical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues
     for lvalue, lvalue_name, ls, c in zip(lvalues, lvalue_names, line_styles, colors):
         
         query_str = f"({lkey}=={lvalue})"
-        query_str += f"&({fkey}>={fprops['quantile_0.0001']})"
-        query_str += f"&({fkey}<={fprops['quantile_0.9999']})"
+        query_str += f"&({fkey}>={fprops[f'quantile_{lower_quantile}']})"
+        query_str += f"&({fkey}<={fprops[f'quantile_{higher_quantile}']})"
         
         x_raw = df.query(query_str)[fkey]
         
         if is_logx and not is_inv_logx:
             x_raw = np.log10(x_raw)
         elif is_logx and is_inv_logx:
-            x_raw = np.log10(np.ceil(fprops['quantile_0.9999'])+10**(-10)-x_raw)
+            x_raw = np.log10(np.ceil(fprops[f'quantile_{higher_quantile}'])+10**(-10)-x_raw)
         
         x_normed, sigma_normed = get_hist(x=x_raw, bin_edges=bin_edges, normed=True)
         
@@ -250,7 +254,10 @@ def hist_numerical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues
                      alpha=0.7)
     
 
-def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, full_grid=True, add_cut=False, cut_query=None, cut_label=None):
+def hist_feature_by_label(df, fkey, fprops, lkey, lprops, full_grid=True, add_cut=False, cut_query=None, cut_label=None, 
+                          n_bins_max=300, 
+                          lower_quantile=0.0001, 
+                          higher_quantile=0.9999):
     
     assert lprops["feature_type"] == "categorical", f"The label ({lkey}) has to be categorical."
     assert fprops["feature_type"] in ["categorical", "numerical"], f"The feature ({fkey}) is not categorical and not numerical..."
@@ -343,13 +350,13 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, full_grid
         if fprops["feature_type"] == "categorical":
             hist_categorical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names, fill=fill, alpha=alpha)
         elif fprops["feature_type"] == "numerical":
-            hist_numerical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names, fill=fill, alpha=alpha, is_logx=is_logx, is_inv_logx=is_inv_logx)
+            hist_numerical_feature_by_label(ax, pull_ax, df, fkey, fprops, lkey, lvalues, lvalue_names, fill=fill, alpha=alpha, is_logx=is_logx, is_inv_logx=is_inv_logx, n_bins_max=n_bins_max, lower_quantile=lower_quantile, higher_quantile=higher_quantile)
         
         if add_cut:
             if fprops["feature_type"] == "categorical":
                 hist_categorical_feature_by_label(ax, pull_ax, df.query(cut_query), fkey, fprops, lkey, lvalues, lvalue_names_cut)
             elif fprops["feature_type"] == "numerical":
-                hist_numerical_feature_by_label(ax, pull_ax, df.query(cut_query), fkey, fprops, lkey, lvalues, lvalue_names_cut, is_logx=is_logx, is_inv_logx=is_inv_logx)
+                hist_numerical_feature_by_label(ax, pull_ax, df.query(cut_query), fkey, fprops, lkey, lvalues, lvalue_names_cut, is_logx=is_logx, is_inv_logx=is_inv_logx, n_bins_max=n_bins_max, lower_quantile=lower_quantile, higher_quantile=higher_quantile)
         
         if is_inv_logx:
             ax.set_xlabel(f"log10( {np.ceil(x_max)} - {fkey} )")    
@@ -363,8 +370,7 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, output_file, full_grid
         ax.legend(loc="best")    
     
     fig.tight_layout()
-    fig.savefig(output_file)
-    plt.close(fig)
+    return fig
 
 # function for multiprocessing
 def plot_feature(label_key, output_dir, enumerated_feature_key, full_grid=True, cut_query=None, cut_label=None):
@@ -372,46 +378,49 @@ def plot_feature(label_key, output_dir, enumerated_feature_key, full_grid=True, 
     plot_idx, feature_key = enumerated_feature_key
     output_file = output_dir/f"{plot_idx:03d}_{feature_key}.pdf"
     
-    hist_feature_by_label(df, 
-                          feature_key, feature_props[feature_key], 
-                          label_key, feature_props[label_key],
-                          output_file,
-                          full_grid=full_grid,
-                          add_cut=(cut_query is not None),
-                          cut_query=cut_query,
-                          cut_label=cut_label)
+    fig = hist_feature_by_label(df, 
+                                feature_key, feature_props[feature_key], 
+                                label_key, feature_props[label_key],
+                                full_grid=full_grid,
+                                add_cut=(cut_query is not None),
+                                cut_query=cut_query,
+                                cut_label=cut_label)
+    
+    fig.savefig(output_file)
+    plt.close(fig)
     
 # %%
 # Hist of all features by all labels (potentially with a cut)
-for plot_props in plots_props:
-    
-    label_key = plot_props["label_key"]
-    full_grid = plot_props["full_grid"]
-    if "cut_query" in plot_props:
-        cut_query = plot_props["cut_query"]
-        cut_label = plot_props["cut_label"]
-    else:
-        cut_query = None
-        cut_label = None
-    
-    name = f"features_by_{label_key}"
-    if cut_query is not None:
-        name += f"_cut_{cut_label.replace(' ', '_')}"
-    
-    output_label_dir = output_dir / name
-    if output_label_dir.is_dir():
-        shutil.rmtree(output_label_dir)
-    output_label_dir.mkdir(parents=True)
-    
-    # use multiprocessing to plot all features
-    with Pool(processes=50) as p:
-        pfunc = partial(plot_feature, label_key, output_label_dir, full_grid=full_grid, cut_query=cut_query, cut_label=cut_label)
-        iter = p.imap(pfunc, enumerate(feature_keys))
-        pbar_iter = tqdm(iter, total=len(feature_keys), desc=name)
-        # start processing, by evaluating the iterator:
-        list(pbar_iter)
+if __name__ == "__main__":
+    for plot_props in plots_props:
+        
+        label_key = plot_props["label_key"]
+        full_grid = plot_props["full_grid"]
+        if "cut_query" in plot_props:
+            cut_query = plot_props["cut_query"]
+            cut_label = plot_props["cut_label"]
+        else:
+            cut_query = None
+            cut_label = None
+        
+        name = f"features_by_{label_key}"
+        if cut_query is not None:
+            name += f"_cut_{cut_label.replace(' ', '_')}"
+        
+        output_label_dir = output_dir / name
+        if output_label_dir.is_dir():
+            shutil.rmtree(output_label_dir)
+        output_label_dir.mkdir(parents=True)
+        
+        # use multiprocessing to plot all features
+        with Pool(processes=50) as p:
+            pfunc = partial(plot_feature, label_key, output_label_dir, full_grid=full_grid, cut_query=cut_query, cut_label=cut_label)
+            iter = p.imap(pfunc, enumerate(feature_keys))
+            pbar_iter = tqdm(iter, total=len(feature_keys), desc=name)
+            # start processing, by evaluating the iterator:
+            list(pbar_iter)
 
-    merge_pdfs(output_label_dir,  output_dir/f"{name}.pdf")
+        merge_pdfs(output_label_dir,  output_dir/f"{name}.pdf")
 
 
 # %%
