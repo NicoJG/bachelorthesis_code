@@ -1,5 +1,7 @@
 # %%
 # Imports
+import sys
+from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,6 +12,7 @@ import sklearn.metrics as skmetrics
 from argparse import ArgumentParser
 
 # Imports from this project
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils import paths
 from utils.input_output import load_feature_keys, load_feature_properties, load_preprocessed_data
 from utils.merge_pdfs import merge_pdfs

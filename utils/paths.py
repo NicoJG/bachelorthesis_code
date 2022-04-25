@@ -21,7 +21,7 @@ models_dir = Path("/ceph/users/nguth/models")
 
 # Paths to trained models for SS classification
 def update_ss_classifier_name(dir_name):
-    global ss_classifier_dir, ss_classifier_model_file, ss_classifier_parameters_file, ss_classifier_train_test_split_file, ss_classifier_eval_dir, ss_classifier_eval_file
+    global ss_classifier_dir, ss_classifier_model_file, ss_classifier_parameters_file, ss_classifier_train_test_split_file, ss_classifier_eval_dir, ss_classifier_eval_file, ss_classifier_feature_importance_dir, ss_classifier_feature_importance_file
     
     assert isinstance(dir_name, str), f"Please provide a str of what to add after '{str(models_dir)}/'!"
     
@@ -31,22 +31,25 @@ def update_ss_classifier_name(dir_name):
     ss_classifier_train_test_split_file = ss_classifier_dir/"train_test_split.json"
     ss_classifier_eval_dir = ss_classifier_dir/"eval_plots"
     ss_classifier_eval_file = ss_classifier_dir/"eval_ss_classifier.pdf"
+    ss_classifier_feature_importance_dir = ss_classifier_dir/"feature_importance"
+    ss_classifier_feature_importance_file = ss_classifier_dir/"feature_importance_ss_classifier.pdf"
     
 update_ss_classifier_name("SS_classifier")
 
 # Paths to trained models for B classification
 def update_B_classifier_name(dir_name):
-    global B_classifier_dir, B_classifier_model_file, B_classifier_parameters_file, B_classifier_train_test_split_file, B_classifier_eval_dir, B_classifier_eval_file
+    global B_classifier_dir, B_classifier_model_file, B_classifier_parameters_file, B_classifier_train_test_split_file, B_classifier_eval_dir, B_classifier_eval_file, B_classifier_feature_importance_dir, B_classifier_feature_importance_file
     
     assert isinstance(dir_name, str), f"Please provide a str of what to add after '{str(models_dir)}/'!"
     
     B_classifier_dir = models_dir / dir_name
-    # TODO: change the dirs
     B_classifier_model_file = B_classifier_dir/"model.data"
     B_classifier_parameters_file = B_classifier_dir/"train_parameters.json"
     B_classifier_train_test_split_file = B_classifier_dir/"train_test_split.json"
     B_classifier_eval_dir = B_classifier_dir/"eval_plots"
     B_classifier_eval_file = B_classifier_dir/"eval_B_classifier.pdf"
+    B_classifier_feature_importance_dir = B_classifier_dir/"feature_importance"
+    B_classifier_feature_importance_file = B_classifier_dir/"feature_importance_B_classifier.pdf"
     
 update_B_classifier_name("B_classifier")
 
