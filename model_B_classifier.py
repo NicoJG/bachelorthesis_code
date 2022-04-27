@@ -1,3 +1,4 @@
+import sys
 import torch
 from torch import nn
 from tqdm.auto import tqdm
@@ -80,12 +81,12 @@ class DeepSetModel(nn.Module):
         
         return y
 
-    def _train_loop(self, dataiterator, pbar=None):
+    def _train_loop(self, dataiterator, pbar=None, show_batch_eval=False):
         loss_sum, error_count, event_count = 0, 0, 0
         
         self.train()
         
-        for X, y, event_ids in dataiterator:
+        for batch_i, (X, y, event_ids) in enumerate(dataiterator):
             y_pred = self(X)
             loss = self.loss(y_pred, y)
 
@@ -102,6 +103,10 @@ class DeepSetModel(nn.Module):
             event_count += len(y)
             if pbar is not None:
                 pbar.update()
+                
+            if show_batch_eval:
+                print_file = sys.stdout if pbar is None else sys.stderr
+                print(f"Batch {batch_i:03d}/{len(dataiterator)}: {batch_loss = :.4f} ; {batch_error = :.4f}", file=print_file)
             
         loss = loss_sum / len(dataiterator)
         error = error_count / event_count
@@ -143,7 +148,12 @@ class DeepSetModel(nn.Module):
         else:
             return X
     
-    def fit(self, X, y, epochs=1, batch_size=1, verbose=1, X_val=None, y_val=None, device=None):
+    def fit(self, X, y, epochs=1, batch_size=1, 
+            X_val=None, y_val=None, 
+            device=None, 
+            show_epoch_progress=True, show_epoch_eval=False, 
+            show_batch_progress=True, show_batch_eval=False):
+        
         assert not self.is_fitted, "This DeepSet is already fitted."
         
         is_validation_provided = X_val is not None and y_val is not None
@@ -185,14 +195,22 @@ class DeepSetModel(nn.Module):
         
         train_iterator = DataIteratorByEvents(X, y, batch_size=batch_size)
         
-        for epoch_i in tqdm(range(epochs), desc="Train epochs"):
-            if epoch_i == 0:
-                pbar = tqdm(total=len(train_iterator), desc="Batches")
+        if show_epoch_progress:
+            epoch_iter = tqdm(range(epochs), desc="Train epochs")
+        else:
+            epoch_iter = range(epochs)
+        
+        for epoch_i in epoch_iter:
+            if show_batch_progress:
+                if epoch_i == 0:
+                    pbar = tqdm(total=len(train_iterator), desc="Batches")
+                else:
+                    pbar.refresh()
+                    pbar.reset()
             else:
-                pbar.refresh()
-                pbar.reset()
+                pbar = None
                 
-            train_loss, train_error = self._train_loop(train_iterator, pbar)
+            train_loss, train_error = self._train_loop(train_iterator, pbar, show_batch_eval)
             
             train_history["epochs"].append(epoch_i)
             train_history["train"]["loss"].append(train_loss)
@@ -204,9 +222,9 @@ class DeepSetModel(nn.Module):
                 train_history["validation"]["loss"].append(val_loss)
                 train_history["validation"]["error"].append(val_error)
                 
-            
-            if verbose >= 1 and is_validation_provided:
-                print(f"Epoch {epoch_i:03d}/{epochs}: {train_loss = :.4f} ; {val_loss = :.4f} ; {train_error = :.4f} ; {val_error = :.4f}")
+            if show_epoch_eval and is_validation_provided:
+                print_file = sys.stdout if not show_epoch_progress else sys.stderr
+                print(f"Epoch {epoch_i:03d}/{epochs}: {train_loss = :.4f} ; {val_loss = :.4f} ; {train_error = :.4f} ; {val_error = :.4f}", file=print_file)
             
         self.train_history = train_history
         self.is_fitted = True

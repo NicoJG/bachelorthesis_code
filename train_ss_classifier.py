@@ -25,7 +25,6 @@ if args.model_name is not None:
     paths.update_ss_classifier_name(args.model_name)
 
 assert not paths.ss_classifier_model_file.is_file(), f"The model '{paths.ss_classifier_model_file}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
-paths.ss_classifier_dir.mkdir(parents=True)
 
 # Parameters of the model
 params = {
@@ -130,6 +129,8 @@ model.fit(X_train, y_train,
 # Save the indices of the train test split
 train_idxs = X_train.index.to_list()
 test_idxs = X_test.index.to_list()
+
+paths.ss_classifier_dir.mkdir(parents=True, exist_ok=True)
 
 with open(paths.ss_classifier_train_test_split_file, "w") as file:
     json.dump({"train_idxs":train_idxs,"test_idxs":test_idxs}, 

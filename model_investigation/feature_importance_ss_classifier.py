@@ -32,7 +32,7 @@ parser.add_argument("-n", "--model_name", dest="model_name", help="name of the m
 parser.add_argument("-f", help="Dummy argument for IPython")
 args = parser.parse_args()
 
-if "model_name" in args and isinstance(args.model_name, str):
+if args.model_name is not None:
     paths.update_ss_classifier_name(args.model_name)
 else:
     paths.update_ss_classifier_name("SS_classifier")

@@ -20,8 +20,14 @@ from model_B_classifier import DeepSetModel
 # Constant variables
 parser = ArgumentParser()
 parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
+parser.add_argument("-l", "--log_mode", dest="log_mode", help="if the output is written to a file or to a console", action="store_true")
 parser.add_argument("-f", help="Dummy argument for IPython")
 args = parser.parse_args()
+
+log_mode = args.log_mode
+
+if log_mode:
+    print("Printing is in log mode.")
 
 if args.model_name is not None:
     paths.update_B_classifier_name(args.model_name)
@@ -44,7 +50,7 @@ params = {
     "train_params" : {
         "batch_size" : 10000,
         "learning_rate" : 0.001,
-        "epochs" : 200
+        "epochs" : 10
     }
 
 }
@@ -121,12 +127,15 @@ model.fit(X_train, y_train,
           X_val=X_test, y_val=y_test,
           epochs=params["train_params"]["epochs"],
           batch_size=params["train_params"]["batch_size"],
-          verbose=1,
-          device=device)
+          device=device,
+          show_epoch_progress=True,
+          show_epoch_eval=log_mode,
+          show_batch_progress=(not log_mode),
+          show_batch_eval=False)
 
 # %%
 # Save everything to files
-paths.B_classifier_dir.mkdir(parents=True)
+paths.B_classifier_dir.mkdir(parents=True, exist_ok=True)
 
 # Save the model
 torch.save(model, paths.B_classifier_model_file)
