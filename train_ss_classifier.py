@@ -24,7 +24,7 @@ args = parser.parse_args()
 if args.model_name is not None:
     paths.update_ss_classifier_name(args.model_name)
 
-assert not paths.ss_classifier_dir.is_dir(), f"The model '{paths.ss_classifier_dir}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
+assert not paths.ss_classifier_model_file.is_file(), f"The model '{paths.ss_classifier_model_file}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
 paths.ss_classifier_dir.mkdir(parents=True)
 
 # Parameters of the model

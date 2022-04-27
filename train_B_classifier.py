@@ -28,7 +28,7 @@ if args.model_name is not None:
 else:
     paths.update_B_classifier_name("B_classifier")
 
-assert not paths.B_classifier_dir.is_dir(), f"The model '{paths.B_classifier_dir}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
+assert not paths.B_classifier_model_file.is_file(), f"The model '{paths.B_classifier_model_file}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
 
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
