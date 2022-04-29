@@ -11,8 +11,11 @@ paths.update_ss_classifier_name(ss_classifier_name)
 B_classifier_name = f"B_classifier_{datetime_str}"
 paths.update_B_classifier_name(B_classifier_name)
 
+# remove all empty log dirs
+#shell("rmdir /ceph/users/nguth/logs/* --ignore-fail-on-non-empty")
+
 def log_pipe_command(rule_name):
-    print(rule_name)
+    global log_dir
     log_dir = Path(f"/ceph/users/nguth/logs/snakemake_{datetime_str}")
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / f"{rule_name}.log"
@@ -25,13 +28,19 @@ rule master:
            str(paths.B_classifier_eval_file),
            str(paths.B_classifier_feature_importance_file)
 
+localrules: eval_ss_classifier,
+            feature_importance_ss_classifier, 
+            apply_ss_classifier,
+            eval_B_classifier,  
+            feature_importance_B_classifier
+
 rule preprocess_training_data:
     input: str(paths.B2JpsiKstar_file), str(paths.Bs2DsPi_file)
     output: str(paths.preprocessed_data_file)
     params: 
         suffix=log_pipe_command("preprocess_training_data")
     threads: 50
-    shell: "python preprocess_training_data.py{params.suffix}"
+    shell: "python preprocess_training_data.py {params.suffix}"
 
 rule train_ss_classifier:
     input: str(paths.preprocessed_data_file)
@@ -79,11 +88,11 @@ rule train_B_classifier:
     params: 
         suffix=log_pipe_command("train_B_classifier"),
         model_name=f"{B_classifier_name}"
-    threads: 10
+    threads: 1
     resources:
         MaxRunHours=4,
-        request_memory=50*1024, # in MB
-        request_gpus=1 
+        request_memory=20*1024, # in MB
+        request_gpus=0 
     shell: "python train_B_classifier.py -l -n {params.model_name} {params.suffix}"
 
 rule eval_B_classifier:

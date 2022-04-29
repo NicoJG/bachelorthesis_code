@@ -133,6 +133,8 @@ for metric in perm_imp_metrics:
     df_fi.loc[feature_keys,f"perm_{metric}"] = perm_fi[metric]["importances_mean"]
     df_fi.loc[feature_keys,f"perm_{metric}_std"] = perm_fi[metric]["importances_std"]
     
+pbar.close()
+    
 print("Done calculating the permutation feature importance")
 
 # %%
