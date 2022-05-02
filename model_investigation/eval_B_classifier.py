@@ -235,7 +235,7 @@ fp = conf_mat[0,1]
 fn = conf_mat[1,0]
 tp = conf_mat[1,1]
 
-accuracy = (tp+tn)/(tp+fn+tn+fp)
+accuracy_test = (tp+tn)/(tp+fn+tn+fp)
 tpr = tp/(tp+fn)
 tnr = tn/(tn+fp)
 
@@ -244,7 +244,7 @@ accuracy_train = skmetrics.accuracy_score(y_train, y_pred_train)
 fig, ax = plt.subplots(figsize=(8,6))
 conf_mat_display = skmetrics.ConfusionMatrixDisplay.from_predictions(y_test, y_pred_test, display_labels=["Bd", "Bs"], normalize="true", ax=ax, cmap="Blues", values_format=".4f")
 plt.title(f"""Confusion Matrix (normed on the true labels)
-accuracy(test):  {accuracy:.4f}
+accuracy(test):  {accuracy_test:.4f}
 accuracy(train): {accuracy_train:.4f}""")
 plt.tight_layout()
 plt.savefig(output_dir/"04_confusion_matrix.pdf")
@@ -255,3 +255,15 @@ plt.close()
 merge_pdfs(output_dir, output_file)
 
 # %%
+# Save the eval metrics to a file
+eval_results = {
+    "roc_auc_test" : float(auc),
+    "roc_auc_train" : float(auc_train),
+    "accuracy_test" : float(accuracy_test),
+    "accuracy_train" : float(accuracy_train),
+    "confusion_matrix_test" : skmetrics.confusion_matrix(y_test, y_pred_test, normalize="true").tolist()
+}
+
+with open(paths.B_classifier_dir / "eval_results.json", "w") as file:
+    json.dump(eval_results, file, indent=2)
+
