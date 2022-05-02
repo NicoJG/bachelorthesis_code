@@ -276,8 +276,8 @@ def hist_feature_by_label(df, fkey, fprops, lkey, lprops, full_grid=True, add_cu
     draw_pull = len(lvalues)==2
     
     if fprops["feature_type"]=="numerical":
-        x_min = fprops["quantile_0.0001"]
-        x_max = fprops["quantile_0.9999"]
+        x_min = fprops[f"quantile_{lower_quantile}"]
+        x_max = fprops[f"quantile_{higher_quantile}"]
         
         # only add logarithmic x axis if the feature is float numerical and x_min>0
         logx_possible = not fprops["int_only"] and x_min > 0.0

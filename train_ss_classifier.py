@@ -66,7 +66,7 @@ fprops = load_feature_properties()
 # %%
 # Read in the data
 print("Read in the data...")
-df_data = load_preprocessed_data(features=feature_keys, 
+df_data = load_preprocessed_data(features=[label_key]+feature_keys, 
                                  N_entries_max=10000000000)
 print("Done reading input")
 
