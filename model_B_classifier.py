@@ -46,11 +46,11 @@ class DeepSetModel(nn.Module):
         
         # Neural Network for the events
         self.rho_stack = nn.Sequential(
-            nn.Linear(n_latent_features, n_latent_features*2),
+            nn.Linear(n_latent_features, 128),
             nn.ReLU(),
-            nn.Linear(n_latent_features*2, n_latent_features),
+            nn.Linear(128, 64),
             nn.ReLU(),
-            nn.Linear(n_latent_features, 1),
+            nn.Linear(64, 1),
             nn.Sigmoid()
         )
         

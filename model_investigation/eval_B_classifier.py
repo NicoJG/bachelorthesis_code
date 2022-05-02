@@ -25,6 +25,7 @@ from model_B_classifier import DeepSetModel
 # Constant variables
 parser = ArgumentParser()
 parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
+parser.add_argument("-g", "--gpu", dest="train_on_gpu", action="store_true")
 parser.add_argument("-f", help="Dummy argument for IPython")
 args = parser.parse_args()
 
@@ -41,7 +42,7 @@ output_dir.mkdir(parents=True)
 output_file = paths.B_classifier_eval_file
 
 # Get cpu or gpu device for training.
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cuda" if args.train_on_gpu and torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
 
 # %%

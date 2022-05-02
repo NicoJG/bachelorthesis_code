@@ -115,7 +115,6 @@ params["n_events_test"] = len(event_ids_test)
 # %%
 # Build the model    
 model = DeepSetModel(n_features=len(feature_keys), 
-                     n_latent_features=len(feature_keys),
                      optimizer=torch.optim.Adam,
                      optimizer_kwargs={"lr":params["train_params"]["learning_rate"]},
                      loss=nn.BCELoss(),
