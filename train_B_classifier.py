@@ -20,6 +20,7 @@ from model_B_classifier import DeepSetModel
 # Constant variables
 parser = ArgumentParser()
 parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
+parser.add_argument("-g", "--gpu", dest="train_on_gpu", action="store_true")
 parser.add_argument("-l", "--log_mode", dest="log_mode", help="if the output is written to a file or to a console", action="store_true")
 parser.add_argument("-f", help="Dummy argument for IPython")
 args = parser.parse_args()
@@ -30,14 +31,16 @@ if log_mode:
     print("Printing is in log mode.")
 
 if args.model_name is not None:
-    paths.update_B_classifier_name(args.model_name)
+    model_name = args.model_name
 else:
-    paths.update_B_classifier_name("B_classifier")
+    model_name = "B_classifier"
+    
+paths.update_B_classifier_name(model_name)
 
 assert not paths.B_classifier_model_file.is_file(), f"The model '{paths.B_classifier_model_file}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
 
 # Get cpu or gpu device for training.
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cuda" if args.train_on_gpu and torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
 
 # %%
@@ -50,14 +53,14 @@ params = {
     "train_params" : {
         "batch_size" : 10000,
         "learning_rate" : 0.001,
-        "epochs" : 10
+        "epochs" : 200
     }
 
 }
 
 # %%
 # Read in the feature keys
-feature_keys = load_feature_keys(["features_B_classifier"])
+feature_keys = load_feature_keys([f"features_{model_name}"], file_path="features_B_classifier.json")
 label_key = load_feature_keys(["label_B_classifier"])[0]
 
 params["label_key"] = label_key

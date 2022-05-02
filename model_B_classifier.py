@@ -13,7 +13,7 @@ from utils.data_handling import DataIteratorByEvents
 # it is meant to be used with numpy arrays
 # and the sklearn-like functions fit, predict, predict_proba are available
 class DeepSetModel(nn.Module):
-    def __init__(self, n_features, n_latent_features, optimizer=torch.optim.Adam, optimizer_kwargs={}, loss=nn.BCELoss(), scaler=StandardScaler()):
+    def __init__(self, n_features, n_latent_features=64, optimizer=torch.optim.Adam, optimizer_kwargs={}, loss=nn.BCELoss(), scaler=StandardScaler()):
         super(DeepSetModel, self).__init__()
         
         assert issubclass(optimizer, torch.optim.Optimizer), "The optimizer has to come from 'torch.optim'!"
@@ -35,9 +35,9 @@ class DeepSetModel(nn.Module):
         
         # Neural Network for the tracks:
         self.phi_stack = nn.Sequential(
-            nn.Linear(n_features, n_features*2),
+            nn.Linear(n_features, 128),
             nn.ReLU(),
-            nn.Linear(n_features*2, n_latent_features),
+            nn.Linear(128, n_latent_features),
             nn.ReLU()
         )
         

@@ -11,17 +11,17 @@ from tqdm.auto import tqdm
 sys.path.insert(0, Path(__file__).parent.parent)
 from utils import paths
 
-def load_features_dict():
+def load_features_dict(file_path=paths.features_file):
     """Load the dictionary of all feature keys (features.json)
 
     Returns:
         dict
     """
-    with open(paths.features_file, "r") as file:
+    with open(file_path, "r") as file:
         features_dict = json.load(file)
     return features_dict
 
-def load_feature_keys(include_keys, exclude_keys=None):
+def load_feature_keys(include_keys, exclude_keys=None, file_path=paths.features_file):
     """Read in selected features from the features.json
 
     Args:
@@ -32,7 +32,7 @@ def load_feature_keys(include_keys, exclude_keys=None):
         list: A concatenated list of all the feature keys requested
     """
     
-    features_dict = load_features_dict()
+    features_dict = load_features_dict(file_path=file_path)
         
     # add only included features to a list
     feature_keys = []

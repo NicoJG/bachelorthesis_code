@@ -2,53 +2,51 @@
 from utils import paths
 from datetime import datetime
 from pathlib import Path
-
-datetime_str = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+import json
 
 ss_classifier_name = "SS_classifier"
 paths.update_ss_classifier_name(ss_classifier_name)
 
-B_classifier_name = f"B_classifier_{datetime_str}"
+B_classifier_name = "B_classifier"
 paths.update_B_classifier_name(B_classifier_name)
 
-log_dir = Path(f"/ceph/users/nguth/logs/snakemake_{datetime_str}")
+with open("features_B_classifier.json", "r") as file:
+    B_classifier_names = list(map(lambda x: x.replace("features_",""), json.load(file).keys()))[0:1]
 
 rule master:
     input: str(paths.ss_classifier_eval_file), 
            str(paths.ss_classifier_feature_importance_file), 
-           str(paths.B_classifier_eval_file),
-           str(paths.B_classifier_feature_importance_file)
+           expand(str(paths.models_dir / "{model_name}" / paths.B_classifier_eval_file.name), model_name=B_classifier_names),
+           expand(str(paths.models_dir / "{model_name}" / paths.B_classifier_feature_importance_file.name), model_name=B_classifier_names)
 
 localrules: eval_ss_classifier,
             feature_importance_ss_classifier, 
-            apply_ss_classifier,
-            eval_B_classifier,  
-            feature_importance_B_classifier
+            apply_ss_classifier
 
 rule preprocess_training_data:
     input: str(paths.B2JpsiKstar_file), str(paths.Bs2DsPi_file)
     output: str(paths.preprocessed_data_file)
-    log: str(log_dir/"preprocess_training_data.log")
+    log: str(paths.logs_dir / "preprocess_training_data.log")
     threads: 50
     shell: "python preprocess_training_data.py &> {log}"
 
 rule train_ss_classifier:
     input: str(paths.preprocessed_data_file)
     output: str(paths.ss_classifier_model_file)
-    log: str(log_dir/"train_ss_classifier.log")
+    log: str(paths.logs_dir / "train_ss_classifier.log")
     params: 
         model_name=f"{ss_classifier_name}"
-    threads: 10
+    threads: 50
     resources:
         MaxRunHours=4,
         request_memory=50*1024, # in MB
-        request_gpus=1
+        request_gpus=0
     shell: "python train_ss_classifier.py -n {params.model_name} &> {log}"
 
 rule eval_ss_classifier:
     input: str(paths.ss_classifier_model_file)
     output: str(paths.ss_classifier_eval_file)
-    log: str(log_dir/"train_ss_classifier.log")
+    log: str(paths.logs_dir / "eval_ss_classifier.log")
     params: 
         model_name=f"{ss_classifier_name}"
     threads: 50
@@ -57,7 +55,7 @@ rule eval_ss_classifier:
 rule feature_importance_ss_classifier:
     input: str(paths.ss_classifier_model_file)
     output: str(paths.ss_classifier_feature_importance_file)
-    log: str(log_dir/"feature_importance_ss_classifier.log")
+    log: str(paths.logs_dir / "feature_importance_ss_classifier.log")
     params: 
         model_name=f"{ss_classifier_name}"
     threads: 50
@@ -66,7 +64,7 @@ rule feature_importance_ss_classifier:
 rule apply_ss_classifier:
     input: str(paths.ss_classifier_model_file)
     output: str(paths.ss_classified_data_file)
-    log: str(log_dir/"apply_ss_classifier.log")
+    log: str(paths.logs_dir / "apply_ss_classifier.log")
     params: 
         model_name=f"{ss_classifier_name}"
     threads: 50
@@ -74,31 +72,35 @@ rule apply_ss_classifier:
 
 rule train_B_classifier:
     input: str(paths.ss_classified_data_file)
-    output: str(paths.B_classifier_model_file)
-    log: str(log_dir/"train_B_classifier.log")
+    output: str(paths.models_dir / "{model_name}" / paths.B_classifier_model_file.name)
+    log: str(paths.logs_dir / "{model_name}" / "train_B_classifier.log")
     params: 
         model_name=f"{B_classifier_name}"
-    threads: 1
+    threads: 50
     resources:
         MaxRunHours=4,
-        request_memory=20*1024, # in MB
+        request_memory=50*1024, # in MB
         request_gpus=0 
-    shell: "python train_B_classifier.py -l -n {params.model_name} &> {log}"
+    shell: "python train_B_classifier.py -l -n {wildcards.model_name} &> {log}"
 
 rule eval_B_classifier:
-    input: str(paths.B_classifier_model_file)
-    output: str(paths.B_classifier_eval_file)
-    log: str(log_dir/"eval_B_classifier.log")
-    params: 
-        model_name=f"{B_classifier_name}"
+    input: str(paths.models_dir / "{model_name}" / paths.B_classifier_model_file.name)
+    output: str(paths.models_dir / "{model_name}" / paths.B_classifier_eval_file.name)
+    log: str(paths.logs_dir / "{model_name}" / "eval_B_classifier.log")
     threads: 50
-    shell: "python model_investigation/eval_B_classifier.py -n {params.model_name} &> {log}"
+    resources:
+        MaxRunHours=1,
+        request_memory=50*1024, # in MB
+        request_gpus=0 
+    shell: "python model_investigation/eval_B_classifier.py -n {wildcards.model_name} &> {log}"
 
 rule feature_importance_B_classifier:
-    input: str(paths.B_classifier_model_file)
-    output: str(paths.B_classifier_feature_importance_file)
-    log: str(log_dir/"feature_importance_B_classifier.log")
-    params: 
-        model_name=f"{B_classifier_name}"
+    input: str(paths.models_dir / "{model_name}" / paths.B_classifier_model_file.name)
+    output: str(paths.models_dir / "{model_name}" / paths.B_classifier_feature_importance_file.name)
+    log: str(paths.logs_dir / "{model_name}" / "feature_importance_B_classifier.log")
     threads: 50
-    shell: "python model_investigation/feature_importance_B_classifier.py -n {params.model_name} &> {log}"
+    resources:
+        MaxRunHours=1,
+        request_memory=50*1024, # in MB
+        request_gpus=0 
+    shell: "python model_investigation/feature_importance_B_classifier.py -n {wildcards.model_name} &> {log}"

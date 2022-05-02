@@ -35,7 +35,7 @@ args = parser.parse_args()
 if args.model_name is not None:
     paths.update_B_classifier_name(args.model_name)
 else:
-    paths.update_B_classifier_name("B_classifier")
+    paths.update_B_classifier_name("B_classifier_all")
     
 output_dir = paths.B_classifier_dir/"feature_importance"
 if output_dir.is_dir():
@@ -119,13 +119,13 @@ def ProgressCallback(y_true, y_pred):
 scoring_dict = {metric:metric for metric in perm_imp_metrics}
 scoring_dict["progress_callback"] = skmetrics.make_scorer(ProgressCallback)
 
-X_test = model._scale_X(X_test)
+X_test_scaled = model._scale_X(X_test)
 
 temp_scaler = model.scaler
 model.scaler = None
 
 perm_fi = permutation_importance(model, 
-                                 X_test, 
+                                 X_test_scaled, 
                                  y_test,
                                  scoring=scoring_dict,
                                  n_repeats=n_repeats,
@@ -140,6 +140,30 @@ for metric in perm_imp_metrics:
 pbar.close()
     
 print("Done calculating the permutation feature importance")
+
+# %%
+# SHAP values
+# print("Calculate the SHAP values")
+# X_test_tensor = torch.from_numpy(X_test).float().to(device)
+# 
+# test_iter = DataIteratorByEvents(X_test_tensor, batch_size=1)
+# 
+# shap_value_chunks = []
+# 
+# explainer = shap.DeepExplainer(model, next(iter(test_iter))[0])
+# for X, event_ids in tqdm(test_iter, desc="SHAP values"):
+#     print(X)
+#     explanation = explainer(X_test)
+#     print(explanation)
+#     print(explanation.values)
+#     shap_value_chunks.append(explanation.values)
+#     break
+# 
+# shap_values = np.concatenate(shap_value_chunks)
+# 
+# df_fi.loc[feature_keys,"shap_mean"] = np.mean(np.abs(shap_values), axis=0)
+# df_fi.loc[feature_keys,"shap_max"] = np.max(np.abs(shap_values), axis=0)
+# print("Done calculating the SHAP values")
 
 # %%
 # remove the event_id as feature
@@ -220,3 +244,5 @@ plt.close()
 merge_pdfs(output_dir,output_file)
 
 # %%
+# Save the feature importance df to csv
+df_fi.to_csv(output_dir/"feature_importance_B_classifier.csv")

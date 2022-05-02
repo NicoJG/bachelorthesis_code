@@ -47,6 +47,8 @@ class DataIteratorByEvents:
         self.n_tracks = self.X.shape[0]
         self.n_batches = int(np.ceil(self.n_events / self.batch_size))
         
+        self.current_event_idx = 0
+        
     def __iter__(self):
         self.current_event_idx = 0
         return self
