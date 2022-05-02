@@ -25,7 +25,8 @@ from model_B_classifier import DeepSetModel
 # Constant variables
 parser = ArgumentParser()
 parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
-parser.add_argument("-g", "--gpu", dest="train_on_gpu", action="store_true")
+parser.add_argument("-g", "--gpu", dest="eval_on_gpu", action="store_true")
+parser.add_argument("-t", "--threads", dest="n_threads", default=5, type=int, help="Number of threads to use.")
 parser.add_argument("-f", help="Dummy argument for IPython")
 args = parser.parse_args()
 
@@ -41,8 +42,12 @@ output_dir.mkdir(parents=True)
 
 output_file = paths.B_classifier_eval_file
 
+n_threads = args.n_threads
+
+assert n_threads > 0
+
 # Get cpu or gpu device for training.
-device = "cuda" if args.train_on_gpu and torch.cuda.is_available() else "cpu"
+device = "cuda" if args.eval_on_gpu and torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
 
 # %%
@@ -60,7 +65,7 @@ feature_keys = params["feature_keys"]
 print("Read in the data...")
 df_data = load_preprocessed_data(features=[label_key]+feature_keys, 
                                  input_file=paths.ss_classified_data_file,
-                                 N_entries_max=10000000000)
+                                 n_threads=n_threads)
 print("Done reading input")
 
 # Read in the train test split
@@ -109,6 +114,7 @@ for i, metric in enumerate(model.train_history["eval_metrics"]):
 
 # %%
 # Evaluate the model on test data
+torch.set_num_threads(n_threads)
 
 # get predictions
 y_pred_proba_train = model.decision_function(X_train)

@@ -29,14 +29,15 @@ N_events = 50000 # how many events to use for calculating permutation importance
 
 parser = ArgumentParser()
 parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
-parser.add_argument("-g", "--gpu", dest="train_on_gpu", action="store_true")
+parser.add_argument("-g", "--gpu", dest="eval_on_gpu", action="store_true")
+parser.add_argument("-t", "--threads", dest="n_threads", default=5, type=int, help="Number of threads to use.")
 parser.add_argument("-f", help="Dummy argument for IPython")
 args = parser.parse_args()
 
 if args.model_name is not None:
     paths.update_B_classifier_name(args.model_name)
 else:
-    paths.update_B_classifier_name("B_classifier_all")
+    paths.update_B_classifier_name("B_classifier_all_old")
     
 output_dir = paths.B_classifier_dir/"feature_importance"
 if output_dir.is_dir():
@@ -45,8 +46,13 @@ output_dir.mkdir(parents=True)
 
 output_file = paths.B_classifier_dir/"feature_importance_B_classifier.pdf"
 
+n_threads = args.n_threads
+
+assert n_threads > 0
+torch.set_num_threads(n_threads)
+
 # Get cpu or gpu device for training.
-device = "cuda" if args.train_on_gpu and torch.cuda.is_available() else "cpu"
+device = "cuda" if args.eval_on_gpu and torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
 
 # %%
@@ -66,7 +72,7 @@ feature_keys_in_X = ["event_id"] + feature_keys
 print("Read in the data...")
 df_data = load_preprocessed_data(features=[label_key]+feature_keys, 
                                  input_file=paths.ss_classified_data_file,
-                                 N_entries_max=10000000000)
+                                 n_threads=n_threads)
 print("Done reading input")
 
 # Read in the train test split
@@ -101,8 +107,6 @@ df_fi.set_index("feature", drop=True, inplace=True)
 df_fi.loc[feature_keys, "weights_abs_mean"] = np.mean(np.abs(next(model.parameters()).data.numpy()), axis=0)
 df_fi.loc[feature_keys, "weights_abs_max"] = np.max(np.abs(next(model.parameters()).data.numpy()), axis=0)
 
-# %%
-torch.set_num_threads(20)
 
 # %%
 # Permutation Feature Importance through scikit-learn
@@ -130,7 +134,9 @@ perm_fi = permutation_importance(model,
                                  y_test,
                                  scoring=scoring_dict,
                                  n_repeats=n_repeats,
-                                 n_jobs=1)
+                                 n_jobs=1) 
+# TODO: look into why n_jobs>1 does not work 
+# Error: "PicklingError: Could not pickle the task to send it to the workers."
 
 model.scaler = temp_scaler
 

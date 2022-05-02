@@ -11,7 +11,9 @@ B_classifier_name = "B_classifier"
 paths.update_B_classifier_name(B_classifier_name)
 
 with open("features_B_classifier.json", "r") as file:
-    B_classifier_names = list(map(lambda x: x.replace("features_",""), json.load(file).keys()))[0:1]
+    B_classifier_names = list(map(lambda x: x.replace("features_",""), json.load(file).keys()))[:1]
+
+B_classifier_names = [n for n in B_classifier_names if not "_with_" in n]
 
 rule master:
     input: str(paths.ss_classifier_eval_file), 
@@ -81,26 +83,26 @@ rule train_B_classifier:
         MaxRunHours=4,
         request_memory=50*1024, # in MB
         request_gpus=0 
-    shell: "python train_B_classifier.py -l -n {wildcards.model_name} &> {log}"
+    shell: "python train_B_classifier.py -t {threads} -l -n {wildcards.model_name} &> {log}"
 
 rule eval_B_classifier:
     input: str(paths.models_dir / "{model_name}" / paths.B_classifier_model_file.name)
     output: str(paths.models_dir / "{model_name}" / paths.B_classifier_eval_file.name)
     log: str(paths.logs_dir / "{model_name}" / "eval_B_classifier.log")
-    threads: 50
+    threads: 20
     resources:
         MaxRunHours=1,
         request_memory=50*1024, # in MB
         request_gpus=0 
-    shell: "python model_investigation/eval_B_classifier.py -n {wildcards.model_name} &> {log}"
+    shell: "python model_investigation/eval_B_classifier.py -t {threads} -n {wildcards.model_name} &> {log}"
 
 rule feature_importance_B_classifier:
     input: str(paths.models_dir / "{model_name}" / paths.B_classifier_model_file.name)
     output: str(paths.models_dir / "{model_name}" / paths.B_classifier_feature_importance_file.name)
     log: str(paths.logs_dir / "{model_name}" / "feature_importance_B_classifier.log")
-    threads: 50
+    threads: 20
     resources:
         MaxRunHours=1,
         request_memory=50*1024, # in MB
         request_gpus=0 
-    shell: "python model_investigation/feature_importance_B_classifier.py -n {wildcards.model_name} &> {log}"
+    shell: "python model_investigation/feature_importance_B_classifier.py -t {threads} -n {wildcards.model_name} &> {log}"
