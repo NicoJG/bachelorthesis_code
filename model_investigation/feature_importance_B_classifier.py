@@ -44,8 +44,6 @@ if output_dir.is_dir():
     shutil.rmtree(output_dir)
 output_dir.mkdir(parents=True)
 
-output_file = paths.B_classifier_dir/"feature_importance_B_classifier.pdf"
-
 n_threads = args.n_threads
 
 assert n_threads > 0
@@ -243,13 +241,13 @@ for i, (ax, metric) in enumerate(zip(axs, importance_metrics)):
     ax.invert_yaxis()
 
 plt.tight_layout()
-plt.savefig(output_dir/"01_selected_importances_vertical.pdf")
+plt.savefig(paths.B_classifier_eval_plots_file)
 plt.close()
 
 # %%
 # Merge all PDFs
-merge_pdfs(output_dir,output_file)
+merge_pdfs(output_dir,paths.B_classifier_feature_importance_plots_file)
 
 # %%
 # Save the feature importance df to csv
-df_fi.to_csv(output_dir/"feature_importance_B_classifier.csv")
+df_fi.to_csv(paths.B_classifier_feature_importance_data_file)

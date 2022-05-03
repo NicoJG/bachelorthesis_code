@@ -11,15 +11,13 @@ B_classifier_name = "B_classifier"
 paths.update_B_classifier_name(B_classifier_name)
 
 with open("features_B_classifier.json", "r") as file:
-    B_classifier_names = list(map(lambda x: x.replace("features_",""), json.load(file).keys()))[:1]
-
-B_classifier_names = [n for n in B_classifier_names if not "_with_" in n]
+    B_classifier_names = list(map(lambda x: x.replace("features_",""), json.load(file).keys()))[:]
 
 rule master:
     input: str(paths.ss_classifier_eval_file), 
            str(paths.ss_classifier_feature_importance_file), 
-           expand(str(paths.models_dir / "{model_name}" / paths.B_classifier_eval_file.name), model_name=B_classifier_names),
-           expand(str(paths.models_dir / "{model_name}" / paths.B_classifier_feature_importance_file.name), model_name=B_classifier_names)
+           expand(str(paths.models_dir / "{model_name}" / paths.B_classifier_eval_plots_file.name), model_name=B_classifier_names),
+           expand(str(paths.models_dir / "{model_name}" / paths.B_classifier_feature_importance_plots_file.name), model_name=B_classifier_names)
 
 localrules: eval_ss_classifier,
             feature_importance_ss_classifier, 
@@ -78,16 +76,16 @@ rule train_B_classifier:
     log: str(paths.logs_dir / "{model_name}" / "train_B_classifier.log")
     params: 
         model_name=f"{B_classifier_name}"
-    threads: 50
+    threads: 20
     resources:
         MaxRunHours=4,
         request_memory=50*1024, # in MB
-        request_gpus=0 
+        request_gpus=0
     shell: "python train_B_classifier.py -t {threads} -l -n {wildcards.model_name} &> {log}"
 
 rule eval_B_classifier:
     input: str(paths.models_dir / "{model_name}" / paths.B_classifier_model_file.name)
-    output: str(paths.models_dir / "{model_name}" / paths.B_classifier_eval_file.name)
+    output: str(paths.models_dir / "{model_name}" / paths.B_classifier_eval_plots_file.name)
     log: str(paths.logs_dir / "{model_name}" / "eval_B_classifier.log")
     threads: 20
     resources:
@@ -98,7 +96,7 @@ rule eval_B_classifier:
 
 rule feature_importance_B_classifier:
     input: str(paths.models_dir / "{model_name}" / paths.B_classifier_model_file.name)
-    output: str(paths.models_dir / "{model_name}" / paths.B_classifier_feature_importance_file.name)
+    output: str(paths.models_dir / "{model_name}" / paths.B_classifier_feature_importance_plots_file.name)
     log: str(paths.logs_dir / "{model_name}" / "feature_importance_B_classifier.log")
     threads: 20
     resources:

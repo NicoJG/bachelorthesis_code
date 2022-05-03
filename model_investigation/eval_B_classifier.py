@@ -40,7 +40,7 @@ if output_dir.is_dir():
     shutil.rmtree(output_dir)
 output_dir.mkdir(parents=True)
 
-output_file = paths.B_classifier_eval_file
+output_file = paths.B_classifier_eval_plots_file
 
 n_threads = args.n_threads
 
@@ -271,6 +271,6 @@ eval_results = {
     "confusion_matrix_test" : skmetrics.confusion_matrix(y_test, y_pred_test, normalize="true").tolist()
 }
 
-with open(paths.B_classifier_dir / "eval_results.json", "w") as file:
+with open(paths.B_classifier_eval_data_file, "w") as file:
     json.dump(eval_results, file, indent=2)
 

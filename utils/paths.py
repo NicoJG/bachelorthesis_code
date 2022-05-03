@@ -45,7 +45,7 @@ update_ss_classifier_name("SS_classifier")
 
 # Paths to trained models for B classification
 def update_B_classifier_name(model_name):
-    global B_classifier_dir, B_classifier_model_file, B_classifier_parameters_file, B_classifier_train_test_split_file, B_classifier_eval_dir, B_classifier_eval_file, B_classifier_feature_importance_dir, B_classifier_feature_importance_file
+    global B_classifier_dir, B_classifier_model_file, B_classifier_parameters_file, B_classifier_train_test_split_file, B_classifier_eval_dir, B_classifier_eval_plots_file, B_classifier_feature_importance_dir, B_classifier_feature_importance_plots_file, B_classifier_eval_data_file, B_classifier_feature_importance_data_file
     
     assert isinstance(model_name, str), f"Please provide a str of what to add after '{str(models_dir)}/'!"
     
@@ -54,9 +54,11 @@ def update_B_classifier_name(model_name):
     B_classifier_parameters_file = B_classifier_dir/"train_parameters.json"
     B_classifier_train_test_split_file = B_classifier_dir/"train_test_split.json"
     B_classifier_eval_dir = B_classifier_dir/"eval_plots"
-    B_classifier_eval_file = B_classifier_dir/"eval_B_classifier.pdf"
+    B_classifier_eval_plots_file = B_classifier_dir/"eval_B_classifier.pdf"
+    B_classifier_eval_data_file = B_classifier_dir/"eval_results.json"
     B_classifier_feature_importance_dir = B_classifier_dir/"feature_importance"
-    B_classifier_feature_importance_file = B_classifier_dir/"feature_importance_B_classifier.pdf"
+    B_classifier_feature_importance_plots_file = B_classifier_dir/"feature_importance_B_classifier.pdf"
+    B_classifier_feature_importance_data_file = B_classifier_feature_importance_dir/"feature_importance_B_classifier.csv"
     
 update_B_classifier_name("B_classifier")
 
