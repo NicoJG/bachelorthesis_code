@@ -1,67 +1,43 @@
 {
-"label_SS_classifier" : [
-    "Tr_is_SS"
+"features_SS_classifier" : [
+    "Tr_p_proj",
+    "Tr_diff_pt",
+    "Tr_diff_z",
+    "Tr_diff_eta",
+    "Tr_cos_diff_phi",
+    "Tr_T_AALLSAMEBPV",
+    "Tr_T_BPVIP",
+    "Tr_T_BPVIPCHI2",
+    "Tr_T_MinIP",
+    "Tr_T_ConIso_p_ult",
+    "Tr_T_IPCHI2_trMother",
+    "Tr_T_IP_trMother",
+    "Tr_T_IP_trPUS",
+    "Tr_T_MinBDT_ult",
+    "Tr_T_Mother_VtxChi2",
+    "Tr_T_NbNonIsoTr_ult",
+    "Tr_T_PT",
+    "Tr_T_SumBDT_ult",
+    "Tr_T_SumMinBDT_ult",
+    "Tr_T_Sum_of_trackp",
+    "Tr_T_TRGHOSTPROB"
 ],
-"output_ss_classifier" : [
-    "Tr_ProbSS"
-],
-"label_B_classifier" : [
-    "B_is_strange"
-],
-"output_B_classifier" : [
-    "Tr_ProbBs"
-],
-"temporary_mc" : [
-    "B_BKGCAT"
-],
-"extracted_mc" : [
-    "Tr_is_SS",
-    "B_is_strange",
-    "decay_id"
-],
-"direct_mc" : [
-    "B_ID", 
-    "B_TRUEID", 
-    "Tr_ORIG_FLAGS"
-],
-"temporary" : [
-    "B_IPCHI2_OWNPV",
-    "B_DIRA_OWNPV",
-    "B_OWNPV_Z",
-    "B_P", 
-    "B_PT", 
-    "B_PX", 
-    "B_PY", 
-    "B_PZ", 
-    "B_PE",
-    "B_LOKI_PHI",
-    "B_LOKI_ETA"
-],
-"extracted" : [
-    "input_file_id",
+"features_SS_classifier_all" : [
     "Tr_diff_z",
     "Tr_p_proj",
     "Tr_diff_pt",
     "Tr_diff_p",
     "Tr_cos_diff_phi",
-    "Tr_diff_eta"
-],
-"direct" : [
+    "Tr_diff_eta",
     "Tr_T_AALLSAMEBPV",
     "Tr_T_ACHI2DOCA",
     "Tr_T_ADOCA",
     "Tr_T_BPVIP",
     "Tr_T_BPVIPCHI2",
-    "Tr_T_Best_PAIR_D",
-    "Tr_T_Best_PAIR_DCHI2",
     "Tr_T_Best_PAIR_M_fromiso",
-    "Tr_T_Best_PAIR_VCHI2",
     "Tr_T_Charge",
     "Tr_T_ConIso_p_ult",
     "Tr_T_ConIso_pt_ult",
-    "Tr_T_Cone_asym_P",
-    "Tr_T_Cone_asym_Pt",
-    "Tr_T_Eta",
     "Tr_T_IPCHI2_trMother",
     "Tr_T_IP_trMother",
     "Tr_T_IP_trPUS",
@@ -85,12 +61,8 @@
     "Tr_T_PROBNNmu",
     "Tr_T_PROBNNp",
     "Tr_T_PROBNNpi",
-    "Tr_T_E",
     "Tr_T_P",
     "Tr_T_PT",
-    "Tr_T_PX",
-    "Tr_T_PY",
-    "Tr_T_PZ",
     "Tr_T_Phi",
     "Tr_T_ShareSamePVasSignal",
     "Tr_T_SumBDT_sigtr",
@@ -98,16 +70,12 @@
     "Tr_T_SumMinBDT_ult",
     "Tr_T_Sum_of_trackp",
     "Tr_T_Sum_of_trackpt",
-    "Tr_T_THETA",
     "Tr_T_TRCHI2DOF",
-    "Tr_T_TRFITMATCHCHI2",
     "Tr_T_TRFITTCHI2",
     "Tr_T_TrFITTCHI2NDOF",
     "Tr_T_TRFITVELOCHI2NDOF",
     "Tr_T_TRGHOSTPROB",
     "Tr_T_TRPCHI2",
-    "Tr_T_TRTYPE",
-    "Tr_T_TrFIRSTHITZ",
     "Tr_T_VeloCharge",
     "Tr_T_x",
     "Tr_T_xfirst",

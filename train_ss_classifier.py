@@ -16,7 +16,7 @@ from utils.input_output import load_feature_keys, load_feature_properties, load_
 # %%
 # Constant variables
 parser = ArgumentParser()
-parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
+parser.add_argument("-n", "--model_name", dest="model_name", default="SS_classifier", help="name of the model directory")
 parser.add_argument("-g", "--gpu", dest="train_on_gpu", action="store_true")
 parser.add_argument("-t", "--threads", dest="n_threads", default=5, type=int, help="Number of threads to use.")
 parser.add_argument("-f", help="Dummy argument for IPython")
@@ -25,8 +25,8 @@ args = parser.parse_args()
 n_threads = args.n_threads
 assert n_threads > 0
 
-if args.model_name is not None:
-    paths.update_ss_classifier_name(args.model_name)
+model_name = args.model_name
+paths.update_ss_classifier_name(model_name)
 
 assert not paths.ss_classifier_model_file.is_file(), f"The model '{paths.ss_classifier_model_file}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
 
@@ -59,8 +59,8 @@ if args.train_on_gpu:
 
 # %%
 # Read in the feature keys
-feature_keys = load_feature_keys(["features_ss_classifier"])
-label_key = load_feature_keys(["label_ss_classifier"])[0]
+feature_keys = load_feature_keys([f"features_{model_name}"], file_path=paths.features_SS_classifier_file)
+label_key = load_feature_keys(["label_SS_classifier"])[0]
 params["label_key"] = label_key
 params["feature_keys"] = feature_keys
 

@@ -18,7 +18,7 @@ from utils.histograms import get_hist
 # %%
 # Constants
 parser = ArgumentParser()
-parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
+parser.add_argument("-n", "--model_name", dest="model_name", default="SS_classifier", help="name of the model directory")
 parser.add_argument("-t", "--threads", dest="n_threads", default=5, type=int, help="Number of threads to use.")
 parser.add_argument("-f", help="Dummy argument for IPython")
 args = parser.parse_args()
@@ -26,10 +26,8 @@ args = parser.parse_args()
 n_threads = args.n_threads
 assert n_threads > 0
 
-if args.model_name is not None:
-    paths.update_ss_classifier_name(args.model_name)
-else:
-    paths.update_ss_classifier_name("SS_classifier")
+model_name = args.model_name
+paths.update_ss_classifier_name(model_name)
     
 output_file = paths.ss_classified_data_file
 

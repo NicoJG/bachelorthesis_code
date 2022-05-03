@@ -21,7 +21,7 @@ from utils.histograms import get_hist
 # %%
 # Constants
 parser = ArgumentParser()
-parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
+parser.add_argument("-n", "--model_name", dest="model_name", default="SS_classifier", help="name of the model directory")
 parser.add_argument("-t", "--threads", dest="n_threads", default=5, type=int, help="Number of threads to use.")
 parser.add_argument("-f", help="Dummy argument for IPython")
 args = parser.parse_args()
@@ -29,10 +29,8 @@ args = parser.parse_args()
 n_threads = args.n_threads
 assert n_threads > 0
 
-if args.model_name is not None:
-    paths.update_ss_classifier_name(args.model_name)
-else:
-    paths.update_ss_classifier_name("SS_classifier")
+model_name = args.model_name
+paths.update_ss_classifier_name(model_name)
 
 output_dir = paths.ss_classifier_eval_dir
 output_dir.mkdir(exist_ok=True)
@@ -237,6 +235,10 @@ balanced_accuracy = (recall+specificity)/2
 #f1_score = 2*tp/(2*tp+fp+fn)
 #signal_over_bkg = tp/(tn+fp+fn)
 
+recall_train = tp_train/(tp_train+fn_train)
+specificity_train = tn_train/(tn_train+fp_train)
+balanced_accuracy_train = (recall_train+specificity_train)/2
+
 plt.figure(figsize=(8,6))
 plt.title("Various metrics for every cut")
 plt.plot(cut_linspace, accuracy, label="accuracy")
@@ -265,3 +267,16 @@ plt.close()
 merge_pdfs(output_dir, paths.ss_classifier_eval_file)
 
 # %%
+eval_results = {
+    "roc_auc_test" : float(auc),
+    "max_balanced_accuracy_test" : float(balanced_accuracy[max_balanced_acc_idx]),
+    "efficiency_SS_test" : float(recall[max_balanced_acc_idx]),
+    "efficiency_other_test" : float(specificity[max_balanced_acc_idx]),
+    "roc_auc_train" : float(auc_train),
+    "max_balanced_accuracy_train" : float(balanced_accuracy_train[max_balanced_acc_idx]),
+    "efficiency_SS_train" : float(recall_train[max_balanced_acc_idx]),
+    "efficiency_other_train" : float(specificity_train[max_balanced_acc_idx])
+}
+
+with open(paths.SS_classifier_eval_data_file, "w") as file:
+    json.dump(eval_results, file, indent=2)

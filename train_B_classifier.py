@@ -64,7 +64,7 @@ params = {
 
 # %%
 # Read in the feature keys
-feature_keys = load_feature_keys([f"features_{model_name}"], file_path="features_B_classifier.json")
+feature_keys = load_feature_keys([f"features_{model_name}"], file_path=paths.features_B_classifier_file)
 label_key = load_feature_keys(["label_B_classifier"])[0]
 
 params["label_key"] = label_key
