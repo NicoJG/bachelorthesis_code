@@ -5,6 +5,7 @@ import uproot
 import pandas as pd
 import numpy as np
 from tqdm.auto import tqdm
+from argparse import ArgumentParser
 
 # Imports from this project
 from utils import paths
@@ -12,6 +13,14 @@ from utils.input_output import load_feature_keys, load_data_from_root
 
 # %%
 # Constant variables
+parser = ArgumentParser()
+parser.add_argument("-t", "--threads", dest="n_threads", default=5, type=int, help="Number of threads to use.")
+parser.add_argument("-f", help="Dummy argument for IPython")
+args = parser.parse_args()
+
+n_threads = args.n_threads
+assert n_threads > 0
+
 input_files = [paths.B2JpsiKstar_file, paths.Bs2DsPi_file]
 
 input_file_keys = ["DecayTree", "Bs2DspiDetached/DecayTree"]
@@ -57,8 +66,9 @@ for i, (input_file_path, input_file_key) in enumerate(tqdm(zip(input_files, inpu
     temp_df = load_data_from_root(input_file_path, 
                                   tree_key=input_file_key,
                                   features=features_to_load, 
-                                  N_entries_max=N_events_per_dataset, 
-                                  batch_size=10000)
+                                  N_entries_max=np.Infinity, 
+                                  batch_size=10000,
+                                  n_threads=n_threads)
     
     temp_df.rename_axis(index={"entry":"event_id", "subentry": "track_id"},  inplace=True)
 
@@ -76,6 +86,11 @@ for i, (input_file_path, input_file_key) in enumerate(tqdm(zip(input_files, inpu
         temp_df.reset_index(inplace=True)
         temp_df["event_id"] += df.index.max()[0] + 1
         temp_df.set_index(["event_id", "track_id"], inplace=True)
+        
+    # shuffle the events before shrinking the dataset (to adjust for imbalances)
+    temp_event_ids = temp_df.index.unique("event_id")
+    temp_event_ids = rng.permutation(temp_event_ids)
+    temp_df = temp_df.loc[temp_event_ids[:N_events_per_dataset]]
 
     # append this batch to the DataFrame
     df = pd.concat([df, temp_df])

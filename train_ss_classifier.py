@@ -18,8 +18,12 @@ from utils.input_output import load_feature_keys, load_feature_properties, load_
 parser = ArgumentParser()
 parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
 parser.add_argument("-g", "--gpu", dest="train_on_gpu", action="store_true")
+parser.add_argument("-t", "--threads", dest="n_threads", default=5, type=int, help="Number of threads to use.")
 parser.add_argument("-f", help="Dummy argument for IPython")
 args = parser.parse_args()
+
+n_threads = args.n_threads
+assert n_threads > 0
 
 if args.model_name is not None:
     paths.update_ss_classifier_name(args.model_name)
@@ -38,7 +42,7 @@ params = {
         #"subsample" : 1.0,
         "scale_pos_weight" : "TO BE SET", # sum(negative instances) / sum(positive instances)
         "objective" : "binary:logistic",
-        "nthread" : 50,
+        "nthread" : n_threads,
         "tree_method" : "hist",
         #"num_parallel_tree" : 1
     },
@@ -67,7 +71,8 @@ fprops = load_feature_properties()
 # Read in the data
 print("Read in the data...")
 df_data = load_preprocessed_data(features=[label_key]+feature_keys, 
-                                 N_entries_max=10000000000)
+                                 N_entries_max=10000000000,
+                                 n_threads=n_threads)
 print("Done reading input")
 
 

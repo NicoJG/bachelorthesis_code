@@ -41,7 +41,6 @@ paths.update_B_classifier_name(model_name)
 assert not paths.B_classifier_model_file.is_file(), f"The model '{paths.B_classifier_model_file}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
 
 n_threads = args.n_threads
-
 assert n_threads > 0
 
 # Get cpu or gpu device for training.

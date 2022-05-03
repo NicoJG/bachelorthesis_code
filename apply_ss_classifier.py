@@ -19,8 +19,12 @@ from utils.histograms import get_hist
 # Constants
 parser = ArgumentParser()
 parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
+parser.add_argument("-t", "--threads", dest="n_threads", default=5, type=int, help="Number of threads to use.")
 parser.add_argument("-f", help="Dummy argument for IPython")
 args = parser.parse_args()
+
+n_threads = args.n_threads
+assert n_threads > 0
 
 if args.model_name is not None:
     paths.update_ss_classifier_name(args.model_name)
@@ -47,7 +51,7 @@ fprops = load_feature_properties()
 # %%
 # Read in the data
 print("Read in the data...")
-df_data = load_preprocessed_data(input_file=paths.preprocessed_data_file)
+df_data = load_preprocessed_data(input_file=paths.preprocessed_data_file, n_threads=n_threads)
 print("Done reading input")
 
 # %%
