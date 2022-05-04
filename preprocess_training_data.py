@@ -67,7 +67,7 @@ for i, (input_file_path, input_file_key) in enumerate(tqdm(zip(input_files, inpu
                                   tree_key=input_file_key,
                                   features=features_to_load, 
                                   N_entries_max=np.Infinity, 
-                                  batch_size=10000,
+                                  batch_size=100000,
                                   n_threads=n_threads)
     
     temp_df.rename_axis(index={"entry":"event_id", "subentry": "track_id"},  inplace=True)

@@ -241,7 +241,7 @@ for i, (ax, metric) in enumerate(zip(axs, importance_metrics)):
     ax.invert_yaxis()
 
 plt.tight_layout()
-plt.savefig(paths.B_classifier_eval_plots_file)
+plt.savefig(output_dir/"01_selected_importances_vertical.pdf")
 plt.close()
 
 # %%

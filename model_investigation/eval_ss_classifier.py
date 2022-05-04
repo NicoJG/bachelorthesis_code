@@ -264,7 +264,7 @@ plt.close()
 
 # %%
 # Merge all evaluation plots
-merge_pdfs(output_dir, paths.ss_classifier_eval_file)
+merge_pdfs(output_dir, paths.ss_classifier_eval_plots_file)
 
 # %%
 eval_results = {
@@ -278,5 +278,5 @@ eval_results = {
     "efficiency_other_train" : float(specificity_train[max_balanced_acc_idx])
 }
 
-with open(paths.SS_classifier_eval_data_file, "w") as file:
+with open(paths.ss_classifier_eval_data_file, "w") as file:
     json.dump(eval_results, file, indent=2)

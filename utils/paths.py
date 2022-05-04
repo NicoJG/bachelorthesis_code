@@ -30,7 +30,7 @@ models_dir = external_base_dir / "models"
 
 # Paths to trained models for SS classification
 def update_ss_classifier_name(model_name):
-    global ss_classifier_dir, ss_classifier_model_file, ss_classifier_parameters_file, ss_classifier_train_test_split_file, ss_classifier_eval_dir, ss_classifier_eval_file, ss_classifier_feature_importance_dir, ss_classifier_feature_importance_file, ss_classifier_eval_data_file, ss_classifier_feature_importance_data_file
+    global ss_classifier_dir, ss_classifier_model_file, ss_classifier_parameters_file, ss_classifier_train_test_split_file, ss_classifier_eval_dir, ss_classifier_eval_plots_file, ss_classifier_feature_importance_dir, ss_classifier_feature_importance_plots_file, ss_classifier_eval_data_file, ss_classifier_feature_importance_data_file
     
     assert isinstance(model_name, str), f"Please provide a str of what to add after '{str(models_dir)}/'!"
     
@@ -39,10 +39,10 @@ def update_ss_classifier_name(model_name):
     ss_classifier_parameters_file = ss_classifier_dir/"train_parameters.json"
     ss_classifier_train_test_split_file = ss_classifier_dir/"train_test_split.json"
     ss_classifier_eval_dir = ss_classifier_dir/"eval_plots"
-    ss_classifier_eval_file = ss_classifier_dir/"eval_ss_classifier.pdf"
+    ss_classifier_eval_plots_file = ss_classifier_dir/"eval_ss_classifier.pdf"
     ss_classifier_eval_data_file = ss_classifier_dir/"eval_results.json"
     ss_classifier_feature_importance_dir = ss_classifier_dir/"feature_importance"
-    ss_classifier_feature_importance_file = ss_classifier_dir/"feature_importance_ss_classifier.pdf"
+    ss_classifier_feature_importance_plots_file = ss_classifier_dir/"feature_importance_ss_classifier.pdf"
     ss_classifier_feature_importance_data_file = ss_classifier_feature_importance_dir/"feature_importance_ss_classifier.csv"
     
 update_ss_classifier_name("SS_classifier")

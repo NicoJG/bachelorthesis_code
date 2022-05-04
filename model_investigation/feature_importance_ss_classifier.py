@@ -39,12 +39,10 @@ assert n_threads > 0
 model_name = args.model_name
 paths.update_ss_classifier_name(model_name)
     
-output_dir = paths.ss_classifier_dir/"feature_importance_plots"
+output_dir = paths.ss_classifier_feature_importance_dir
 if output_dir.is_dir():
     shutil.rmtree(output_dir)
 output_dir.mkdir(parents=True)
-
-output_file = paths.ss_classifier_dir/"feature_importance_ss_classifier.pdf"
 
 # %%
 # Read in the model parameters
@@ -230,7 +228,7 @@ plt.close()
 
 # %%
 # Merge all PDFs
-merge_pdfs(output_dir,output_file)
+merge_pdfs(output_dir,paths.ss_classifier_feature_importance_plots_file)
 
 # %%
 # Save the feature importance df to csv

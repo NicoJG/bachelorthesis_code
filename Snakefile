@@ -17,8 +17,8 @@ with open(paths.features_B_classifier_file, "r") as file:
     B_classifier_names = list(map(lambda x: x.replace("features_",""), json.load(file).keys()))[:]
 
 rule master:
-    input: expand(str(paths.models_dir / "{model_name}" / paths.ss_classifier_eval_file.name), model_name=SS_classifier_names),
-           expand(str(paths.models_dir / "{model_name}" / paths.ss_classifier_feature_importance_file.name), model_name=SS_classifier_names),
+    input: expand(str(paths.models_dir / "{model_name}" / paths.ss_classifier_eval_plots_file.name), model_name=SS_classifier_names),
+           expand(str(paths.models_dir / "{model_name}" / paths.ss_classifier_feature_importance_plots_file.name), model_name=SS_classifier_names),
            expand(str(paths.models_dir / "{model_name}" / paths.B_classifier_eval_plots_file.name), model_name=B_classifier_names),
            expand(str(paths.models_dir / "{model_name}" / paths.B_classifier_feature_importance_plots_file.name), model_name=B_classifier_names)
 
@@ -50,7 +50,7 @@ rule train_ss_classifier:
 
 rule eval_ss_classifier:
     input: str(paths.models_dir / "{model_name}" / paths.ss_classifier_model_file.name)
-    output: str(paths.models_dir / "{model_name}" / paths.ss_classifier_eval_file.name)
+    output: str(paths.models_dir / "{model_name}" / paths.ss_classifier_eval_plots_file.name)
     log: str(paths.logs_dir / "{model_name}" / "eval_ss_classifier.log")
     threads: 20
     resources:
@@ -61,7 +61,7 @@ rule eval_ss_classifier:
 
 rule feature_importance_ss_classifier:
     input: str(paths.models_dir / "{model_name}" / paths.ss_classifier_model_file.name)
-    output: str(paths.models_dir / "{model_name}" / paths.ss_classifier_feature_importance_file.name)
+    output: str(paths.models_dir / "{model_name}" / paths.ss_classifier_feature_importance_plots_file.name)
     log: str(paths.logs_dir / "{model_name}" / "feature_importance_ss_classifier.log")
     threads: 20
     resources:

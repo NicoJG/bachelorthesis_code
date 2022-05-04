@@ -40,8 +40,6 @@ if output_dir.is_dir():
     shutil.rmtree(output_dir)
 output_dir.mkdir(parents=True)
 
-output_file = paths.B_classifier_eval_plots_file
-
 n_threads = args.n_threads
 
 assert n_threads > 0
@@ -259,7 +257,7 @@ plt.close()
 
 # %%
 # Merge all evaluation plots
-merge_pdfs(output_dir, output_file)
+merge_pdfs(output_dir, paths.B_classifier_eval_plots_file)
 
 # %%
 # Save the eval metrics to a file
