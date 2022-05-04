@@ -29,7 +29,7 @@ output_file = paths.plots_dir/"feature_correlation_B_classifier.pdf"
 
 # %%
 # Read in the feature keys
-feature_keys = load_feature_keys(["features_B_classifier"], file_path=paths.features_B_classifier_file) + load_feature_keys(["label_ss_classifier","label_B_classifier"])
+feature_keys = load_feature_keys(["direct_mc","extracted_mc","direct","extracted","output_ss_classifier"])
 
 # Read in the feature properties
 fprops = load_feature_properties()
