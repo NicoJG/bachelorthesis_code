@@ -25,7 +25,7 @@ if output_dir.is_dir():
     shutil.rmtree(output_dir)
 output_dir.mkdir(parents=True, exist_ok=True)
 
-output_file = paths.plots_dir/"feature_correlation_B_classifier.pdf"
+output_file = paths.plots_dir/"feature_correlation.pdf"
 
 # %%
 # Read in the feature keys
