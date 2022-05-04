@@ -60,7 +60,7 @@ if args.train_on_gpu:
 # %%
 # Read in the feature keys
 feature_keys = load_feature_keys([f"features_{model_name}"], file_path=paths.features_SS_classifier_file)
-label_key = load_feature_keys(["label_SS_classifier"])[0]
+label_key = load_feature_keys(["label_ss_classifier"])[0]
 params["label_key"] = label_key
 params["feature_keys"] = feature_keys
 

@@ -26,14 +26,10 @@ output_dir.mkdir(parents=True, exist_ok=True)
 # required: "label_key", "full_grid"
 # optional: "cut_query", "cut_label"
 plots_props = [
-    {"label_key" : "Tr_is_SS", "full_grid" : False},
-    {"label_key" : "B_is_strange", "full_grid" : False},
-    {"label_key" : "B_is_strange", "full_grid" : False, "cut_query" : "Tr_is_SS == 1", "cut_label" : "is SS"}
+    {"label_key" : "Tr_is_SS", "full_grid" : True},
+    {"label_key" : "B_is_strange", "full_grid" : True},
+    {"label_key" : "B_is_strange", "full_grid" : True, "cut_query" : "Tr_is_SS == 1", "cut_label" : "is SS"}
 ]
-
-label_keys = ["Tr_is_SS", "B_is_strange", "B_is_strange"]
-cut_queries = [None, None, "Tr_is_SS == 1"]
-cut_labels = [None, None, "is SS"]
 
 # %%
 # Read in the feature keys

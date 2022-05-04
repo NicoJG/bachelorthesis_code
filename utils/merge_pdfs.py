@@ -1,11 +1,12 @@
 # Script to merge all PDFs in a directory
 # Usage: python merge_pdfs.py <input_dir> <output_file>
 # or import the funktion merge_pdfs
+# You need to install PyPDF2 if it's not already installed:
+# pip install PyPDF2
 
 
 from PyPDF2 import PdfFileMerger
 from pathlib import Path
-from tqdm.auto import tqdm
 import sys
 
 def merge_pdfs(input_dir, output_file):

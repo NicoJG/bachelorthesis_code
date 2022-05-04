@@ -45,12 +45,12 @@ from utils.input_output import load_feature_keys, load_features_dict, load_featu
 
 # %%
 # Read in the feature keys
-feature_keys = load_feature_keys(["extracted_mc", "direct_mc","extracted", "direct"])
+feature_keys = load_feature_keys(["extracted_mc", "direct_mc","extracted", "direct", "output_ss_classifier"])
 
 # %%
 # Read the input data
 print("Read in the data...")
-df_data = load_preprocessed_data(N_entries_max=10000000000)
+df_data = load_preprocessed_data(N_entries_max=10000000000,input_file=paths.ss_classified_data_file)
 print("Done reading input")
 
 # %%
@@ -59,6 +59,11 @@ if paths.feature_properties_file.is_file():
     fprops = load_feature_properties()
 else:
     fprops = {feature:dict() for feature in feature_keys}
+    
+# check if there is an entry for every feature
+for f in feature_keys:
+    if f not in fprops.keys():
+        fprops[f] = dict()
 
 # %%
 # Check if the feature is only present in MC simulated data
@@ -197,3 +202,4 @@ with open(paths.feature_properties_file, "w") as file:
 # %%
 # TODO: make functions
 # TODO: make code more clean
+# %%

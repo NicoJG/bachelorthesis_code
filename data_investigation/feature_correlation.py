@@ -8,6 +8,7 @@ import matplotlib as mpl
 from pathlib import Path
 from tqdm.auto import tqdm
 import json
+import shutil
 
 # Imports from this project
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -19,13 +20,16 @@ from utils import paths
 # %%
 # Constants
 output_dir = paths.plots_dir/"feature_correlation"
+
+if output_dir.is_dir():
+    shutil.rmtree(output_dir)
 output_dir.mkdir(parents=True, exist_ok=True)
 
-output_file = paths.plots_dir/"feature_correlation.pdf"
+output_file = paths.plots_dir/"feature_correlation_B_classifier.pdf"
 
 # %%
 # Read in the feature keys
-feature_keys = load_feature_keys(["features_ss_classifier"])
+feature_keys = load_feature_keys(["features_B_classifier"], file_path=paths.features_B_classifier_file) + load_feature_keys(["label_ss_classifier","label_B_classifier"])
 
 # Read in the feature properties
 fprops = load_feature_properties()
@@ -34,6 +38,7 @@ fprops = load_feature_properties()
 # Read in the data
 print("Read in the data...")
 df_data = load_preprocessed_data(features=feature_keys, 
+                                 input_file=paths.ss_classified_data_file,
                                  N_entries_max=1000000000)
 print("Done reading input")
 
@@ -59,6 +64,8 @@ for feature in tqdm(feature_keys, desc="Apply Feature Cuts"):
         cut_loss[feature]["absolute_loss"] = (~temp_mask).sum()
         
         mask &= temp_mask
+        
+# mask &= df_data["B_is_strange"] == 1
         
 df_data_cut = df_data[mask]
 
@@ -117,8 +124,8 @@ df_highest_corr = df_corr.copy()
 # set lower triangular matrix (with diagonal) to nan
 triu_mask = np.triu(np.ones(df_highest_corr.shape), k=1).astype(bool)
 df_highest_corr.where(triu_mask, np.nan, inplace=True)
-# set all abs values lower than 0.3 to nan
-df_highest_corr.where(np.abs(df_highest_corr)>0.3, np.nan, inplace=True)
+# set all abs values lower than 0.5 to nan
+df_highest_corr.where(np.abs(df_highest_corr)>0.5, np.nan, inplace=True)
 # list of all pairs that have a high correlation
 df_highest_corr.dropna(how="all", inplace=True)
 df_highest_corr = df_highest_corr.stack().reset_index()
@@ -141,8 +148,8 @@ for i, (corr, f0, f1) in tqdm(df_highest_corr.iterrows(), total=df_highest_corr.
         if fprops[f]["feature_type"] == "numerical":
             bin_res = find_good_binning(fprops[f], 
                                         n_bins_max=200, 
-                                        lower_quantile=0.0001, 
-                                        higher_quantile=0.9999, 
+                                        lower_quantile=lower_quantile, 
+                                        higher_quantile=higher_quantile, 
                                         allow_logx=True)
             bin_edges.append(bin_res[0])
             bin_centers.append(bin_res[1])
@@ -157,8 +164,13 @@ for i, (corr, f0, f1) in tqdm(df_highest_corr.iterrows(), total=df_highest_corr.
             bin_edges.append(fedges)
             
     
-    data0 = df_data[f0].to_numpy()
-    data1 = df_data[f1].to_numpy()
+    data0 = df_data_cut[f0].to_numpy()
+    data1 = df_data_cut[f1].to_numpy()
+    
+    if is_logx[0]:
+        data0 = np.log10(data0)
+    if is_logx[1]:
+        data1 = np.log10(data1)
     
     plt.figure(figsize=(8,8))
     plt.title(f"Hist2d Plot ('{f0}' vs '{f1}')\ncorrelation: {corr:.5f}")
@@ -176,6 +188,8 @@ for i, (corr, f0, f1) in tqdm(df_highest_corr.iterrows(), total=df_highest_corr.
         plt.xlabel(f"{f0} (categorical)")
     elif fprops[f0]["int_only"]:
         plt.xlabel(f"{f0} (only integers)")
+    elif is_logx[0]:
+        plt.xlabel(f"log10( {f0} )")
     else:
         plt.xlabel(f0)
     
@@ -183,15 +197,10 @@ for i, (corr, f0, f1) in tqdm(df_highest_corr.iterrows(), total=df_highest_corr.
         plt.ylabel(f"{f1} (categorical)")
     elif fprops[f1]["int_only"]:
         plt.ylabel(f"{f1} (only integers)")
+    elif is_logx[1]:
+        plt.ylabel(f"log10( {f1} )")
     else:
         plt.ylabel(f1)
-    
-    
-    
-    if is_logx[0]:
-        plt.xscale("log")
-    if is_logx[1]:
-        plt.yscale("log")
         
     cbar = plt.colorbar(hist[3])
     cbar.ax.set_ylabel("Counts")
