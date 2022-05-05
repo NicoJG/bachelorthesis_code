@@ -36,8 +36,10 @@ class DeepSetModel(nn.Module):
         # Neural Network for the tracks:
         self.phi_stack = nn.Sequential(
             nn.Linear(n_features, 128),
+            nn.Dropout(0.4),
             nn.ReLU(),
             nn.Linear(128, n_latent_features),
+            nn.Dropout(0.4),
             nn.ReLU()
         )
         
@@ -47,8 +49,10 @@ class DeepSetModel(nn.Module):
         # Neural Network for the events
         self.rho_stack = nn.Sequential(
             nn.Linear(n_latent_features, 128),
+            nn.Dropout(0.4),
             nn.ReLU(),
             nn.Linear(128, 64),
+            nn.Dropout(0.4),
             nn.ReLU(),
             nn.Linear(64, 1),
             nn.Sigmoid()
@@ -152,7 +156,8 @@ class DeepSetModel(nn.Module):
             X_val=None, y_val=None, 
             device=None, 
             show_epoch_progress=True, show_epoch_eval=False, 
-            show_batch_progress=True, show_batch_eval=False):
+            show_batch_progress=True, show_batch_eval=False,
+            early_stopping_epochs=None):
         
         assert not self.is_fitted, "This DeepSet is already fitted."
         
@@ -186,14 +191,16 @@ class DeepSetModel(nn.Module):
         
         train_history = {"epochs" : [],
                          "eval_metrics" : ["loss", "error"],
-                         "train": {"loss":[],"error":[]}}
-        
+                         "train": {"loss":[],"error":[]},
+                         "train_wrong": {"loss":[],"error":[]}}
         
         if is_validation_provided:
             train_history["validation"] = {"loss":[],"error":[]}
             val_iterator = DataIteratorByEvents(X_val, y_val, batch_size=batch_size)
         
         train_iterator = DataIteratorByEvents(X, y, batch_size=batch_size)
+        
+        is_early_stopping = isinstance(early_stopping_epochs, int)
         
         if show_epoch_progress:
             epoch_iter = tqdm(range(epochs), desc="Train epochs")
@@ -213,8 +220,13 @@ class DeepSetModel(nn.Module):
             train_loss, train_error = self._train_loop(train_iterator, pbar, show_batch_eval)
             
             train_history["epochs"].append(epoch_i)
-            train_history["train"]["loss"].append(train_loss)
-            train_history["train"]["error"].append(train_error)
+            train_history["train_wrong"]["loss"].append(train_loss)
+            train_history["train_wrong"]["error"].append(train_error)
+            
+            # Dropout correction
+            train_corrected_loss, train_corrected_error = self._test_loop(train_iterator)
+            train_history["train"]["loss"].append(train_corrected_loss)
+            train_history["train"]["error"].append(train_corrected_error)
             
             if is_validation_provided:
                 val_loss, val_error = self._test_loop(val_iterator)
@@ -222,9 +234,15 @@ class DeepSetModel(nn.Module):
                 train_history["validation"]["loss"].append(val_loss)
                 train_history["validation"]["error"].append(val_error)
                 
+                if is_early_stopping:
+                    # TODO
+                    ...
+                
             if show_epoch_eval and is_validation_provided:
                 print_file = sys.stdout if not show_epoch_progress else sys.stderr
-                print(f"Epoch {epoch_i:03d}/{epochs}: {train_loss = :.4f} ; {val_loss = :.4f} ; {train_error = :.4f} ; {val_error = :.4f}", file=print_file)
+                print(f"Epoch {epoch_i:03d}/{epochs}:", file=print_file)
+                print(f"train loss: {train_corrected_loss:.4f} ; train error: {train_corrected_error:.4f}", file=print_file)
+                print(f"val loss:   {val_loss:.4f} ; val error:   {val_error:.4f}", file=print_file)
             
         self.train_history = train_history
         self.is_fitted = True

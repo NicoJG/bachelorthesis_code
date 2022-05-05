@@ -104,6 +104,8 @@ for i, metric in enumerate(model.train_history["eval_metrics"]):
     plt.title(f"training performance ({metric})")
     plt.plot(epochs, model.train_history["train"][metric], label="training data")
     plt.plot(epochs, model.train_history["validation"][metric], label="test data")
+    if "train_wrong" in model.train_history:
+        plt.plot(epochs, model.train_history["train_wrong"][metric], label="training data (with dropout)")
     plt.xlabel("iteration")
     plt.ylabel(metric)
     plt.legend()
