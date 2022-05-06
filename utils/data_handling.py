@@ -34,14 +34,14 @@ class DataIteratorByEvents:
             raise RuntimeError("X is not a PyTorch Tensor and not a numpy array")
         
         # use numpy.unique to find first occurences of each event id
-        self.event_ids, self.event_first_idxs = np.unique(self.X[:,0].numpy(), return_index=True)
+        self.event_ids, self.event_first_idxs = np.unique(self.X[:,0].cpu().numpy(), return_index=True)
         # numpy unique sorts the values, so we have to "unsort" them
         unsort_mask = np.argsort(self.event_first_idxs)
-        self.event_ids = torch.from_numpy(self.event_ids[unsort_mask])
-        self.event_first_idxs = torch.from_numpy(self.event_first_idxs[unsort_mask])
+        self.event_ids = torch.from_numpy(self.event_ids[unsort_mask]).to(self.X.device)
+        self.event_first_idxs = torch.from_numpy(self.event_first_idxs[unsort_mask]).to(self.X.device)
         
         if self.is_y_provided:
-            assert self.y.shape[0] == self.event_ids.shape[0], "y must have the same length as unique values in event_ids_by_track!"
+            assert self.y.shape[0] == self.event_ids.shape[0], f"y must have the same length as unique values in event_ids_by_track! \nPresent shapes: y={self.y.shape} ; event_ids_by_track={self.event_ids.shape}"
         
         self.n_events = self.event_ids.shape[0]
         self.n_tracks = self.X.shape[0]

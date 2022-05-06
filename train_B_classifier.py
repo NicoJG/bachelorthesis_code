@@ -19,7 +19,7 @@ from model_B_classifier import DeepSetModel
 # %%
 # Constant variables
 parser = ArgumentParser()
-parser.add_argument("-n", "--model_name", dest="model_name", help="name of the model directory")
+parser.add_argument("-n", "--model_name", dest="model_name", default="B_classifier", help="name of the model directory")
 parser.add_argument("-g", "--gpu", dest="train_on_gpu", action="store_true", help="Flag to train on a GPU/CUDA")
 parser.add_argument("-t", "--threads", dest="n_threads", default=5, type=int, help="Number of threads to use.")
 parser.add_argument("-l", "--log_mode", dest="log_mode", help="if the output is written to a file or to a console", action="store_true")
@@ -31,11 +31,7 @@ log_mode = args.log_mode
 if log_mode:
     print("Printing is in log mode.")
 
-if args.model_name is not None:
-    model_name = args.model_name
-else:
-    model_name = "B_classifier"
-    
+model_name = args.model_name
 paths.update_B_classifier_name(model_name)
 
 assert not paths.B_classifier_model_file.is_file(), f"The model '{paths.B_classifier_model_file}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
@@ -44,6 +40,8 @@ n_threads = args.n_threads
 assert n_threads > 0
 
 # Get cpu or gpu device for training.
+if torch.cuda.is_available():
+    print("CUDA is available.")
 device = "cuda" if args.train_on_gpu and torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
 
@@ -57,7 +55,8 @@ params = {
     "train_params" : {
         "batch_size" : 10000,
         "learning_rate" : 0.001,
-        "epochs" : 200
+        "epochs" : 1000,
+        "early_stopping_epochs" : 50
     }
 
 }
@@ -137,7 +136,10 @@ model.fit(X_train, y_train,
           show_epoch_progress=True,
           show_epoch_eval=log_mode,
           show_batch_progress=(not log_mode),
-          show_batch_eval=False)
+          show_batch_eval=False,
+          early_stopping_epochs=params["train_params"]["early_stopping_epochs"])
+
+model.to("cpu")
 
 # %%
 # Save everything to files

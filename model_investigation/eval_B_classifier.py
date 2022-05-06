@@ -90,7 +90,7 @@ del temp_df
 
 # %%
 # Read in the trained model
-model = torch.load(paths.B_classifier_model_file)
+model = torch.load(paths.B_classifier_model_file, map_location=device)
 
 # %%
 # Evaluate the training
@@ -102,10 +102,19 @@ epochs = model.train_history["epochs"]
 for i, metric in enumerate(model.train_history["eval_metrics"]):
     plt.figure(figsize=(8, 6))
     plt.title(f"training performance ({metric})")
+    
+    if "best_epoch" in model.train_history.keys():
+        plt.axvline(model.train_history["best_epoch"], color="black", alpha=0.5, linestyle="dashed", label=f"best epoch: {model.train_history['best_epoch']}")
+        
+    #if "train_wrong" in model.train_history:
+    #    plt.plot(epochs, model.train_history["train_wrong"][metric], label="training data (with dropout)")
+        
     plt.plot(epochs, model.train_history["train"][metric], label="training data")
-    plt.plot(epochs, model.train_history["validation"][metric], label="test data")
-    if "train_wrong" in model.train_history:
-        plt.plot(epochs, model.train_history["train_wrong"][metric], label="training data (with dropout)")
+    
+    if "validation" in model.train_history.keys():
+        plt.plot(epochs, model.train_history["validation"][metric], label="test data")
+        
+        
     plt.xlabel("iteration")
     plt.ylabel(metric)
     plt.legend()

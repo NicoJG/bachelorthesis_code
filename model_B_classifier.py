@@ -36,10 +36,10 @@ class DeepSetModel(nn.Module):
         # Neural Network for the tracks:
         self.phi_stack = nn.Sequential(
             nn.Linear(n_features, 128),
-            nn.Dropout(0.4),
+            nn.Dropout(0.5),
             nn.ReLU(),
             nn.Linear(128, n_latent_features),
-            nn.Dropout(0.4),
+            nn.Dropout(0.5),
             nn.ReLU()
         )
         
@@ -49,10 +49,10 @@ class DeepSetModel(nn.Module):
         # Neural Network for the events
         self.rho_stack = nn.Sequential(
             nn.Linear(n_latent_features, 128),
-            nn.Dropout(0.4),
+            nn.Dropout(0.5),
             nn.ReLU(),
             nn.Linear(128, 64),
-            nn.Dropout(0.4),
+            nn.Dropout(0.5),
             nn.ReLU(),
             nn.Linear(64, 1),
             nn.Sigmoid()
@@ -78,7 +78,7 @@ class DeepSetModel(nn.Module):
             return -1*torch.ones(len(event_ids.unique())).float()
         
         # sum up the latent features of all tracks per event
-        temp = torch.zeros(idxs[-1]+1, self.n_latent_features)
+        temp = torch.zeros(idxs[-1]+1, self.n_latent_features).to(X.device)
         X = temp.index_add(0, idxs, X)
     
         y = self.rho_stack(X)
@@ -164,11 +164,11 @@ class DeepSetModel(nn.Module):
         is_validation_provided = X_val is not None and y_val is not None
         
         if isinstance(X, np.ndarray):
-            X = torch.from_numpy(X)
+            X = torch.from_numpy(X).float()
         if isinstance(y, np.ndarray):
             y = torch.from_numpy(y).float()
         if isinstance(X_val, np.ndarray):
-            X_val = torch.from_numpy(X_val)
+            X_val = torch.from_numpy(X_val).float()
         if isinstance(y_val, np.ndarray):
             y_val = torch.from_numpy(y_val).float()
         
@@ -183,12 +183,12 @@ class DeepSetModel(nn.Module):
                 y_val = y_val.unsqueeze(1)
                 
         if device is not None:
-            X.to(device)
-            y.to(device)
+            X = X.to(device)
+            y = y.to(device)
             if is_validation_provided:
-                X_val.to(device)
-                y_val.to(device)
-        
+                X_val = X_val.to(device)
+                y_val = y_val.to(device)
+                        
         train_history = {"epochs" : [],
                          "eval_metrics" : ["loss", "error"],
                          "train": {"loss":[],"error":[]},
@@ -201,6 +201,10 @@ class DeepSetModel(nn.Module):
         train_iterator = DataIteratorByEvents(X, y, batch_size=batch_size)
         
         is_early_stopping = isinstance(early_stopping_epochs, int)
+        
+        # save the best model
+        best_epoch = -1
+        best_val_loss = np.Infinity
         
         if show_epoch_progress:
             epoch_iter = tqdm(range(epochs), desc="Train epochs")
@@ -234,15 +238,30 @@ class DeepSetModel(nn.Module):
                 train_history["validation"]["loss"].append(val_loss)
                 train_history["validation"]["error"].append(val_error)
                 
-                if is_early_stopping:
-                    # TODO
-                    ...
+                if val_loss < best_val_loss:
+                    best_epoch = epoch_i
+                    best_val_loss = val_loss
+                    best_model_state_dict = self.state_dict()
+                    best_optimizer_state_dict = self.optimizer.state_dict()
                 
             if show_epoch_eval and is_validation_provided:
                 print_file = sys.stdout if not show_epoch_progress else sys.stderr
-                print(f"Epoch {epoch_i:03d}/{epochs}:", file=print_file)
+                print(f"Epoch {epoch_i:03d}/{epochs} (best: {best_epoch}):", file=print_file)
                 print(f"train loss: {train_corrected_loss:.4f} ; train error: {train_corrected_error:.4f}", file=print_file)
                 print(f"val loss:   {val_loss:.4f} ; val error:   {val_error:.4f}", file=print_file)
+                
+            if is_validation_provided and is_early_stopping:
+                # very basic early stopping
+                if epoch_i - best_epoch > early_stopping_epochs:
+                    print("Early Stopping...")
+                    break
+                    
+            
+        # save only the best model
+        if is_validation_provided:
+            train_history["best_epoch"] = best_epoch
+            self.load_state_dict(best_model_state_dict)
+            self.optimizer.load_state_dict(best_optimizer_state_dict)
             
         self.train_history = train_history
         self.is_fitted = True

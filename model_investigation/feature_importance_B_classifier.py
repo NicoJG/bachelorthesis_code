@@ -92,7 +92,7 @@ del temp_df
 
 # %%
 # Read in the trained model
-model = torch.load(paths.B_classifier_model_file).to(device)
+model = torch.load(paths.B_classifier_model_file, map_location=device)
     
     
 # %%
