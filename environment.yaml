@@ -18,7 +18,7 @@ dependencies:
   # to strip out the output of jupyter notebooks before committing
   - nbstripout 
   # scipy packages
-  - numpy=1.22
+  - numpy=1.21
   - scipy=1.7
   - matplotlib=3.5 
   - pandas=1.4

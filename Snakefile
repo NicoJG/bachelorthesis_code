@@ -14,7 +14,7 @@ with open(paths.features_SS_classifier_file, "r") as file:
     SS_classifier_names = list(map(lambda x: x.replace("features_",""), json.load(file).keys()))[:]
 
 with open(paths.features_B_classifier_file, "r") as file:
-    B_classifier_names = list(map(lambda x: x.replace("features_",""), json.load(file).keys()))[:1]
+    B_classifier_names = list(map(lambda x: x.replace("features_",""), json.load(file).keys()))[:]
 
 rule master:
     input: expand(str(paths.models_dir / "{model_name}" / paths.ss_classifier_eval_plots_file.name), model_name=SS_classifier_names),

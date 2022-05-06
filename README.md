@@ -29,6 +29,15 @@ rule train:
 ```
 
 The fix for using the GPUs on `heemskerck` and `beagle` is to make a new conda environment.
+
+*IMPORTANT NOTE:* Don't install the environment in your home folder, because this folder is limited to 5GB. 
+I noticed that imports take a few seconds if the environment is on `/ceph/...`, but it's better than all the bugs you get otherwise.
+*BEFORE* creating the environment do the following:  
+```
+conda config --add envs_dirs /ceph/users/<username>/.conda/envs
+conda config --add pkgs_dirs /ceph/users/<username>/.conda/pkgs
+```  
+
 You could use the `environment.yaml` (you should look into it if there are missing or unnecessary packages) from this repository with:  
 ```
 mamba env create -f ~/.../environment.yaml <env_name>
@@ -36,10 +45,4 @@ mamba env create -f ~/.../environment.yaml <env_name>
 or to update an existing environment:  
 ```
 mamba env update -n <env_name> -f ~/.../environment.yaml
-```  
-*IMPORTANT NOTE:* Don't install the environment in your home folder, because this folder is limited to 5GB.
-*BEFORE* creating the environment do the following:  
-```
-conda config --add envs_dirs /ceph/users/<username>/.conda/envs
-conda config --add pkgs_dirs /ceph/users/<username>/.conda/pkgs
 ```  
