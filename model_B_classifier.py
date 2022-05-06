@@ -35,7 +35,10 @@ class DeepSetModel(nn.Module):
         
         # Neural Network for the tracks:
         self.phi_stack = nn.Sequential(
-            nn.Linear(n_features, 128),
+            nn.Linear(n_features, 64),
+            nn.Dropout(0.5),
+            nn.ReLU(),
+            nn.Linear(64, 128),
             nn.Dropout(0.5),
             nn.ReLU(),
             nn.Linear(128, n_latent_features),
@@ -49,6 +52,9 @@ class DeepSetModel(nn.Module):
         # Neural Network for the events
         self.rho_stack = nn.Sequential(
             nn.Linear(n_latent_features, 128),
+            nn.Dropout(0.5),
+            nn.ReLU(),
+            nn.Linear(128, 128),
             nn.Dropout(0.5),
             nn.ReLU(),
             nn.Linear(128, 64),
@@ -246,7 +252,7 @@ class DeepSetModel(nn.Module):
                 
             if show_epoch_eval and is_validation_provided:
                 print_file = sys.stdout if not show_epoch_progress else sys.stderr
-                print(f"Epoch {epoch_i:03d}/{epochs} (best: {best_epoch}):", file=print_file)
+                print(f"\nEpoch {epoch_i:03d}/{epochs} (best: {best_epoch}):", file=print_file)
                 print(f"train loss: {train_corrected_loss:.4f} ; train error: {train_corrected_error:.4f}", file=print_file)
                 print(f"val loss:   {val_loss:.4f} ; val error:   {val_error:.4f}", file=print_file)
                 
