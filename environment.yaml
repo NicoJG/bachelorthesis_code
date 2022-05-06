@@ -1,0 +1,42 @@
+name: ba_nguth
+
+channels:
+  - defaults
+  - conda-forge
+
+dependencies:
+  - python=3.10
+  # essential python packages
+  - pip
+  - jupyter
+  - notebook
+  - jupyterlab
+  - ipympl
+  # utility
+  - tqdm=4.64
+  - pypdf2=1.27 
+  # to strip out the output of jupyter notebooks before committing
+  - nbstripout 
+  # scipy packages
+  - numpy=1.22
+  - scipy=1.7
+  - matplotlib=3.5 
+  - pandas=1.4
+  - sympy=1.10
+  # machine learning packages
+  - scikit-learn=1.0
+  - xgboost=1.5 
+  - nvidia::cudatoolkit=11.3
+  - pytorch::pytorch-mutex=1.0=cuda
+  - pytorch::pytorch=1.11 
+  - pytorch::torchvision=0.12
+  - shap=0.40 
+  # scikit-hep:
+  - awkward=1.8
+  - uproot=4.2 
+  - iminuit=2.11 
+  # ROOT
+  - root=6.26 
+  # Snakemake
+  - bioconda::snakemake=7.6
+  - htcondor=9.4
