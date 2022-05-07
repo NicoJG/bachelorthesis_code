@@ -1,4 +1,5 @@
 import sys
+from copy import deepcopy
 import torch
 from torch import nn
 from tqdm.auto import tqdm
@@ -243,8 +244,8 @@ class DeepSetModel(nn.Module):
                 if val_loss < best_val_loss:
                     best_epoch = epoch_i
                     best_val_loss = val_loss
-                    best_model_state_dict = self.state_dict()
-                    best_optimizer_state_dict = self.optimizer.state_dict()
+                    best_model_state_dict = deepcopy(self.state_dict())
+                    best_optimizer_state_dict = deepcopy(self.optimizer.state_dict())
                 
             if show_epoch_eval and is_validation_provided:
                 print_file = sys.stdout if not show_epoch_progress else sys.stderr
