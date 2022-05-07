@@ -88,8 +88,8 @@ rule train_B_classifier:
         MaxRunHours=4,
         request_memory=50*1024, # in MB
         request_gpus=1,
-        Requirements='(machine=="beagle.e5.physik.tu-dortmund.de")||(machine=="heemskerck.e5.physik.tu-dortmund.de")'
-        #Requirements='(machine=="tarek.e5.physik.tu-dortmund.de")'
+        #Requirements='(machine=="beagle.e5.physik.tu-dortmund.de")||(machine=="heemskerck.e5.physik.tu-dortmund.de")'
+        Requirements='(machine=="tarek.e5.physik.tu-dortmund.de")'
     shell: "python train_B_classifier.py -g -t {threads} -l -n {wildcards.model_name} &> {log}"
 
 rule eval_B_classifier:

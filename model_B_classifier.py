@@ -13,25 +13,22 @@ from utils.data_handling import DataIteratorByEvents
 # it is meant to be used with numpy arrays
 # and the sklearn-like functions fit, predict, predict_proba are available
 class DeepSetModel(nn.Module):
-    def __init__(self, n_features, n_latent_features=64, optimizer=torch.optim.Adam, optimizer_kwargs={}, loss=nn.BCELoss(), scaler=StandardScaler()):
+    def __init__(self, n_features, optimizer=torch.optim.Adam, optimizer_kwargs={}, loss=nn.BCELoss(), scaler=StandardScaler()):
         super(DeepSetModel, self).__init__()
         
         assert issubclass(optimizer, torch.optim.Optimizer), "The optimizer has to come from 'torch.optim'!"
         assert callable(loss), "The loss has to be callable!"
         
         self.n_features = n_features
-        self.n_latent_features = n_latent_features
-        
         self.loss = loss
-        
-        self.train_history = None
         self.scaler = scaler
         
+        self.train_history = None
         self.is_fitted = False
         
         self.classes_ = [0., 1.]
         
-        # DeepSet Structur:
+        # DeepSet Structure:
         
         # Neural Network for the tracks:
         self.phi_stack = nn.Sequential(
@@ -41,7 +38,7 @@ class DeepSetModel(nn.Module):
             nn.Linear(64, 128),
             nn.Dropout(0.5),
             nn.ReLU(),
-            nn.Linear(128, n_latent_features),
+            nn.Linear(128, 64),
             nn.Dropout(0.5),
             nn.ReLU()
         )
@@ -51,10 +48,7 @@ class DeepSetModel(nn.Module):
         
         # Neural Network for the events
         self.rho_stack = nn.Sequential(
-            nn.Linear(n_latent_features, 128),
-            nn.Dropout(0.5),
-            nn.ReLU(),
-            nn.Linear(128, 128),
+            nn.Linear(64, 128),
             nn.Dropout(0.5),
             nn.ReLU(),
             nn.Linear(128, 64),
@@ -72,20 +66,21 @@ class DeepSetModel(nn.Module):
         event_ids = X[:,0]
         X = X[:,1:]
         
-        X = self.phi_stack(X)
-        
-        # get an event_index_by_track array
-        idxs = torch.zeros_like(event_ids, dtype=int)
-        idxs[1:] = torch.cumsum(event_ids[1:] != event_ids[:-1], 0)
+        # get an event_index_by_track array (starts at 0 and is counting up for each new event)
+        idxs = (event_ids != event_ids.roll(1,0)).cumsum(dim=0, dtype=int) - 1
         
         if idxs[-1] > len(event_ids.unique()):
+            # this is for the Permutation Importance (where also the first feature is permutated (event_ids))
             print("WARNING: Same event ids can not be seperated in X! Producing an error prediction!")
-            # this is for the Permutation Importance (it also permutates the first feature (event_ids))
             return -1*torch.ones(len(event_ids.unique())).float()
         
+        # Pass X through the DeepSet:
+        
+        X = self.phi_stack(X)
+        
         # sum up the latent features of all tracks per event
-        temp = torch.zeros(idxs[-1]+1, self.n_latent_features).to(X.device)
-        X = temp.index_add(0, idxs, X)
+        temp = torch.zeros(idxs[-1]+1, X.shape[1]).to(X.device)
+        X = temp.index_add(dim=0, index=idxs, source=X)
     
         y = self.rho_stack(X)
         
@@ -111,6 +106,7 @@ class DeepSetModel(nn.Module):
             loss_sum += batch_loss
             error_count += batch_error
             event_count += len(y)
+            
             if pbar is not None:
                 pbar.update()
                 
