@@ -61,7 +61,7 @@ def load_feature_properties():
     return fprops
 
 
-def load_data_from_root(file_path, tree_key="DecayTree", features=None, N_entries_max=np.Infinity, batch_size=100000, n_threads=10):
+def load_data_from_root(file_path, tree_key="DecayTree", features=None, cut=None, N_entries_max=np.Infinity, batch_size=100000, n_threads=10):
     """Read in data from a ROOT Tree as a Pandas Dataframe
 
     Args:
@@ -95,6 +95,7 @@ def load_data_from_root(file_path, tree_key="DecayTree", features=None, N_entrie
         tree_iter = tree.iterate(entry_stop=N_entries, 
                                  step_size=batch_size, 
                                  filter_name=features,
+                                 cut=cut,
                                  library="pd")
         for temp_df in tqdm(tree_iter, "Load Batches", total=N_batches_estimate):
             df = pd.concat([df, temp_df])

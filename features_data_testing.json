@@ -1,0 +1,46 @@
+{
+    "features_BKG_BDT_mc":[
+        "B0_IP_OWNPV",
+        "J_psi_1S_IP_OWNPV",
+        "KS0_IP_OWNPV",
+        "piplus_PT",
+        "piminus_PT",
+        "KS0_PT",
+        "B0_LOKI_ETA",
+        "KS0_FD_OWNPV",
+        "KS0_LOKI_ETA",
+        "KS0_PZ",
+        "muplus_IP_OWNPV",
+        "muminus_IP_OWNPV"
+    ],
+    "features_BKG_BDT_data":[
+        "B_IP_OWNPV",
+        "Jpsi_IP_OWNPV",
+        "KS0_IP_OWNPV",
+        "piplus_PT",
+        "piminus_PT",
+        "KS0_PT",
+        "B_LOKI_ETA",
+        "KS0_FD_OWNPV",
+        "KS0_LOKI_ETA",
+        "KS0_PZ",
+        "muplus_IP_OWNPV",
+        "muminus_IP_OWNPV"
+    ],
+    "missing_for_BDT" : [
+        "B0_Vtx_Chi2NDOF, on data",
+        "dtf fit chi2 dft mass"
+    ],
+    "features_Lambda_cut" : [
+        "piminus_P",
+        "piminus_PX",
+        "piminus_PY",
+        "piminus_PZ",
+        "piminus_ProbNNp",
+        "piplus_P",
+        "piplus_PX",
+        "piplus_PY",
+        "piplus_PZ",
+        "piplus_ProbNNp"
+    ]
+}

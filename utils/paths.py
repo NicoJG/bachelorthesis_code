@@ -25,6 +25,11 @@ data_dir = external_base_dir / "data"
 preprocessed_data_file = data_dir / "preprocessed_mc_Sim9b.root"
 ss_classified_data_file = data_dir / "SS_classified_mc_Sim9b.root"
 
+# Paths for the tests on data
+B2JpsiKS_MC_file = Path("/ceph/FlavourTagging/NTuples/ift/MC/B2JpsiKS_Dortmund/MC_B2JpsiKS_2016_IFT_raw.root")
+B2JpsiKS_Data_file = Path("/ceph/FlavourTagging/NTuples/ift/data/Nov_2021_wgproduction/DTT_2016_Reco16Strip28r2_DIMUON_MagDown.root")
+features_data_testing_file = internal_base_dir/"features_data_testing.json"
+
 # Paths to models trained by this project
 models_dir = external_base_dir / "models"
 
