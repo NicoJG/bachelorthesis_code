@@ -3,10 +3,13 @@ from pathlib import Path
 # Paths inside this project folder
 internal_base_dir = Path(__file__).parent.parent.absolute()
 
-features_file = internal_base_dir/"features.json"
-features_SS_classifier_file = internal_base_dir/"features_SS_classifier.json"
-features_B_classifier_file = internal_base_dir/"features_B_classifier.json"
-feature_properties_file = internal_base_dir/"feature_properties.json"
+features_base_dir = internal_base_dir/"feature_lists"
+
+features_file = features_base_dir/"features.json"
+features_SS_classifier_file = features_base_dir/"features_SS_classifier.json"
+features_B_classifier_file = features_base_dir/"features_B_classifier.json"
+feature_properties_file = features_base_dir/"feature_properties.json"
+
 plots_dir = internal_base_dir/"plots"
 
 # Ceph Home
@@ -28,7 +31,7 @@ ss_classified_data_file = data_dir / "SS_classified_mc_Sim9b.root"
 # Paths for the tests on data
 B2JpsiKS_MC_file = Path("/ceph/FlavourTagging/NTuples/ift/MC/B2JpsiKS_Dortmund/MC_B2JpsiKS_2016_IFT_raw.root")
 B2JpsiKS_Data_file = Path("/ceph/FlavourTagging/NTuples/ift/data/Nov_2021_wgproduction/DTT_2016_Reco16Strip28r2_DIMUON_MagDown.root")
-features_data_testing_file = internal_base_dir/"features_data_testing.json"
+features_data_testing_file = features_base_dir/"features_data_testing.json"
 
 # Paths to models trained by this project
 models_dir = external_base_dir / "models"
