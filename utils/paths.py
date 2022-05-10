@@ -75,6 +75,9 @@ B2JpsiKS_MC_file = Path("/ceph/FlavourTagging/NTuples/ift/MC/B2JpsiKS_Dortmund/M
 B2JpsiKS_Data_file = Path("/ceph/FlavourTagging/NTuples/ift/data/Nov_2021_wgproduction/DTT_2016_Reco16Strip28r2_DIMUON_MagDown.root")
 features_data_testing_file = features_base_dir/"features_data_testing.json"
 
+data_testing_plots_dir = plots_dir/"test_on_data"
+data_testing_plots_file = plots_dir/"test_on_data.pdf"
+
 # Paths to trained models for the BKG removal BDT
 def update_bkg_bdt_name(model_name):
     global bkg_bdt_dir, bkg_bdt_model_file, bkg_bdt_parameters_file, bkg_bdt_train_test_split_file, bkg_bdt_eval_dir, bkg_bdt_eval_plots_file, bkg_bdt_eval_data_file

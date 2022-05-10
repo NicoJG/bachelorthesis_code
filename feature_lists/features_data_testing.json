@@ -1,4 +1,7 @@
 {
+    "main_features" : [
+        "B_M"
+    ],
     "features_BKG_BDT_mc":[
         "B0_IP_OWNPV",
         "J_psi_1S_IP_OWNPV",
@@ -42,5 +45,39 @@
         "piplus_PY",
         "piplus_PZ",
         "piplus_ProbNNp"
+    ],
+    "features_other_cuts" : [
+        "B_M"
+    ],
+    "for_feature_extraction" : [
+        "Tr_T_TrFIRSTHITZ",
+        "B_OWNPV_Z",
+        "B_PX",
+        "B_PY",
+        "B_PZ",
+        "B_PE",
+        "Tr_T_PX",
+        "Tr_T_PY",
+        "Tr_T_PZ",
+        "Tr_T_E",
+        "B_PT",
+        "Tr_T_PT",
+        "B_P",
+        "Tr_T_P",
+        "B_LOKI_PHI",
+        "Tr_T_Phi",
+        "B_LOKI_ETA",
+        "Tr_T_Eta"
+    ],
+    "extracted_features" : [
+        "event_id",
+        "track_id",
+        "Tr_diff_z",
+        "Tr_p_proj",
+        "Tr_diff_pt",
+        "Tr_diff_p",
+        "Tr_cos_diff_phi",
+        "Tr_diff_eta",
+        "Tr_ProbSS"
     ]
 }

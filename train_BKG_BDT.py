@@ -139,7 +139,7 @@ df["m_p-pi+"] = weird_mass(E_pminus, df["piminus_PX"], df["piminus_PY"], df["pim
 # %%
 # Make a veto feature
 veto_m_min, veto_m_max = 1100., 1138. 
-veto_probnn = 0.6
+veto_probnn = 0.05
 
 df["lambda_veto"] = (veto_m_min < df["m_pi-p+"]) & (df["m_pi-p+"] < veto_m_max) & (df["piplus_ProbNNp"] > veto_probnn)
 df["lambda_veto"] |= (veto_m_min < df["m_p-pi+"]) & (df["m_p-pi+"] < veto_m_max) & (df["piminus_ProbNNp"] > veto_probnn)
@@ -148,23 +148,23 @@ df["lambda_veto"] = df["lambda_veto"].astype(int)
 
 # %%
 # Plot the invariant masses for the cut of the Lambda Background
-n_bins = 100
-x_min, x_max = 1060.0 , 1180.0
-bins = np.linspace(x_min, x_max, n_bins+1)
-
-fig, (ax0, ax1) = plt.subplots(1,2, figsize=(10,5))
-ax0.hist(df["m_pi-p+"], histtype="step", bins=bins, alpha=0.5, label="m_pi-p+")
-ax0.hist(df.query("lambda_veto==0")["m_pi-p+"], histtype="step", bins=bins, alpha=0.5, label="m_pi-p+ veto")
-ax1.hist(df["m_p-pi+"], histtype="step", bins=bins, alpha=0.5, label="m_pi+p-")
-ax1.hist(df.query("lambda_veto==0")["m_p-pi+"], histtype="step", bins=bins, alpha=0.5, label="m_pi+p- veto")
-
-ax0.legend()
-ax1.legend()
-plt.show()
+# n_bins = 100
+# x_min, x_max = 1060.0 , 1180.0
+# bins = np.linspace(x_min, x_max, n_bins+1)
+# 
+# fig, (ax0, ax1) = plt.subplots(1,2, figsize=(10,5))
+# ax0.hist(df["m_pi-p+"], histtype="step", bins=bins, alpha=0.5, label="m_pi-p+")
+# ax0.hist(df.query("lambda_veto==0")["m_pi-p+"], histtype="step", bins=bins, alpha=0.5, label="m_pi-p+ veto")
+# ax1.hist(df["m_p-pi+"], histtype="step", bins=bins, alpha=0.5, label="m_pi+p-")
+# ax1.hist(df.query("lambda_veto==0")["m_p-pi+"], histtype="step", bins=bins, alpha=0.5, label="m_pi+p- veto")
+# 
+# ax0.legend()
+# ax1.legend()
+# plt.show()
 
 # %%
 # Prepare the data for the BDT training
-idxs = df.index
+idxs = df.query("lambda_veto==0").index
 idxs_train, idxs_test = train_test_split(idxs, test_size=0.4, shuffle=True, stratify=df[label_key])
 
 X_train = df.loc[idxs_train,bdt_features_data]

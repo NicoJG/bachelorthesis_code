@@ -9,7 +9,7 @@
     "B_is_strange"
 ],
 "output_B_classifier" : [
-    "Tr_ProbBs"
+    "B_ProbBs"
 ],
 "temporary_mc" : [
     "B_BKGCAT"

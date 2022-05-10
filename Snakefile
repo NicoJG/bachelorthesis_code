@@ -23,7 +23,8 @@ rule master:
            expand(str(paths.models_dir / "{model_name}" / paths.ss_classifier_feature_importance_plots_file.name), model_name=SS_classifier_names),
            expand(str(paths.models_dir / "{model_name}" / paths.B_classifier_eval_plots_file.name), model_name=B_classifier_names),
            expand(str(paths.models_dir / "{model_name}" / paths.B_classifier_feature_importance_plots_file.name), model_name=B_classifier_names),
-           str(paths.bkg_bdt_eval_plots_file)
+           str(paths.bkg_bdt_eval_plots_file),
+           str(paths.data_testing_plots_file)
 
 rule preprocess_training_data:
     input: str(paths.B2JpsiKstar_file), str(paths.Bs2DsPi_file)
@@ -141,3 +142,14 @@ rule eval_BKG_BDT:
         request_memory=50*1024, # in MB
         request_gpus=0 
     shell: "python model_investigation/eval_BKG_BDT.py -t {threads} -n {wildcards.model_name} &> {log}"
+
+rule test_on_data:
+    input: str(paths.ss_classifier_model_file), str(paths.B_classifier_model_file), str(paths.bkg_bdt_model_file), str(paths.B2JpsiKS_Data_file)
+    output: str(paths.data_testing_plots_file)
+    log: str(paths.logs_dir / "test_on_data.log")
+    threads: 40
+    resources:
+        MaxRunHours=1,
+        request_memory=50*1024, # in MB
+        request_gpus=0 
+    shell: "python test_on_data.py -t {threads} &> {log}"
