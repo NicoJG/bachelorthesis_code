@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from pathlib import Path
-from tqdm.auto import tqdm
+from tqdm import tqdm
 import json
 import shutil
 

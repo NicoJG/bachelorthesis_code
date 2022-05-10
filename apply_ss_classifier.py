@@ -2,7 +2,7 @@
 # Imports
 import pandas as pd
 import numpy as np
-from tqdm.auto import tqdm
+from tqdm import tqdm
 import json
 import pickle
 from argparse import ArgumentParser

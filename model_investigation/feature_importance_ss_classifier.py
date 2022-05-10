@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
-from tqdm.auto import tqdm
+from tqdm import tqdm
 import json
 import xgboost as xgb
 from sklearn.model_selection import learning_curve, train_test_split

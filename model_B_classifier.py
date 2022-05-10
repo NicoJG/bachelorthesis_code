@@ -2,7 +2,7 @@ import sys
 from copy import deepcopy
 import torch
 from torch import nn
-from tqdm.auto import tqdm
+from tqdm import tqdm
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 

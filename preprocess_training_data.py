@@ -4,7 +4,7 @@ from pathlib import Path
 import uproot
 import pandas as pd
 import numpy as np
-from tqdm.auto import tqdm
+from tqdm import tqdm
 from argparse import ArgumentParser
 
 # Imports from this project

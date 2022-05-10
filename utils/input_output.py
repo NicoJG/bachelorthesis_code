@@ -5,7 +5,7 @@ import json
 import uproot
 import numpy as np
 import pandas as pd
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 # Imports from this project
 sys.path.insert(0, Path(__file__).parent.parent)
