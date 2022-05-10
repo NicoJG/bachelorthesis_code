@@ -28,11 +28,6 @@ data_dir = external_base_dir / "data"
 preprocessed_data_file = data_dir / "preprocessed_mc_Sim9b.root"
 ss_classified_data_file = data_dir / "SS_classified_mc_Sim9b.root"
 
-# Paths for the tests on data
-B2JpsiKS_MC_file = Path("/ceph/FlavourTagging/NTuples/ift/MC/B2JpsiKS_Dortmund/MC_B2JpsiKS_2016_IFT_raw.root")
-B2JpsiKS_Data_file = Path("/ceph/FlavourTagging/NTuples/ift/data/Nov_2021_wgproduction/DTT_2016_Reco16Strip28r2_DIMUON_MagDown.root")
-features_data_testing_file = features_base_dir/"features_data_testing.json"
-
 # Paths to models trained by this project
 models_dir = external_base_dir / "models"
 
@@ -73,6 +68,28 @@ def update_B_classifier_name(model_name):
     B_classifier_feature_importance_data_file = B_classifier_feature_importance_dir/"feature_importance_B_classifier.csv"
     
 update_B_classifier_name("B_classifier")
+
+
+# Paths for the tests on data
+B2JpsiKS_MC_file = Path("/ceph/FlavourTagging/NTuples/ift/MC/B2JpsiKS_Dortmund/MC_B2JpsiKS_2016_IFT_raw.root")
+B2JpsiKS_Data_file = Path("/ceph/FlavourTagging/NTuples/ift/data/Nov_2021_wgproduction/DTT_2016_Reco16Strip28r2_DIMUON_MagDown.root")
+features_data_testing_file = features_base_dir/"features_data_testing.json"
+
+# Paths to trained models for the BKG removal BDT
+def update_bkg_bdt_name(model_name):
+    global bkg_bdt_dir, bkg_bdt_model_file, bkg_bdt_parameters_file, bkg_bdt_train_test_split_file, bkg_bdt_eval_dir, bkg_bdt_eval_plots_file, bkg_bdt_eval_data_file
+    
+    assert isinstance(model_name, str), f"Please provide a str of what to add after '{str(models_dir)}/'!"
+    
+    bkg_bdt_dir = models_dir / model_name
+    bkg_bdt_model_file = bkg_bdt_dir/"model_bkg_bdt.data"
+    bkg_bdt_parameters_file = bkg_bdt_dir/"train_parameters.json"
+    bkg_bdt_train_test_split_file = bkg_bdt_dir/"train_test_split.json"
+    bkg_bdt_eval_dir = bkg_bdt_dir/"eval_plots"
+    bkg_bdt_eval_plots_file = bkg_bdt_dir/"eval_bkg_bdt.pdf"
+    bkg_bdt_eval_data_file = bkg_bdt_dir/"eval_results.json"
+    
+update_bkg_bdt_name("BKG_BDT")
 
 
 # Create directories that do not exist, that should exist always

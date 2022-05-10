@@ -5,14 +5,33 @@ import pandas as pd
 import uproot
 import matplotlib.pyplot as plt
 import json
-
+from sklearn.model_selection import train_test_split
+import xgboost as xgb
+from argparse import ArgumentParser
+from tqdm import tqdm
+import pickle
+import sklearn.metrics as skmetrics
 
 # Local Imports
 from utils.input_output import load_data_from_root, load_feature_keys
 from utils import paths
+from utils.histograms import get_hist
 
 # %%
 # Constants
+parser = ArgumentParser()
+parser.add_argument("-n", "--model_name", dest="model_name", default="BKG_BDT", help="name of the model directory")
+parser.add_argument("-t", "--threads", dest="n_threads", default=50, type=int, help="Number of threads to use.")
+parser.add_argument("-f", help="Dummy argument for IPython")
+args = parser.parse_args()
+
+n_threads = args.n_threads
+assert n_threads > 0
+
+model_name = args.model_name
+paths.update_bkg_bdt_name(model_name)
+
+assert not paths.bkg_bdt_model_file.is_file(), f"The model '{paths.bkg_bdt_model_file}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
 
 mc_file = paths.B2JpsiKS_MC_file
 data_file = paths.B2JpsiKS_Data_file
@@ -20,10 +39,32 @@ data_file = paths.B2JpsiKS_Data_file
 mc_tree_key = "inclusive_Jpsi/DecayTree"
 data_tree_key = "Bd2JpsiKSDetached/DecayTree"
 
+params = {
+    "test_size" : 0.4,
+    "model_params" : {
+        "n_estimators" : 2000,
+        "max_depth" : 4,
+        "learning_rate" : 0.3, # 0.3 is default
+        "scale_pos_weight" : "TO BE SET", # sum(negative instances) / sum(positive instances)
+        "objective" : "binary:logistic",
+        "nthread" : n_threads,
+        "tree_method" : "hist",
+        #"num_parallel_tree" : 1
+    },
+    "train_params" : {
+        "early_stopping_rounds" : 50,
+        "eval_metric" : ["logloss", "error", "auc"],
+        "verbose" : 0,
+    }
+    }
+
+
 # %%
 # Load all relevant feature keys
-bdt_features_mc = load_feature_keys(["features_BKG_BDT_mc","features_Lambda_cut"], file_path=paths.features_data_testing_file)
-bdt_features_data = load_feature_keys(["features_BKG_BDT_data","features_Lambda_cut"], file_path=paths.features_data_testing_file)
+bdt_features_mc = load_feature_keys(["features_BKG_BDT_mc"], file_path=paths.features_data_testing_file)
+bdt_features_data = load_feature_keys(["features_BKG_BDT_data"], file_path=paths.features_data_testing_file)
+
+lambda_veto_features = load_feature_keys(["features_Lambda_cut"], file_path=paths.features_data_testing_file)
 
 
 # %%
@@ -43,15 +84,18 @@ with open(paths.internal_base_dir/"temp"/"data_keys.json", "w") as file:
 # %%
 # Load the data for the BDT
 df_mc = load_data_from_root(mc_file, mc_tree_key, 
-                            features=bdt_features_mc, 
+                            features=bdt_features_mc+lambda_veto_features, 
                             cut="B0_BKGCAT==0",
-                            n_threads=20,
+                            n_threads=n_threads,
                             N_entries_max=1000000000)
 df_data = load_data_from_root(data_file, data_tree_key, 
-                              features=bdt_features_data, 
-                              #cut="B_M>5450", 
-                              n_threads=20,
+                              features=bdt_features_data+lambda_veto_features, 
+                              cut="B_M>5450", 
+                              n_threads=n_threads,
                               N_entries_max=1000000000)
+
+print(f"Events in MC: {len(df_mc)}")
+print(f"Events in data: {len(df_data)}")
 
 # %%
 # Rename the MC columns to fit the data
@@ -66,8 +110,13 @@ df_data[label_key] = 0
 df_mc[label_key] = 1
 
 # %%
+# Save the feature keys
+params["label_key"] = label_key
+params["feature_keys"] = bdt_features_data
+
+# %%
 # Merge mc and data
-df = pd.concat([df_data, df_mc])
+df = pd.concat([df_data, df_mc], ignore_index=True)
 
 # %%
 # Prepare the cut of the Lambda Background
@@ -89,28 +138,89 @@ df["m_p-pi+"] = weird_mass(E_pminus, df["piminus_PX"], df["piminus_PY"], df["pim
 
 # %%
 # Make a veto feature
-veto_m_min, veto_m_max = 1100., 1130. 
+veto_m_min, veto_m_max = 1100., 1138. 
+veto_probnn = 0.6
 
-df["lambda_veto"] = (veto_m_min < df["m_pi-p+"]) & (df["m_pi-p+"] < veto_m_max) & (df["piplus_ProbNNp"] < 0.8)
-df["lambda_veto"] |= (veto_m_min < df["m_p-pi+"]) & (df["m_p-pi+"] < veto_m_max) & (df["piminus_ProbNNp"] < 0.8)
+df["lambda_veto"] = (veto_m_min < df["m_pi-p+"]) & (df["m_pi-p+"] < veto_m_max) & (df["piplus_ProbNNp"] > veto_probnn)
+df["lambda_veto"] |= (veto_m_min < df["m_p-pi+"]) & (df["m_p-pi+"] < veto_m_max) & (df["piminus_ProbNNp"] > veto_probnn)
+
+df["lambda_veto"] = df["lambda_veto"].astype(int)
 
 # %%
 # Plot the invariant masses for the cut of the Lambda Background
-n_bins = 200
+n_bins = 100
 x_min, x_max = 1060.0 , 1180.0
 bins = np.linspace(x_min, x_max, n_bins+1)
 
 fig, (ax0, ax1) = plt.subplots(1,2, figsize=(10,5))
-ax0.hist(df["m_pi-p+"], bins=bins, alpha=0.5, label="m_pi-p+")
-ax0.hist(df.query("lambda_veto==0")["m_pi-p+"], bins=bins, alpha=0.5, label="m_pi-p+ veto")
-ax1.hist(df["m_p-pi+"], bins=bins, alpha=0.5, label="m_pi+p-")
-ax1.hist(df.query("lambda_veto==0")["m_p-pi+"], bins=bins, alpha=0.5, label="m_pi+p- veto")
+ax0.hist(df["m_pi-p+"], histtype="step", bins=bins, alpha=0.5, label="m_pi-p+")
+ax0.hist(df.query("lambda_veto==0")["m_pi-p+"], histtype="step", bins=bins, alpha=0.5, label="m_pi-p+ veto")
+ax1.hist(df["m_p-pi+"], histtype="step", bins=bins, alpha=0.5, label="m_pi+p-")
+ax1.hist(df.query("lambda_veto==0")["m_p-pi+"], histtype="step", bins=bins, alpha=0.5, label="m_pi+p- veto")
 
 ax0.legend()
 ax1.legend()
 plt.show()
 
+# %%
+# Prepare the data for the BDT training
+idxs = df.index
+idxs_train, idxs_test = train_test_split(idxs, test_size=0.4, shuffle=True, stratify=df[label_key])
 
+X_train = df.loc[idxs_train,bdt_features_data]
+y_train = df.loc[idxs_train,label_key]
 
+X_test = df.loc[idxs_test,bdt_features_data]
+y_test = df.loc[idxs_test,label_key]
 
+# %%
+# Callback for a progress bar of the training
+class XGBProgressCallback(xgb.callback.TrainingCallback):
+    """Show a progressbar using TQDM while training"""
+    def __init__(self, rounds=None, desc=None):
+        self.pbar = tqdm(total=rounds, desc=desc)
+
+    def after_iteration(self, model, epoch, evals_log):
+        self.pbar.update(1)
+        return False
+
+    def after_training(self, model):
+        self.pbar.close()
+        return model
+    
+# %%
+# Train a BDT# Parameters of the model
+scale_pos_weight = np.sum(y_train == 0)/np.sum(y_test == 1)
+params["model_params"]["scale_pos_weight"] = scale_pos_weight
+print(f"scale_pos_weight = {scale_pos_weight}")
+
+model = xgb.XGBClassifier(**params["model_params"], use_label_encoder=False)
+
+model.fit(X_train, y_train, 
+          eval_set=[(X_train, y_train), (X_test, y_test)], 
+          **params["train_params"],
+          callbacks=[XGBProgressCallback(rounds=params["model_params"]["n_estimators"], desc="BDT Train")]
+          )
+    
+# %%
+# Save everything
+# Save the indices of the train test split
+train_idxs = X_train.index.to_list()
+test_idxs = X_test.index.to_list()
+
+paths.bkg_bdt_dir.mkdir(parents=True, exist_ok=True)
+
+with open(paths.bkg_bdt_train_test_split_file, "w") as file:
+    json.dump({"train_idxs":train_idxs,"test_idxs":test_idxs}, 
+              fp=file, 
+              indent=2)
+    
+# Save the parameters
+with open(paths.bkg_bdt_parameters_file, "w") as file:
+    json.dump(params, file, indent=2)
+    
+# Save the model
+with open(paths.bkg_bdt_model_file, "wb") as file:
+    pickle.dump(model, file)
+    
 # %%
