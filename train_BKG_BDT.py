@@ -165,7 +165,7 @@ df["lambda_veto"] = df["lambda_veto"].astype(int)
 # %%
 # Prepare the data for the BDT training
 idxs = df.query("lambda_veto==0").index
-idxs_train, idxs_test = train_test_split(idxs, test_size=0.4, shuffle=True, stratify=df[label_key])
+idxs_train, idxs_test = train_test_split(idxs, test_size=0.4, shuffle=True, stratify=df.loc[idxs,label_key])
 
 X_train = df.loc[idxs_train,bdt_features_data]
 y_train = df.loc[idxs_train,label_key]
