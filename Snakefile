@@ -149,7 +149,7 @@ rule test_on_data:
     log: str(paths.logs_dir / "test_on_data.log")
     threads: 40
     resources:
-        MaxRunHours=1,
+        MaxRunHours=3,
         request_memory=50*1024, # in MB
         request_gpus=0 
     shell: "python test_on_data.py -t {threads} &> {log}"

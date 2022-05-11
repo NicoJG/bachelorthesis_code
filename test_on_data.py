@@ -16,7 +16,7 @@ import shutil
 from utils.input_output import load_data_from_root, load_feature_keys
 from utils import paths
 from utils.histograms import get_hist
-from utils.merge_pdfs import merge_pdfs
+#from utils.merge_pdfs import merge_pdfs
 
 # %%
 # Constants
@@ -28,9 +28,9 @@ args = parser.parse_args()
 n_threads = args.n_threads
 assert n_threads > 0
 
-N_events = 100000000
+N_events = 1000000000
 
-batch_size_tracks = 10000
+batch_size_tracks = 100000
 batch_size_events = 100000
 
 assert paths.ss_classifier_model_file.is_file(), f"The model '{paths.ss_classifier_model_file}' does not exist yet."
@@ -49,6 +49,8 @@ bdt_features_data = load_feature_keys(["features_BKG_BDT_data"], file_path=paths
 lambda_veto_features = load_feature_keys(["features_Lambda_cut"], file_path=paths.features_data_testing_file)
 
 features_other_cuts = load_feature_keys(["features_other_cuts"], file_path=paths.features_data_testing_file)
+
+features_B_M_calc = load_feature_keys(["features_B_M_calc"], file_path=paths.features_data_testing_file)
 
 # Track features:
 for_feature_extraction = load_feature_keys(["for_feature_extraction"], file_path=paths.features_data_testing_file)
@@ -71,6 +73,7 @@ event_features_to_load += bdt_features_data
 event_features_to_load += lambda_veto_features 
 event_features_to_load += features_other_cuts
 event_features_to_load += main_features
+event_features_to_load += features_B_M_calc
 
 track_features_to_load = []
 track_features_to_load += for_feature_extraction
@@ -92,6 +95,7 @@ df_tracks = load_data_from_root(data_file, data_tree_key,
 
 # %%
 # Extract all needed features for the Bd/Bs classification
+print("Extrace new Track Features needed for the B classification...")
 df_tracks.reset_index(drop=False, inplace=True)
 df_tracks.rename(columns={"entry":"event_id","subentry":"track_id"}, inplace=True)
 
@@ -167,8 +171,12 @@ df.rename(columns={"index":"event_id"}, inplace=True)
 
 
 # %%
+# Remove all events with 0 Tracks, because these events are not in df_tracks
+df.drop(df.query("N==0").index, inplace=True)
+
+# %%
 # Check if the event ids match the event ids used for the B classification
-assert np.all(df["event_id"]==event_ids), "There is a mismatch in the event ids"
+# assert np.all(df["event_id"]==event_ids), "There is a mismatch in the event ids"
 
 # Add the B classification as a feature
 df["B_ProbBs"] = B_ProbBs
@@ -176,12 +184,12 @@ df["B_ProbBs"] = B_ProbBs
 # %%
 # Load and Apply the background bdt
 print("Apply BKG BDT...")
-# Load the SS classifier
+# Load the BKG BDT
 with open(paths.bkg_bdt_model_file, "rb") as file:
     model_BKG_BDT = pickle.load(file)
     
-# Apply the SS classifier
-df["B_BKG_BDT"] = model_BKG_BDT.predict_proba(df[bdt_features_data])[:,1]
+# Apply the BKG BDT
+df["BKG_BDT"] = model_BKG_BDT.predict_proba(df[bdt_features_data])[:,1]
 
 # %%
 # Prepare the veto of the Lambda Background
@@ -240,15 +248,62 @@ plt.savefig(output_dir/"01_lambda_veto.pdf")
 plt.close()
 
 # %%
-# Make additional cuts
+# Calculate the B 
+print("Calculate the new B mass...")
+p_muplus = [df["muplus_PX"], df["muplus_PY"], df["muplus_PZ"]]
+p_muminus = [df["muminus_PX"], df["muminus_PY"], df["muminus_PZ"]]
+p_piplus = [df["piplus_PX"], df["piplus_PY"], df["piplus_PZ"]]
+p_piminus = [df["piminus_PX"], df["piminus_PY"], df["piminus_PZ"]]
 
+m_KS = 497.611 # MeV
+m_KS = df["KS0_M"]
+E_Jpsi = df["Jpsi_PE"]
+
+p_B = ((p_muplus[0] + p_muminus[0] + p_piplus[0] + p_piminus[0])**2 + (p_muplus[1] + p_muminus[1] + p_piplus[1] + p_piminus[1])**2 + (p_muplus[2] + p_muminus[2] + p_piplus[2] + p_piminus[2])**2)**0.5
+p_KS = ((p_piplus[0] + p_piminus[0])**2 + (p_piplus[1] + p_piminus[1])**2 + (p_piplus[2] + p_piminus[2])**2)**0.5
+E_KS = (p_KS**2 + m_KS**2)**0.5
+
+
+E_KS = df["KS0_PE"]
+E_Jpsi = df["Jpsi_PE"]
+p_B = df["B_P"]
+
+E_B = E_Jpsi + E_KS
+m_B = (E_B**2 - p_B**2)**0.5
+
+df["B_M_new"] = m_B
+
+# %%
+# apply all cuts
+print("Apply all cuts...")
+cut_query = "(lambda_veto == 0)"
+cut_query += "&(BKG_BDT > 0.5)"
+cut_query += "&(KS0_TAU > 0.5*10**-3)"
+
+#cut_query += "&(B_M_new>=5150)&(B_M_new<=5550)"
+
+df_cut = df.query(cut_query)
+
+# %%
+# Plot the B classification output 
+print("Plot the B classifier output...")
+plt.figure(figsize=(8,6))
+plt.title("B classifier output distribution on the data (with all cuts)")
+plt.hist(df_cut["B_ProbBs"], histtype="step", bins=200, range=(0. , 1.))
+plt.xlabel("B classifier output")
+plt.ylabel("counts")
+plt.yscale("log")
+
+plt.tight_layout()
+plt.savefig(output_dir/"03_B_classifier_output.pdf")
+plt.close()
 
 # %%
 # Plot the B mass with and without the cuts and the B classification
-print("Create all the B mass plots...")
+print("Create all the B mass plots before fitting...")
 
-x_min = 5100. # MeV
-x_max = 5600. # MeV
+x_min = 5150. # MeV
+x_max = 5550. # MeV
 
 n_bins = 200
 
@@ -256,63 +311,157 @@ bin_edges = np.linspace(x_min, x_max, n_bins+1)
 
 # Plot raw B mass distribution
 plt.figure(figsize=(8,6))
-plt.title("B mass distribution")
-plt.hist(df["B_M"], histtype="step", bins=bin_edges)
-plt.xlabel("B mass")
-plt.ylabel("counts")
-plt.yscale("log")
-
-plt.tight_layout()
-plt.savefig(output_dir/"03_B_mass_00_raw.pdf")
-plt.close()
-
-# Plot B mass distribution after bdt cut
-df_cut_bdt = df.query("(B_BKG_BDT>=0.5)")
-
-plt.figure(figsize=(8,6))
-plt.title("B mass distribution with cut on the bkg bdt")
-plt.hist(df_cut_bdt["B_M"], histtype="step", bins=bin_edges)
-plt.xlabel("B mass")
-plt.ylabel("counts")
-plt.yscale("log")
-
-plt.tight_layout()
-plt.savefig(output_dir/"03_B_mass_01_with_bdt_cut.pdf")
-plt.close()
-
-# Plot B mass distribution after all cuts
-df_cut = df.query("(lambda_veto==0)&(B_BKG_BDT>=0.5)")
-
-plt.figure(figsize=(8,6))
-plt.title("B mass distribution with all cuts applied (currently only lambda and bdt)")
-plt.hist(df_cut["B_M"], histtype="step", bins=bin_edges)
-plt.xlabel("B mass")
-plt.ylabel("counts")
-plt.yscale("log")
-
-plt.tight_layout()
-plt.savefig(output_dir/"03_B_mass_02_with_all_cuts.pdf")
-plt.close()
-
-# Plot B mass distribution after B classification
-x = [df_cut.query("B_ProbBs<0.5")["B_M"], df_cut.query("B_ProbBs>=0.5")["B_M"]]
-labels = ["Bd (predicted)", "Bs (predicted)"]
-
-plt.figure(figsize=(8,6))
-plt.title("B mass distribution with cuts and B classification")
-plt.hist(x, histtype="step", bins=bin_edges, label=labels)
+plt.title("B mass distribution (before any cuts)")
+plt.hist(df["B_M"], histtype="step", bins=bin_edges, label="B_M")
+plt.hist(df["B_M_new"], histtype="step", bins=bin_edges, label="B_M_new")
 plt.xlabel("B mass")
 plt.ylabel("counts")
 plt.yscale("log")
 
 plt.legend()
 plt.tight_layout()
-plt.savefig(output_dir/"03_B_mass_03_B_classification.pdf")
+plt.savefig(output_dir/"04_B_mass_00_raw.pdf")
+plt.close()
+
+# Plot B mass distribution after bdt cut
+plt.figure(figsize=(8,6))
+plt.title("B mass distribution (with cut only on the bkg bdt)")
+plt.hist(df.query("(BKG_BDT>=0.5)")["B_M"], histtype="step", bins=bin_edges, label="B_M")
+plt.hist(df.query("(BKG_BDT>=0.5)")["B_M_new"], histtype="step", bins=bin_edges, label="B_M_new")
+plt.xlabel("B mass")
+plt.ylabel("counts")
+plt.yscale("log")
+
+plt.tight_layout()
+plt.savefig(output_dir/"04_B_mass_01_with_bdt_cut.pdf")
+plt.close()
+
+# Plot B mass distribution after all cuts
+plt.figure(figsize=(8,6))
+plt.title("B mass distribution with all cuts applied (lambda, bkg_bdt, misid)")
+plt.hist(df_cut["B_M"], histtype="step", bins=bin_edges, label="B_M")
+plt.hist(df_cut["B_M_new"], histtype="step", bins=bin_edges, label="B_M_new")
+plt.xlabel("B mass")
+plt.ylabel("counts")
+plt.yscale("log")
+
+plt.legend()
+plt.tight_layout()
+plt.savefig(output_dir/"04_B_mass_02_with_all_cuts.pdf")
+plt.close()
+
+# Plot B mass distribution after B classification
+x = [df_cut.query("B_ProbBs<0.1")["B_M_new"], 
+     df_cut.query("B_ProbBs>=0.5")["B_M_new"],
+     df_cut["B_M_new"]]
+labels = ["Bd (predicted)", 
+          "Bs (predicted)",
+          "baseline"]
+
+plt.figure(figsize=(8,6))
+plt.title("B mass distribution with cuts and B classification")
+plt.hist(x, histtype="step", density=True, bins=bin_edges, label=labels)
+plt.xlabel("B mass")
+plt.ylabel("counts")
+plt.yscale("log")
+
+plt.legend()
+plt.tight_layout()
+plt.savefig(output_dir/"04_B_mass_03_B_classification.pdf")
 plt.close()
 
 print("Plotting done.")
 
 # %%
-merge_pdfs(output_dir, paths.data_testing_plots_file)
+###################
+# Fitting
+###################
+print("Fit and Plot...")
+
+# %%
+# Get the histogram of B_M with all cuts applied (apart from the Bd/Bs classification)
+x_min = 5150. # MeV
+x_max = 5550. # MeV
+n_bins = 200
+
+bin_edges = np.linspace(x_min, x_max, n_bins+1)
+bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
+
+bin_counts, _ = np.histogram(df_cut["B_M_new"], bins=bin_edges)
+
+
+# %%
+# Do fits
+
+from scipy.stats import norm, expon 
+from iminuit.cost import LeastSquares
+from iminuit import Minuit
+
+m_Bd = 5279.65 # MeV
+m_Bs = 5366.88 # MeV
+
+def pdf(x, lambda_bkg, mu_Bd, sigma_Bd, N_bkg, N_Bd, N_Bs):
+    mu_Bs = mu_Bd + (m_Bs - m_Bd)
+    sigma_Bs = sigma_Bd
+    
+    pdf_bkg = expon(lambda_bkg).pdf(x)
+    pdf_Bd = norm(mu_Bd, sigma_Bd).pdf(x)
+    pdf_Bs = norm(mu_Bs, sigma_Bs).pdf(x)
+    
+    return N_bkg * pdf_bkg + N_Bd * pdf_Bd + N_Bs * pdf_Bs
+
+least_squares = LeastSquares(bin_centers, bin_counts, bin_counts**0.5, pdf)
+
+m = Minuit(least_squares,
+           lambda_bkg = 1.0,
+           mu_Bd=m_Bd,
+           sigma_Bd=100,
+           N_bkg=1.0,
+           N_Bd=1.0,
+           N_Bs=1.0)
+
+print("Fitting Done.")
+
+# %%
+m.migrad()
+
+# %%
+m.hesse()
+
+# %%
+# Plot the fit
+x_linspace = np.linspace(x_min, x_max, 1000)
+
+lambda_bkg, mu_Bd, sigma_Bd, N_bkg, N_Bd, N_Bs = m.values
+mu_Bs = mu_Bd + (m_Bs - m_Bd)
+sigma_Bs = sigma_Bd
+
+fit = pdf(x_linspace, *m.values)
+fit_bkg = N_bkg * expon(lambda_bkg).pdf(x_linspace)
+fit_Bd = N_Bd * norm(mu_Bd, sigma_Bd).pdf(x_linspace)
+fit_Bs = N_Bs * norm(mu_Bs, sigma_Bs).pdf(x_linspace)
+
+plt.figure(figsize=(8,6))
+plt.errorbar(bin_centers, bin_counts, yerr=bin_counts**0.5, fmt=".", label="Data")
+plt.plot(x_linspace, fit, label="Fit")
+plt.plot(x_linspace, fit_bkg, label="Fit BKG")
+plt.plot(x_linspace, fit_Bd, label="Fit Bd")
+plt.plot(x_linspace, fit_Bs, label="Fit Bs")
+
+plt.xlabel("B mass")
+plt.ylabel("counts")
+plt.yscale("log")
+
+plt.legend()
+plt.tight_layout()
+plt.savefig(output_dir/"05_fits_B_M.pdf")
+plt.close()
+
+
+
+
+
+# %%
+#merge_pdfs(output_dir, paths.data_testing_plots_file)
 
 # %%

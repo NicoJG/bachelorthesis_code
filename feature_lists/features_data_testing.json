@@ -47,7 +47,17 @@
         "piplus_ProbNNp"
     ],
     "features_other_cuts" : [
-        "B_M"
+        "N",
+        "KS0_TAU"
+    ],
+    "features_B_M_calc" : [
+        "muplus_PX", "muplus_PY", "muplus_PZ",
+        "muminus_PX", "muminus_PY", "muminus_PZ",
+        "piplus_PX", "piplus_PY", "piplus_PZ",
+        "piminus_PX", "piminus_PY", "piminus_PZ",
+        "Jpsi_PE", "KS0_PE",
+        "KS0_M",
+        "B_P"
     ],
     "for_feature_extraction" : [
         "Tr_T_TrFIRSTHITZ",
