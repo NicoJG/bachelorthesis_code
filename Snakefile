@@ -24,7 +24,8 @@ rule master:
            expand(str(paths.models_dir / "{model_name}" / paths.B_classifier_eval_plots_file.name), model_name=B_classifier_names),
            expand(str(paths.models_dir / "{model_name}" / paths.B_classifier_feature_importance_plots_file.name), model_name=B_classifier_names),
            str(paths.bkg_bdt_eval_plots_file),
-           str(paths.data_testing_B_ProbBs_file)
+           str(paths.data_testing_B_ProbBs_file),
+           str(paths.data_testing_plots_file)
 
 rule preprocess_training_data:
     input: str(paths.B2JpsiKstar_file), str(paths.Bs2DsPi_file)

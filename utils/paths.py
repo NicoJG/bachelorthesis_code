@@ -86,7 +86,7 @@ B2JpsiKS_data_files = [B2JpsiKS_data_dir/"DTT_2016_Reco16Strip28r2_DIMUON_MagDow
 
 features_data_testing_file = features_base_dir/"features_data_testing.json"
 
-data_testing_B_ProbBs_file = data_dir/"B2JpsiKS_B_ProbBs.hdf5"
+data_testing_B_ProbBs_file = data_dir/"B2JpsiKS_B_ProbBs.csv"
 
 data_testing_plots_dir = plots_dir/"test_on_data"
 data_testing_plots_file = plots_dir/"test_on_data.pdf"

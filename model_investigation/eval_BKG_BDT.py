@@ -41,7 +41,7 @@ data_tree_key = "Bd2JpsiKSDetached/DecayTree"
 mc_tree_keys = [mc_tree_key]*len(mc_files)
 data_tree_keys = [data_tree_key]*len(data_files)
 
-N_events_per_dataset = 10000
+N_events_per_dataset = 1000000000000
 
 output_dir = paths.bkg_bdt_eval_dir
 output_dir.mkdir(exist_ok=True)
