@@ -24,7 +24,7 @@ rule master:
            expand(str(paths.models_dir / "{model_name}" / paths.B_classifier_eval_plots_file.name), model_name=B_classifier_names),
            expand(str(paths.models_dir / "{model_name}" / paths.B_classifier_feature_importance_plots_file.name), model_name=B_classifier_names),
            str(paths.bkg_bdt_eval_plots_file),
-           str(paths.data_testing_plots_file)
+           str(paths.data_testing_B_ProbBs_file)
 
 rule preprocess_training_data:
     input: str(paths.B2JpsiKstar_file), str(paths.Bs2DsPi_file)
@@ -122,7 +122,6 @@ rule feature_importance_B_classifier:
 
 # Tests on data
 rule train_BKG_BDT:
-    input: str(paths.B2JpsiKS_MC_file), str(paths.B2JpsiKS_Data_file)
     output: str(paths.models_dir / "{model_name}" / paths.bkg_bdt_model_file.name)
     log: str(paths.logs_dir / "{model_name}" / "train_BKG_BDT.log")
     threads: 40
@@ -143,8 +142,20 @@ rule eval_BKG_BDT:
         request_gpus=0 
     shell: "python model_investigation/eval_BKG_BDT.py -t {threads} -n {wildcards.model_name} &> {log}"
 
+rule apply_on_data:
+    input: str(paths.ss_classifier_model_file), str(paths.B_classifier_model_file)
+    output: str(paths.data_testing_B_ProbBs_file)
+    log: str(paths.logs_dir / "apply_on_data.log")
+    threads: 40
+    resources:
+        MaxRunHours=8,
+        request_memory=150*1024, # in MB
+        request_gpus=0 
+    shell: "python apply_on_data.py -t {threads} &> {log}"
+
+
 rule test_on_data:
-    input: str(paths.ss_classifier_model_file), str(paths.B_classifier_model_file), str(paths.bkg_bdt_model_file), str(paths.B2JpsiKS_Data_file)
+    input: str(paths.data_testing_B_ProbBs_file), str(paths.bkg_bdt_model_file)
     output: str(paths.data_testing_plots_file)
     log: str(paths.logs_dir / "test_on_data.log")
     threads: 40

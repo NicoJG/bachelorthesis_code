@@ -13,9 +13,8 @@ import pickle
 import sklearn.metrics as skmetrics
 
 # Local Imports
-from utils.input_output import load_data_from_root, load_feature_keys
+from utils.input_output import load_and_merge_from_root, load_feature_keys
 from utils import paths
-from utils.histograms import get_hist
 
 # %%
 # Constants
@@ -33,11 +32,16 @@ paths.update_bkg_bdt_name(model_name)
 
 assert not paths.bkg_bdt_model_file.is_file(), f"The model '{paths.bkg_bdt_model_file}' already exists! To overwrite it please (re-)move this directory or choose another model name with the flag '--model_name'."
 
-mc_file = paths.B2JpsiKS_MC_file
-data_file = paths.B2JpsiKS_Data_file
+mc_files = paths.B2JpsiKS_mc_files
+data_files = paths.B2JpsiKS_data_files
 
 mc_tree_key = "inclusive_Jpsi/DecayTree"
 data_tree_key = "Bd2JpsiKSDetached/DecayTree"
+
+mc_tree_keys = [mc_tree_key]*len(mc_files)
+data_tree_keys = [data_tree_key]*len(data_files)
+
+N_events_per_dataset = 10000
 
 params = {
     "test_size" : 0.4,
@@ -62,6 +66,7 @@ params = {
 # %%
 # Load all relevant feature keys
 bdt_features_mc = load_feature_keys(["features_BKG_BDT_mc"], file_path=paths.features_data_testing_file)
+
 bdt_features_data = load_feature_keys(["features_BKG_BDT_data"], file_path=paths.features_data_testing_file)
 
 lambda_veto_features = load_feature_keys(["features_Lambda_cut"], file_path=paths.features_data_testing_file)
@@ -69,30 +74,38 @@ lambda_veto_features = load_feature_keys(["features_Lambda_cut"], file_path=path
 
 # %%
 # Find keys in the Trees
-with uproot.open(mc_file)[mc_tree_key] as tree:
-    mc_all_feature_keys = tree.keys()
-    
-with uproot.open(data_file)[data_tree_key] as tree:
-    data_all_feature_keys = tree.keys()
-    
+print("Save all feature keys present in each file...")
+mc_keys_dict = {}
+for i,mc_file in enumerate(mc_files):
+    with uproot.open(mc_file)[mc_tree_key] as tree:
+        mc_keys_dict[f"file{i}"] = tree.keys()
+        
 with open(paths.internal_base_dir/"temp"/"mc_keys.json", "w") as file:
-    json.dump({"keys":mc_all_feature_keys}, file, indent=2)
-    
+    json.dump(mc_keys_dict, file, indent=2)
+
+data_keys_dict = {}
+for i,data_file in enumerate(data_files):
+    with uproot.open(data_file)[data_tree_key] as tree:
+        data_keys_dict[f"file{i}"] = tree.keys()
+        
 with open(paths.internal_base_dir/"temp"/"data_keys.json", "w") as file:
-    json.dump({"keys":data_all_feature_keys}, file, indent=2)
+    json.dump(data_keys_dict, file, indent=2)
 
 # %%
 # Load the data for the BDT
-df_mc = load_data_from_root(mc_file, mc_tree_key, 
-                            features=bdt_features_mc+lambda_veto_features, 
-                            cut="B0_BKGCAT==0",
-                            n_threads=n_threads,
-                            N_entries_max=1000000000)
-df_data = load_data_from_root(data_file, data_tree_key, 
-                              features=bdt_features_data+lambda_veto_features, 
-                              cut="B_M>5450", 
-                              n_threads=n_threads,
-                              N_entries_max=1000000000)
+print("Load the MC data...")
+df_mc = load_and_merge_from_root(mc_files, mc_tree_keys, 
+                                features=bdt_features_mc+lambda_veto_features, 
+                                cut="B0_BKGCAT==0",
+                                n_threads=n_threads,
+                                N_entries_max_per_dataset=N_events_per_dataset)
+
+print("Load the Data...")
+df_data = load_and_merge_from_root(data_files, data_tree_keys, 
+                                features=bdt_features_data+lambda_veto_features, 
+                                cut="B_M>5450", 
+                                n_threads=n_threads,
+                                N_entries_max_per_dataset=N_events_per_dataset)
 
 print(f"Events in MC: {len(df_mc)}")
 print(f"Events in data: {len(df_data)}")
@@ -223,4 +236,5 @@ with open(paths.bkg_bdt_parameters_file, "w") as file:
 with open(paths.bkg_bdt_model_file, "wb") as file:
     pickle.dump(model, file)
     
+print("Successfully trained and saved the BKG BDT.")
 # %%

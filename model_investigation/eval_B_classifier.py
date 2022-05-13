@@ -130,61 +130,6 @@ y_pred_proba_train = model.decision_function(X_train)
 y_pred_proba_test = model.decision_function(X_test)
 
 
-# %%
-# Probability Distribution of both the train and the test data
-# binning
-n_bins = 200
-hist_range = (0.0, 1.0)
-bin_edges = np.linspace(hist_range[0], hist_range[1], n_bins+1)
-bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
-bin_widths = np.diff(bin_edges)
-
-y_pred_probas = [y_pred_proba_train[y_train==0], 
-                 y_pred_proba_train[y_train==1],
-                 y_pred_proba_test[y_test==0],
-                 y_pred_proba_test[y_test==1]]
-labels = ["Bd (train data)",
-          "Bs (train data)",
-          "Bd (test data)", 
-          "Bs (test data)"]
-colors = ["C0", "C1", "C0", "C1"]
-plot_types = ["hist", "hist", "errorbar", "errorbar"]
-alphas = [0.5, 0.5, 0.5, 0.5]
-
-# Plot with log y-axis
-plt.figure(figsize=(8,6))
-plt.title("distribution of the prediction output of the DeepSet")
-
-for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, alphas):
-    x, sigma = get_hist(y_pred_proba, bin_edges, normed=True)
-    if pt == "hist":
-        plt.hist(bin_centers, weights=x, bins=bin_edges, histtype="stepfilled", color=c, alpha=a, label=l)
-    elif pt == "errorbar":
-        plt.errorbar(bin_centers, x, yerr=sigma, xerr=bin_widths/2, ecolor=c, label=l, fmt="none", elinewidth=1.0)
-
-plt.yscale("log")
-plt.xlabel("DeepSet output")
-plt.ylabel("density")
-plt.legend()
-plt.savefig(output_dir/"02_hist_output_logy.pdf")
-plt.close()
-
-# Plot with normal y-axis
-plt.figure(figsize=(8,6))
-plt.title("distribution of the prediction output of the DeepSet")
-
-for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, alphas):
-    x, sigma = get_hist(y_pred_proba, bin_edges, normed=True)
-    if pt == "hist":
-        plt.hist(bin_centers, weights=x, bins=bin_edges, histtype="stepfilled", color=c, alpha=a, label=l)
-    elif pt == "errorbar":
-        plt.errorbar(bin_centers, x, yerr=sigma, xerr=bin_widths/2, ecolor=c, label=l, fmt="none", elinewidth=1.0)
-
-plt.xlabel("DeepSet output")
-plt.ylabel("density")
-plt.legend()
-plt.savefig(output_dir/"02_hist_output_normal.pdf")
-plt.close()
 
 # %%
 # Analysis of different cuts
@@ -264,6 +209,69 @@ accuracy(test):  {accuracy_test:.4f}
 accuracy(train): {accuracy_train:.4f}""")
 plt.tight_layout()
 plt.savefig(output_dir/"04_confusion_matrix.pdf")
+plt.close()
+
+
+# %%
+# Probability Distribution of both the train and the test data
+# binning
+n_bins = 200
+hist_range = (0.0, 1.0)
+bin_edges = np.linspace(hist_range[0], hist_range[1], n_bins+1)
+bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
+bin_widths = np.diff(bin_edges)
+
+y_pred_probas = [y_pred_proba_train[y_train==0], 
+                 y_pred_proba_train[y_train==1],
+                 y_pred_proba_test[y_test==0],
+                 y_pred_proba_test[y_test==1]]
+labels = ["Bd (train data)",
+          "Bs (train data)",
+          "Bd (test data)", 
+          "Bs (test data)"]
+colors = ["C0", "C1", "C0", "C1"]
+plot_types = ["hist", "hist", "errorbar", "errorbar"]
+alphas = [0.5, 0.5, 0.5, 0.5]
+
+# Plot with log y-axis
+plt.figure(figsize=(8,6))
+plt.title(f"distribution of the prediction output of the DeepSet\nwith cut at 0.5: test accuracy = {accuracy_test:.3f} , train accuracy = {accuracy_train:.3f}\nefficiency Bd={tnr:.3f}, efficiency Bs={tpr:.3f}")
+
+for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, alphas):
+    x, sigma = get_hist(y_pred_proba, bin_edges, normed=True)
+    if pt == "hist":
+        plt.hist(bin_centers, weights=x, bins=bin_edges, histtype="stepfilled", color=c, alpha=a, label=l)
+    elif pt == "errorbar":
+        plt.errorbar(bin_centers, x, yerr=sigma, xerr=bin_widths/2, ecolor=c, label=l, fmt="none", elinewidth=1.0)
+        
+plt.axvline(0.5, linestyle="dashed", color="grey")
+
+plt.yscale("log")
+plt.xlabel("DeepSet output")
+plt.ylabel("density")
+plt.legend()
+plt.tight_layout()
+plt.savefig(output_dir/"02_hist_output_logy.pdf")
+plt.close()
+
+# Plot with normal y-axis
+plt.figure(figsize=(8,6))
+plt.title(f"distribution of the prediction output of the DeepSet\nwith cut at 0.5: test accuracy = {accuracy_test:.3f} , train accuracy = {accuracy_train:.3f}\nefficiency Bd={tnr:.3f}, efficiency Bs={tpr:.3f}")
+
+for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, alphas):
+    x, sigma = get_hist(y_pred_proba, bin_edges, normed=True)
+    if pt == "hist":
+        plt.hist(bin_centers, weights=x, bins=bin_edges, histtype="stepfilled", color=c, alpha=a, label=l)
+    elif pt == "errorbar":
+        plt.errorbar(bin_centers, x, yerr=sigma, xerr=bin_widths/2, ecolor=c, label=l, fmt="none", elinewidth=1.0)
+
+plt.axvline(0.5, linestyle="dashed", color="grey")
+
+plt.xlabel("DeepSet output")
+plt.ylabel("density")
+plt.legend()
+plt.tight_layout()
+plt.savefig(output_dir/"02_hist_output_normal.pdf")
 plt.close()
 
 # %%

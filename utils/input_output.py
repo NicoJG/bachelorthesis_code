@@ -122,3 +122,52 @@ def load_preprocessed_data(features=None, N_entries_max=np.Infinity, batch_size=
     
     return df
 
+def load_and_merge_from_root(input_files, input_file_keys, 
+                             features=None, 
+                             cut=None,
+                             N_entries_max_per_dataset=np.Infinity, 
+                             same_N_entries_forced=False,
+                             batch_size=100000,
+                             n_threads=10):
+    # Calculate how many entries should be loaded from each dataset
+    if same_N_entries_forced:
+        N_events = []
+        for i, (input_file_path, input_file_key) in enumerate(zip(input_files, input_file_keys)):
+            with uproot.open(input_file_path)[input_file_key] as tree:
+                N_events.append(tree.num_entries)
+
+        N_entries_max_per_dataset = np.min(N_events + [N_entries_max_per_dataset])
+    
+    
+    # concatenate all DataFrames into one
+    temp_dfs = []
+    # iterate over all input files
+    for i, (input_file_path, input_file_key) in enumerate(tqdm(zip(input_files, input_file_keys), total=len(input_files), desc="Datasets")):
+        temp_df = load_data_from_root(input_file_path, 
+                                      tree_key=input_file_key,
+                                      features=features, 
+                                      cut=cut,
+                                      N_entries_max=N_entries_max_per_dataset, 
+                                      batch_size=batch_size,
+                                      n_threads=n_threads)
+        
+        temp_df["input_file_id"] = i
+        
+        temp_df.reset_index(drop=False, inplace=True)
+        
+        if "index" in temp_df.columns:
+            # only event features present
+            temp_df.rename(columns={"index":"event_id"}, inplace=True)
+        elif "entry" in temp_df.columns and "subentry" in temp_df.columns:
+            # also track features present
+            temp_df.rename(columns={"entry":"event_id","subentry":"track_id"}, inplace=True)
+        else:
+            raise RuntimeError("Could not determine if track features or only event features are present.")
+
+        # make sure all event ids are unambiguous
+        if len(temp_dfs) != 0:
+            temp_df["event_id"] += temp_dfs[-1]["event_id"].iloc[-1] + 1
+            
+        temp_dfs.append(temp_df)
+        
+    return pd.concat(temp_dfs, ignore_index=True)

@@ -5,17 +5,16 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 import json
+from tqdm import tqdm
 import pickle
 import sklearn.metrics as skmetrics
 from argparse import ArgumentParser
-import uproot
 
 # Imports from this project
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils import paths
-from utils.input_output import load_feature_keys, load_data_from_root, load_preprocessed_data
+from utils.input_output import load_feature_keys, load_and_merge_from_root
 from utils.merge_pdfs import merge_pdfs
 from utils.histograms import get_hist
 
@@ -33,11 +32,16 @@ assert n_threads > 0
 model_name = args.model_name
 paths.update_bkg_bdt_name(model_name)
 
-mc_file = paths.B2JpsiKS_MC_file
-data_file = paths.B2JpsiKS_Data_file
+mc_files = paths.B2JpsiKS_mc_files
+data_files = paths.B2JpsiKS_data_files
 
 mc_tree_key = "inclusive_Jpsi/DecayTree"
 data_tree_key = "Bd2JpsiKSDetached/DecayTree"
+
+mc_tree_keys = [mc_tree_key]*len(mc_files)
+data_tree_keys = [data_tree_key]*len(data_files)
+
+N_events_per_dataset = 10000
 
 output_dir = paths.bkg_bdt_eval_dir
 output_dir.mkdir(exist_ok=True)
@@ -55,22 +59,26 @@ feature_keys = params["feature_keys"]
 # %%
 # Load all relevant feature keys
 bdt_features_mc = load_feature_keys(["features_BKG_BDT_mc"], file_path=paths.features_data_testing_file)
+
 bdt_features_data = load_feature_keys(["features_BKG_BDT_data"], file_path=paths.features_data_testing_file)
 
 lambda_veto_features = load_feature_keys(["features_Lambda_cut"], file_path=paths.features_data_testing_file)
 
 # %%
 # Load the data for the BDT
-df_mc = load_data_from_root(mc_file, mc_tree_key, 
-                            features=bdt_features_mc+lambda_veto_features, 
-                            cut="B0_BKGCAT==0",
-                            n_threads=n_threads,
-                            N_entries_max=1000000000)
-df_data = load_data_from_root(data_file, data_tree_key, 
-                              features=bdt_features_data+lambda_veto_features, 
-                              cut="B_M>5450", 
-                              n_threads=n_threads,
-                              N_entries_max=1000000000)
+print("Load the MC data...")
+df_mc = load_and_merge_from_root(mc_files, mc_tree_keys, 
+                                features=bdt_features_mc+lambda_veto_features, 
+                                cut="B0_BKGCAT==0",
+                                n_threads=n_threads,
+                                N_entries_max_per_dataset=N_events_per_dataset)
+
+print("Load the Data...")
+df_data = load_and_merge_from_root(data_files, data_tree_keys, 
+                                features=bdt_features_data+lambda_veto_features, 
+                                cut="B_M>5450", 
+                                n_threads=n_threads,
+                                N_entries_max_per_dataset=N_events_per_dataset)
 
 print(f"Events in MC: {len(df_mc)}")
 print(f"Events in data: {len(df_data)}")

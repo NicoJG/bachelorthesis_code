@@ -71,9 +71,22 @@ update_B_classifier_name("B_classifier")
 
 
 # Paths for the tests on data
-B2JpsiKS_MC_file = Path("/ceph/FlavourTagging/NTuples/ift/MC/B2JpsiKS_Dortmund/MC_B2JpsiKS_2016_IFT_raw.root")
-B2JpsiKS_Data_file = Path("/ceph/FlavourTagging/NTuples/ift/data/Nov_2021_wgproduction/DTT_2016_Reco16Strip28r2_DIMUON_MagDown.root")
+B2JpsiKS_mc_dir = Path("/ceph/FlavourTagging/NTuples/ift/MC/B2JpsiKS_Dortmund")
+B2JpsiKS_data_dir = Path("/ceph/FlavourTagging/NTuples/ift/data/Nov_2021_wgproduction")
+
+B2JpsiKS_mc_files = [B2JpsiKS_mc_dir/"MC_B2JpsiKS_2016_IFT_raw.root",
+                     B2JpsiKS_mc_dir/"MC_B2JpsiKS_2017_IFT_raw.root",
+                     B2JpsiKS_mc_dir/"MC_B2JpsiKS_2018_IFT_raw.root",]
+B2JpsiKS_data_files = [B2JpsiKS_data_dir/"DTT_2016_Reco16Strip28r2_DIMUON_MagDown.root",
+                       B2JpsiKS_data_dir/"DTT_2017_Reco17Strip29r2_DIMUON_MagDown.root",
+                       B2JpsiKS_data_dir/"DTT_2018_Reco18Strip34_DIMUON_MagDown.root",
+                       B2JpsiKS_data_dir/"DTT_2016_Reco16Strip28r2_DIMUON_MagUp.root",
+                       B2JpsiKS_data_dir/"DTT_2017_Reco17Strip29r2_DIMUON_MagUp.root",
+                       B2JpsiKS_data_dir/"DTT_2018_Reco18Strip34_DIMUON_MagUp.root"]
+
 features_data_testing_file = features_base_dir/"features_data_testing.json"
+
+data_testing_B_ProbBs_file = data_dir/"B2JpsiKS_B_ProbBs.hdf5"
 
 data_testing_plots_dir = plots_dir/"test_on_data"
 data_testing_plots_file = plots_dir/"test_on_data.pdf"
