@@ -6,9 +6,10 @@ import uproot
 from argparse import ArgumentParser
 import pickle
 import torch
+from tqdm import tqdm
 
 # Local Imports
-from utils.input_output import load_and_merge_from_root, load_feature_keys
+from utils.input_output import load_data_from_root, load_feature_keys
 from utils import paths
 from utils.histograms import get_hist
 #from utils.merge_pdfs import merge_pdfs
@@ -62,61 +63,65 @@ for data_file in data_files:
     assert len(set(track_features_to_load) - set(data_all_feature_keys))==0, f"The following features are not found in the data: {set(track_features_to_load) - set(data_all_feature_keys)}"
 
 # %%
-# Load the tracks data for applying the B classification
-print("Load the tracks data for applying the B classification...")
-df_tracks = load_and_merge_from_root(data_files, data_tree_keys, 
-                                     features=track_features_to_load,
-                                     n_threads=n_threads,
-                                     N_entries_max_per_dataset=N_events,
-                                     batch_size=batch_size_tracks)
+# Load and Apply to all datasets
+output_dfs = []
 
-
-# %%
-# Extract all needed features for the Bd/Bs classification
-print("Extract new Track Features needed for the B classification...")
-df_tracks['Tr_diff_z'] = df_tracks['Tr_T_TrFIRSTHITZ'] - df_tracks['B_OWNPV_Z']
-
-PX_proj = -1 * df_tracks[f"B_PX"] * df_tracks[f"Tr_T_PX"]
-PY_proj = -1 * df_tracks[f"B_PY"] * df_tracks[f"Tr_T_PY"]
-PZ_proj = -1 * df_tracks[f"B_PZ"] * df_tracks[f"Tr_T_PZ"]
-PE_proj = +1 * df_tracks[f"B_PE"] * df_tracks[f"Tr_T_E"]
-
-df_tracks["Tr_p_proj"] = np.sum([PX_proj, PY_proj, PZ_proj, PE_proj], axis=0)
-# del PX_proj, PY_proj, PZ_proj, PE_proj
-
-df_tracks['Tr_diff_pt'] = df_tracks["B_PT"] - df_tracks["Tr_T_PT"]
-
-df_tracks['Tr_diff_p'] = df_tracks["B_P"] - df_tracks["Tr_T_P"]
-
-df_tracks['Tr_cos_diff_phi'] = np.array(list(map(lambda x : np.cos(x), df_tracks['B_LOKI_PHI'] - df_tracks['Tr_T_Phi'])))
-
-df_tracks['Tr_diff_eta'] = df_tracks['B_LOKI_ETA'] - df_tracks['Tr_T_Eta']
-
-# %%
-# Load and apply both models for the B classification
-
-print("Apply SS classifier...")
-# Load the SS classifier
-with open(paths.ss_classifier_model_file, "rb") as file:
-    model_SS_classifier = pickle.load(file)
+for i, (data_file, data_tree_key) in enumerate(tqdm(zip(data_files, data_tree_keys), desc="Datasets", total=len(data_files))):
+    # Load the tracks data for applying the B classification
+    df_tracks = load_data_from_root(data_file, data_tree_key, 
+                                    features=track_features_to_load,
+                                    n_threads=n_threads,
+                                    N_entries_max=N_events,
+                                    batch_size=batch_size_tracks)
     
-# Apply the SS classifier
-df_tracks["Tr_ProbSS"] = model_SS_classifier.predict_proba(df_tracks[features_SS_classifier])[:,1]
+    df_tracks.reset_index(drop=False, inplace=True)
+    df_tracks.rename(columns={"entry":"event_id", "subentry":"track_id"}, inplace=True)
+    
+    # Extract all needed features for the Bd/Bs classification
+    df_tracks['Tr_diff_z'] = df_tracks['Tr_T_TrFIRSTHITZ'] - df_tracks['B_OWNPV_Z']
 
-print("Apply B classifier...")
-# Load the B classifier
-model_B_classifier = torch.load(paths.B_classifier_model_file, map_location="cpu")
+    PX_proj = -1 * df_tracks[f"B_PX"] * df_tracks[f"Tr_T_PX"]
+    PY_proj = -1 * df_tracks[f"B_PY"] * df_tracks[f"Tr_T_PY"]
+    PZ_proj = -1 * df_tracks[f"B_PZ"] * df_tracks[f"Tr_T_PZ"]
+    PE_proj = +1 * df_tracks[f"B_PE"] * df_tracks[f"Tr_T_E"]
 
-# Apply the B classifier
-X = df_tracks[["event_id"]+features_B_classifier].to_numpy()
-event_ids = df_tracks["event_id"].unique()
-B_ProbBs = model_B_classifier.decision_function(X)
+    df_tracks["Tr_p_proj"] = np.sum([PX_proj, PY_proj, PZ_proj, PE_proj], axis=0)
 
-print("Successfully calculated 'B_ProbBs'")
+    df_tracks['Tr_diff_pt'] = df_tracks["B_PT"] - df_tracks["Tr_T_PT"]
+
+    df_tracks['Tr_diff_p'] = df_tracks["B_P"] - df_tracks["Tr_T_P"]
+
+    df_tracks['Tr_cos_diff_phi'] = np.array(list(map(lambda x : np.cos(x), df_tracks['B_LOKI_PHI'] - df_tracks['Tr_T_Phi'])))
+
+    df_tracks['Tr_diff_eta'] = df_tracks['B_LOKI_ETA'] - df_tracks['Tr_T_Eta']
+    
+    # Load and apply both models for the B classification
+    print("Apply SS classifier...")
+    # Load the SS classifier
+    with open(paths.ss_classifier_model_file, "rb") as file:
+        model_SS_classifier = pickle.load(file)
+        
+    # Apply the SS classifier
+    df_tracks["Tr_ProbSS"] = model_SS_classifier.predict_proba(df_tracks[features_SS_classifier])[:,1]
+
+    print("Apply B classifier...")
+    # Load the B classifier
+    model_B_classifier = torch.load(paths.B_classifier_model_file, map_location="cpu")
+
+    # Apply the B classifier
+    X = df_tracks[["event_id"]+features_B_classifier].to_numpy()
+    event_ids = df_tracks["event_id"].unique()
+    B_ProbBs = model_B_classifier.decision_function(X)
+    
+    output_dfs.append(pd.DataFrame({"file_id":i, "event_id":event_ids, "B_ProbBs":B_ProbBs}))
+    
+    print("Successfully calculated 'B_ProbBs'")
 
 # %%
 # Save the output of the model
-pd.DataFrame({"event_id":event_ids, "B_ProbBs":B_ProbBs}).to_csv(paths.data_testing_B_ProbBs_file, index=False)
+with uproot.recreate(paths.data_testing_B_ProbBs_file) as file:
+    for file_path, output_df in zip(data_files, output_dfs):
+        file[file_path.stem] = output_df
 print("Successfully applied and saved B_ProbBs")
 
 # %%

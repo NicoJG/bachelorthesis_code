@@ -74,7 +74,15 @@ for data_file in data_files:
 
 # %%
 # Load B_ProbBs
-df_B_ProbBs = pd.read_csv(paths.data_testing_B_ProbBs_file, index_col=False)
+B_ProbBs_dfs = []
+with uproot.open(paths.data_testing_B_ProbBs_file) as file:
+    for data_file in data_files:
+        temp_df = file[data_file.stem].arrays(library="pd")
+        if len(B_ProbBs_dfs)!=0:
+            temp_df["event_id"] += B_ProbBs_dfs[-1]["event_id"].iloc[-1] + 1
+        B_ProbBs_dfs.append(temp_df)
+
+df_B_ProbBs = pd.concat(B_ProbBs_dfs, ignore_index=True)
 
 # %%
 ####################################
