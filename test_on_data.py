@@ -10,7 +10,6 @@ from tqdm import tqdm
 import pickle
 import sklearn.metrics as skmetrics
 import shutil
-
 # Local Imports
 from utils.input_output import load_and_merge_from_root, load_feature_keys
 from utils import paths
@@ -34,6 +33,7 @@ batch_size_events = 100000
 assert paths.data_testing_B_ProbBs_file.is_file(), f"The B classification was not applied yet."
 assert paths.bkg_bdt_model_file.is_file(), f"The model '{paths.bkg_bdt_model_file}' does not exist yet."
 
+mc_files = paths.B2JpsiKS_mc_files
 data_files = paths.B2JpsiKS_data_files
 
 output_dir = paths.data_testing_plots_dir
@@ -44,6 +44,9 @@ output_dir.mkdir()
 
 data_tree_key = "Bd2JpsiKSDetached/DecayTree"
 data_tree_keys = [data_tree_key]*len(data_files)
+
+mc_tree_key = "Bd2JpsiKSDetached/DecayTree"
+mc_tree_keys = [mc_tree_key]*len(mc_files)
 
 # %%
 # Load all relevant feature keys
@@ -98,6 +101,15 @@ df = load_and_merge_from_root(data_files, data_tree_keys,
                               n_threads=n_threads,
                               N_entries_max_per_dataset=N_events_per_dataset,
                               batch_size=batch_size_events)
+# %%
+# Load the mc event data for the tail fits
+print("Load the event mc data for the tail fits...")
+df_mc = load_and_merge_from_root(mc_files, mc_tree_keys, 
+                                features=event_features_to_load,
+                                cut="N!=0",
+                                n_threads=n_threads,
+                                N_entries_max_per_dataset=N_events_per_dataset,
+                                batch_size=batch_size_events)
 
 # %%
 # Remove all events with 0 Tracks, because these events are not in df_tracks
@@ -288,30 +300,23 @@ print("Plotting done.")
 ###################
 # Fitting
 ###################
+from utils.histograms import calc_pull
+from scipy.stats import norm, expon, crystalball
+from iminuit.cost import LeastSquares
+from iminuit import Minuit
+from scipy.integrate import quad
+
 print("Fit and Plot...")
 
 # %%
-# Get the histogram of B_M with all cuts applied (apart from the Bd/Bs classification)
-x_min = 5150. # MeV
-x_max = 5450. # MeV
-n_bins = 150
-
-bin_edges = np.linspace(x_min, x_max, n_bins+1)
-bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
-
-bin_widths = np.diff(bin_edges)
-
-bin_counts, _ = np.histogram(df_cut.query("B_ProbBs>=0.5")["B_M"], bins=bin_edges)
-#bin_counts, _ = np.histogram(df_cut["B_M"], bins=bin_edges)
 
 
 # %%
 # Do fits
 
-from scipy.stats import norm, expon 
-from iminuit.cost import LeastSquares
-from iminuit import Minuit
 
+# %%
+# Fit PDF Functions
 m_Bd = 5279.65 # MeV
 m_Bs = 5366.88 # MeV
 
@@ -320,98 +325,248 @@ def pdf_bkg(x, lambda_bkg, lambda_bkg2, f_bkg):
     pdf_bkg2 = np.exp(-lambda_bkg2 * x)
     return f_bkg*pdf_bkg1 + (1-f_bkg)*pdf_bkg2
 
-def pdf_part(x, sigma_part):
-    pdf_part_ = norm.pdf(x, 5100, sigma_part)
-    return pdf_part_
+def pdf_B(x, mu_B, sigma_B, sigma_B2, beta_B,beta_B2, m, m2, f_B):
+    pdf_B1 = crystalball.pdf((x-mu_B)/sigma_B, beta_B, m)
+    pdf_B2 = crystalball.pdf(-(x-mu_B)/sigma_B2, beta_B2, m2)
+    return f_B*pdf_B1 + (1-f_B)*pdf_B2
 
-def pdf_B(x, mu_B, sigma_B, sigma_B2, sigma_B3, f_B, f_B2):
-    pdf_Bd1 = norm.pdf(x, mu_B, sigma_B)
-    pdf_Bd2 = norm.pdf(x, mu_B, sigma_B2)
-    pdf_Bd3 = norm.pdf(x, mu_B, sigma_B3)
-    return f_B*pdf_Bd1 + (1-f_B)*(f_B2)*pdf_Bd2 + (1-f_B)*(1-f_B2)*pdf_Bd3
-
-def pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, f_Bd, f_Bd2, N_bkg, N_Bd, N_Bs):
+def pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, beta_Bd, beta_Bd2, m__Bd,m__Bd2, f_Bd, N_bkg, N_Bd, N_Bs):
     mu_Bs = mu_Bd + (m_Bs-m_Bd)
     pdf_bkg_ = pdf_bkg(x, lambda_bkg, lambda_bkg2, f_bkg)
-    pdf_Bd_ = pdf_B(x, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, f_Bd, f_Bd2)
-    pdf_Bs_ = pdf_B(x, mu_Bs, sigma_Bd, sigma_Bd2, sigma_Bd3, f_Bd, f_Bd2)
+    pdf_Bd_ = pdf_B(x, mu_Bd, sigma_Bd, sigma_Bd2, beta_Bd,beta_Bd2, m__Bd, m__Bd2, f_Bd)
+    pdf_Bs_ = pdf_B(x, mu_Bs, sigma_Bd, sigma_Bd2, beta_Bd,beta_Bd2, m__Bd, m__Bd2, f_Bd)
     
     return [N_bkg * pdf_bkg_ , N_Bd * pdf_Bd_ , N_Bs * pdf_Bs_]
 
-def pdf(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, f_Bd, f_Bd2, N_bkg, N_Bd, N_Bs):
-    pdfs_ = pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, f_Bd, f_Bd2, N_bkg, N_Bd, N_Bs)
+def pdf(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, beta_Bd, beta_Bd2, m__Bd,m__Bd2, f_Bd, N_bkg, N_Bd, N_Bs):
+    pdfs_ = pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, beta_Bd, beta_Bd2, m__Bd,m__Bd2, f_Bd, N_bkg, N_Bd, N_Bs)
     return np.sum(pdfs_, axis=0)
 
-least_squares = LeastSquares(bin_centers, 
-                             bin_counts, 
-                             bin_counts**0.5, 
-                             pdf,
-                             verbose=0)
-
-m = Minuit(least_squares,
-           lambda_bkg = 10**-5,
-           lambda_bkg2 = 10**-3,
-           f_bkg=0.5,
-           mu_Bd=m_Bd,
-           sigma_Bd=20,
-           sigma_Bd2=30,
-           sigma_Bd3=40,
-           f_Bd=0.5,
-           f_Bd2=0.5,
-           N_bkg=10000,
-           N_Bd=1000,
-           N_Bs=100)
-
-m.limits["lambda_bkg"] = (10**-7, 0.01)
-m.limits["lambda_bkg2"] = (10**-7, 0.01)
-m.limits["mu_Bd"] = (5275, 5282)
-m.limits["sigma_Bd"] = (5, 30)
-m.limits["sigma_Bd2"] = (5, 50)
-m.limits["sigma_Bd3"] = (5, 50)
-m.limits["f_bkg"] = (0,1)
-m.limits["f_Bd"] = (0,1)
-m.limits["f_Bd2"] = (0,1)
-m.limits["N_bkg"] = (1,np.Infinity)
-m.limits["N_Bd"] = (1,np.Infinity)
-m.limits["N_Bs"] = (1,np.Infinity)
-
-
 
 # %%
-m.migrad()
+# Fit Function
+def do_fit(x, y, start_vals, param_limits):
+    least_squares = LeastSquares(x, y, y**0.5, pdf)
+    m = Minuit(least_squares, **start_vals)
+    
+    for param, limits in param_limits.items():
+        m.limits[param] = limits
+        
+    m.migrad(ncall=10000)
+    m.hesse()
+    
+    return m
+
+ # %%
+ # Plot the fit
+def plot_fit(minuit, bin_centers, bin_edges, bin_counts, plot_title, file_path):
+    x_min = bin_edges[0]
+    x_max = bin_edges[-1]
+    x = bin_centers
+    
+    fit = pdf(x, *minuit.values)
+    fits = pdfs(x, *minuit.values)
+    fit_labels = ["Fit BKG", "Fit Bd", "Fit Bs"]
+    
+    fig = plt.figure(figsize=(5, 7))
+    fig.suptitle(plot_title)
+    
+    ax = plt.subplot2grid(shape=(4,1), loc=(0,0), rowspan=3)
+    ax_pull = plt.subplot2grid(shape=(4,1), loc=(3,0), rowspan=1)
+    
+    ax.errorbar(bin_centers, bin_counts, yerr=bin_counts**0.5, xerr=bin_widths/2, fmt="none", color="black", label="Data", elinewidth=1.0)
+    ax.plot(x, fit, label="Fit")
+    for fit_, fit_label in zip(fits, fit_labels):
+        ax.plot(x, fit_, label=fit_label)
+        
+    ax.set_ylim(bottom=np.min(bin_counts[bin_counts>0])-1, top=np.max(bin_counts)+1)
+    ax.set_yscale("log")
+
+    pull = calc_pull(bin_counts, fit, bin_counts**0.5, 0)
+
+    ax_pull.axhline(0, color="black", alpha=0.5)
+    ax_pull.hist(bin_centers, weights=pull, bins=bin_edges, histtype="stepfilled")
+    
+    ax_pull.set_xlabel("B mass")
+    ax_pull.set_ylabel("pull")
+    ax.set_ylabel("counts")
+
+    ax.legend()
+    
+    fig.tight_layout()
+    fig.savefig(file_path)
+    plt.close()
+    
+def trapezoidal_rule(x, f):
+    a = x[:-1]
+    f_a = f[:-1]    
+    b = x[1:]
+    f_b = f[1:]
+    
+    return np.sum((b - a)*(f_a + f_b)/2)
+
+def calc_yields(minuit, x):
+    fits = pdfs(x, *minuit.values)
+    
+    yields = []
+    
+    for fit in fits:
+        yields.append(trapezoidal_rule(x, fit))
+        
+    return yields
 
 # %%
-m.hesse()
-print("Fitting Done.")
+# Fit parameters:
+start_vals = {
+    "lambda_bkg" : 10**-5,
+    "lambda_bkg2" : 10**-3,
+    "f_bkg" : 0.5,
+    "mu_Bd" : m_Bd,
+    "sigma_Bd" : 20,
+    "sigma_Bd2" : 30,
+    "beta_Bd" : 0.1,
+    "beta_Bd2" : 0.1,
+    "m__Bd" : 1,
+    "m__Bd2" : 5,
+    "f_Bd" : 0.5,
+    "N_bkg" : 10000,
+    "N_Bd" : 1000,
+    "N_Bs" : 100
+}
+
+param_limits = {
+    "lambda_bkg" : (10**-7, 0.01),
+    "lambda_bkg2" : (10**-7, 0.01),
+    "mu_Bd" : (5275, 5282),
+    "sigma_Bd" : (5,50),
+    "sigma_Bd2" : (5,50),
+    "beta_Bd" : (0,30),
+    "beta_Bd2" : (0,100),
+    "m__Bd" : (1,1.1),
+    "m__Bd2" : (5,5.1),
+    "f_bkg" : (0,1),
+    "f_Bd" : (0,1),
+    "N_bkg" : (1,np.Infinity),
+    "N_Bd" : (1,np.Infinity),
+    "N_Bs" : (1,np.Infinity)
+}
+
+# %%    
+# set the binning
+x_min = 5170. # MeV
+x_max = 5450. # MeV
+n_bins = 150
+
+bin_edges = np.linspace(x_min, x_max, n_bins+1)
+bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
+bin_widths = np.diff(bin_edges)
+
+# set the file path
+fits_dir = output_dir/"fits"
+if fits_dir.is_dir():
+    shutil.rmtree(fits_dir)
+fits_dir.mkdir(exist_ok=True)
 
 # %%
-# Plot the fit
-x_lin = np.linspace(x_min, x_max, 1000)
+# Fit the tails on mc data
+#bin_counts, _ = np.histogram(df_mc["B_M"], bins=bin_edges)
+#minuit = do_fit(bin_centers, bin_counts, start_vals, param_limits)
+#plot_fit(minuit, bin_centers, bin_edges, bin_counts, "Monte Carlo Fit",)
 
-fit = pdf(x_lin, *m.values)
+# %%
+# Do multiple fits
+quantiles = np.linspace(0,1,51)
+cuts = np.quantile(df_cut.query(f"(B_M>={x_min})&(B_M<={x_max})")["B_ProbBs"], quantiles)
+cut_queries = [f"B_ProbBs>={cut:.4f}" for cut in cuts[:-1]]
+cut_queries += [f"B_ProbBs<={cut:.4f}" for cut in cuts[1:]]
 
-fits = pdfs(x_lin, *m.values)
-
-fit_labels = ["Fit BKG", "Fit Bd", "Fit Bs"]
+results = []
 
 
-plt.figure(figsize=(8,6))
-plt.errorbar(bin_centers, bin_counts, yerr=bin_counts**0.5, xerr=bin_widths/2, fmt="none", color="black", label="Data", elinewidth=1.0)
-plt.plot(x_lin, fit, label="Fit")
-for fit_, fit_label in zip(fits, fit_labels):
-    plt.plot(x_lin, fit_, label=fit_label)
+for i,cut_query in enumerate(tqdm(cut_queries)):
+    bin_counts, _ = np.histogram(df_cut.query(cut_query)["B_M"], bins=bin_edges)
+    
+    if all(bin_counts<=1):
+        print(f"No bin_counts for '{cut_query}'")
+        continue
+    
+    minuit = do_fit(bin_centers, bin_counts, start_vals, param_limits)
+    
+    yields = calc_yields(minuit, bin_centers)
 
-plt.xlabel("B mass")
-plt.ylabel("counts")
-plt.yscale("log")
+    plot_fit(minuit, bin_centers, bin_edges, bin_counts, 
+             plot_title=f"Fit of the B mass with '{cut_query}'",
+             file_path=fits_dir/f"{i:03d}.pdf")
+    
+    results.append({
+        "n_bkg" : yields[0],
+        "n_Bd" : yields[1],
+        "n_Bs" : yields[2],
+        "cut_query" : cut_query,
+        "is_cut_greater" : ">" in cut_query,
+        "cut" : float(cut_query[10:])
+    })
+    
+# %%
+#
+df_yields = pd.DataFrame(results)
+print(df_yields)
 
-plt.ylim(bottom=np.min(bin_counts[bin_counts>0]), top=np.max(bin_counts))
+df_yields["n_Bs/n_Bd"] = df_yields["n_Bs"] / df_yields["n_Bd"]
+df_yields["n_Bs/all_Bs"] = df_yields["n_Bs"] / df_yields.loc[0,"n_Bs"]
+df_yields["n_Bd/all_Bd"] = df_yields["n_Bd"] / df_yields.loc[0,"n_Bd"]
 
+# %%
+df_yields_less = df_yields.query("is_cut_greater==False")
+df_yields_greater = df_yields.query("is_cut_greater==True")
+
+# %%
+# plot the cuts for Bs
+fits_res_dir = output_dir/"fit_results"
+if fits_res_dir.is_dir():
+    shutil.rmtree(fits_res_dir)
+fits_res_dir.mkdir(exist_ok=True)
+
+for is_cut_greater in [True, False]:
+    for i, vars in enumerate([["n_bkg", "n_Bd"],["n_Bs"],
+                 ["n_Bs/n_Bd"],
+                 ["n_Bs/all_Bs", "n_Bd/all_Bd"]]):
+        temp_df = df_yields.query(f"is_cut_greater=={str(is_cut_greater)}")
+        sign = ">" if is_cut_greater else "<"
+        fig = plt.figure(figsize=(8,6))
+        
+        for var in vars:
+            plt.plot(temp_df["cut"], temp_df[var], ".", label=f"{var} (ProbBs{sign}=cut)")
+            
+        plt.xlabel("cut")
+        plt.ylabel("yield")
+        #plt.yscale("log")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+        if is_cut_greater:
+            fig.savefig(fits_res_dir/f"01_greater_{i:02d}.pdf")
+        else:
+            fig.savefig(fits_res_dir/f"01_less_{i:02d}.pdf")
+        plt.close()
+
+# %%
+# Plot a "ROC-Curve"
+fig = plt.figure(figsize=(8,6))
+plt.title("similar to a ROC Curve")
+for is_cut_greater in [True,False]:
+    temp_df = df_yields.query(f"is_cut_greater=={str(is_cut_greater)}")
+    sign = ">" if is_cut_greater else "<"
+    plt.plot(temp_df["n_Bs/all_Bs"], temp_df["n_Bd/all_Bd"], ".", label=f"ProbBs{sign}=cut")
+    
+plt.xlabel("n_Bs/all_Bs")
+plt.ylabel("n_Bd/all_Bd")
 plt.legend()
 plt.tight_layout()
 plt.show()
-#plt.savefig(output_dir/"05_fits_B_M.pdf")
+fig.savefig(fits_res_dir/"02_roc.pdf")
 plt.close()
+    
 
 # %%
 #merge_pdfs(output_dir, paths.data_testing_plots_file)
