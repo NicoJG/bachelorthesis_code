@@ -58,7 +58,7 @@ feature_keys = params["feature_keys"]
 
 # %%
 # Load all relevant feature keys
-bdt_features = load_feature_keys(["features_BKG_BDT_mc"], file_path=paths.features_data_testing_file)
+bdt_features = load_feature_keys(["features_BKG_BDT"], file_path=paths.features_data_testing_file)
 
 lambda_veto_features = load_feature_keys(["features_Lambda_cut"], file_path=paths.features_data_testing_file)
 
@@ -318,3 +318,5 @@ eval_results = {
 
 with open(paths.bkg_bdt_eval_data_file, "w") as file:
     json.dump(eval_results, file, indent=2)
+
+# %%
