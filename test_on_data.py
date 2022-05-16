@@ -14,7 +14,7 @@ import shutil
 from utils.input_output import load_and_merge_from_root, load_feature_keys
 from utils import paths
 from utils.histograms import get_hist
-#from utils.merge_pdfs import merge_pdfs
+from utils.merge_pdfs import merge_pdfs
 
 # %%
 # Constants
@@ -106,7 +106,7 @@ df = load_and_merge_from_root(data_files, data_tree_keys,
 print("Load the event mc data for the tail fits...")
 df_mc = load_and_merge_from_root(mc_files, mc_tree_keys, 
                                 features=event_features_to_load,
-                                cut="N!=0",
+                                cut="(N!=0)&(B_BKGCAT==0)",
                                 n_threads=n_threads,
                                 N_entries_max_per_dataset=N_events_per_dataset,
                                 batch_size=batch_size_events)
@@ -266,8 +266,8 @@ plt.savefig(output_dir/"04_B_mass_02_with_all_cuts.pdf")
 plt.close()
 
 # Plot B mass distribution after B classification
-m_Bd = 5279.65 # MeV
-m_Bs = 5366.88 # 
+M_Bd = 5279.65 # MeV
+M_Bs = 5366.88 # 
 
 ProbBs_Bd_max = 0.1
 ProbBd_Bs_min = 0.6
@@ -282,8 +282,8 @@ labels = [f"B_ProbBs<={ProbBs_Bd_max}",
 plt.figure(figsize=(8,6))
 plt.title(r"""B mass distribution of real data ($B^0_{d/s} \rightarrow J/\Psi + K^0_S$)
 with cuts and B classification""")
-plt.axvline(m_Bd, linestyle="dashed", color="grey", label="Bd mass")
-plt.axvline(m_Bs, linestyle="dotted", color="grey", label="Bs mass")
+plt.axvline(M_Bd, linestyle="dashed", color="grey", label="Bd mass")
+plt.axvline(M_Bs, linestyle="dotted", color="grey", label="Bs mass")
 plt.hist(x, histtype="step", density=False, bins=bin_edges, label=labels)
 plt.xlabel("B mass")
 plt.ylabel("counts")
@@ -304,60 +304,156 @@ from utils.histograms import calc_pull
 from scipy.stats import norm, expon, crystalball
 from iminuit.cost import LeastSquares
 from iminuit import Minuit
-from scipy.integrate import quad
 
 print("Fit and Plot...")
 
 # %%
-
-
-# %%
-# Do fits
-
-
-# %%
 # Fit PDF Functions
-m_Bd = 5279.65 # MeV
-m_Bs = 5366.88 # MeV
+M_Bd = 5279.65 # MeV
+M_Bs = 5366.88 # MeV
 
 def pdf_bkg(x, lambda_bkg, lambda_bkg2, f_bkg):
     pdf_bkg1 = np.exp(-lambda_bkg * x)
     pdf_bkg2 = np.exp(-lambda_bkg2 * x)
     return f_bkg*pdf_bkg1 + (1-f_bkg)*pdf_bkg2
 
-def pdf_B(x, mu_B, sigma_B, sigma_B2, beta_B,beta_B2, m, m2, f_B):
-    pdf_B1 = crystalball.pdf((x-mu_B)/sigma_B, beta_B, m)
-    pdf_B2 = crystalball.pdf(-(x-mu_B)/sigma_B2, beta_B2, m2)
-    return f_B*pdf_B1 + (1-f_B)*pdf_B2
+def pdf_B(x, mu_B, sigma_B, sigma_B2, sigma_B3, beta_B,beta_B2, m_B, m_B2, f_B, f_B2):
+    pdf_B1 = crystalball.pdf((x-mu_B)/sigma_B, beta_B, m_B)
+    pdf_B2 = crystalball.pdf(-(x-mu_B)/sigma_B2, beta_B2, m_B2)
+    pdf_B3 = norm.pdf(x, mu_B, sigma_B3)
+    return f_B*f_B2*pdf_B1 + (1-f_B)*f_B2*pdf_B2 + (1-f_B)*(1-f_B2)*pdf_B3
 
-def pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, beta_Bd, beta_Bd2, m__Bd,m__Bd2, f_Bd, N_bkg, N_Bd, N_Bs):
-    mu_Bs = mu_Bd + (m_Bs-m_Bd)
+def pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, beta_Bd, beta_Bd2, m_Bd,m_Bd2, f_Bd, f_Bd2, N_bkg, N_Bd, N_Bs):
+    mu_Bs = mu_Bd + (M_Bs-M_Bd)
     pdf_bkg_ = pdf_bkg(x, lambda_bkg, lambda_bkg2, f_bkg)
-    pdf_Bd_ = pdf_B(x, mu_Bd, sigma_Bd, sigma_Bd2, beta_Bd,beta_Bd2, m__Bd, m__Bd2, f_Bd)
-    pdf_Bs_ = pdf_B(x, mu_Bs, sigma_Bd, sigma_Bd2, beta_Bd,beta_Bd2, m__Bd, m__Bd2, f_Bd)
+    pdf_Bd_ = pdf_B(x, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, beta_Bd,beta_Bd2, m_Bd, m_Bd2, f_Bd, f_Bd2)
+    pdf_Bs_ = pdf_B(x, mu_Bs, sigma_Bd, sigma_Bd2, sigma_Bd3, beta_Bd,beta_Bd2, m_Bd, m_Bd2, f_Bd, f_Bd2)
     
     return [N_bkg * pdf_bkg_ , N_Bd * pdf_Bd_ , N_Bs * pdf_Bs_]
 
-def pdf(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, beta_Bd, beta_Bd2, m__Bd,m__Bd2, f_Bd, N_bkg, N_Bd, N_Bs):
-    pdfs_ = pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, beta_Bd, beta_Bd2, m__Bd,m__Bd2, f_Bd, N_bkg, N_Bd, N_Bs)
+def pdf(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, beta_Bd, beta_Bd2, m_Bd,m_Bd2, f_Bd, f_Bd2, N_bkg, N_Bd, N_Bs):
+    pdfs_ = pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, beta_Bd, beta_Bd2, m_Bd,m_Bd2, f_Bd, f_Bd2, N_bkg, N_Bd, N_Bs)
     return np.sum(pdfs_, axis=0)
+
+# %%    
+# set the binning
+x_min = 5170. # MeV
+x_max = 5450. # MeV
+n_bins = 150
+
+bin_edges = np.linspace(x_min, x_max, n_bins+1)
+bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
+bin_widths = np.diff(bin_edges)
+
+# set the file path
+fits_dir = output_dir/"fits"
+if fits_dir.is_dir():
+    shutil.rmtree(fits_dir)
+fits_dir.mkdir(exist_ok=True)
+
+# %%
+# Fit the tails on mc data
+def pdf_B_mc(x, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, beta_Bd,beta_Bd2, m_Bd, m_Bd2, f_Bd, f_Bd2, N):
+    return N*pdf_B(x, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, beta_Bd,beta_Bd2, m_Bd, m_Bd2, f_Bd, f_Bd2)
+
+start_vals_mc = {
+    "mu_Bd" : M_Bd,
+    "sigma_Bd" : 20,
+    "sigma_Bd2" : 30,
+    "sigma_Bd3" : 30,
+    "beta_Bd" : 0.1,
+    "beta_Bd2" : 0.1,
+    "m_Bd" : 2,
+    "m_Bd2" : 3,
+    "f_Bd" : 0.3,
+    "f_Bd2" : 0.8,
+    "N" : 10000
+}
+
+param_limits_mc = {
+    "mu_Bd" : (5275, 5282),
+    "sigma_Bd" : (5,50),
+    "sigma_Bd2" : (5,50),
+    "sigma_Bd3" : (5,50),
+    "beta_Bd" : (0,5),
+    "beta_Bd2" : (0,5),
+    "m_Bd" : (1,4),
+    "m_Bd2" : (1,4),
+    "f_Bd" : (0,1),
+    "f_Bd2" : (0,1),
+    "N" : (1,np.Infinity)
+}
+
+x = bin_centers
+bin_counts, _ = np.histogram(df_mc["B_M"], bins=bin_edges)
+least_squares = LeastSquares(bin_centers, bin_counts, bin_counts**0.5, pdf_B_mc)
+minuit_mc = Minuit(least_squares, **start_vals_mc)
+
+for param, limits in param_limits_mc.items():
+    minuit_mc.limits[param] = limits
+    
+minuit_mc.migrad(ncall=10000)
+# %%
+# Plot the MC Fit
+minuit_mc.hesse()
+
+fit = pdf_B_mc(bin_centers, *minuit_mc.values)
+mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, beta_Bd,beta_Bd2, m_Bd, m_Bd2, f_Bd, f_Bd2, N = minuit_mc.values
+
+fit_Bd1 = N*f_Bd*f_Bd2*crystalball.pdf((x-mu_Bd)/sigma_Bd, beta_Bd, m_Bd)
+fit_Bd2 = N*(1-f_Bd)*f_Bd2*crystalball.pdf(-(x-mu_Bd)/sigma_Bd2, beta_Bd2, m_Bd2)
+fit_Bd3 = N*(1-f_Bd)*(1-f_Bd2)*norm.pdf(x, mu_Bd, sigma_Bd3)
+
+fig = plt.figure(figsize=(5, 7))
+fig.suptitle("Fit of the MC B mass")
+
+ax = plt.subplot2grid(shape=(4,1), loc=(0,0), rowspan=3)
+ax_pull = plt.subplot2grid(shape=(4,1), loc=(3,0), rowspan=1)
+
+ax.errorbar(bin_centers, bin_counts, yerr=bin_counts**0.5, xerr=bin_widths/2, fmt="none", color="black", label="Data", elinewidth=1.0)
+
+ax.plot(x, fit, label="Fit")
+ax.plot(x, fit_Bd1, label="Fit Bd1", alpha=0.4)
+ax.plot(x, fit_Bd2, label="Fit Bd2", alpha=0.4)
+ax.plot(x, fit_Bd3, label="Fit Bd3", alpha=0.4)
+    
+ax.set_ylim(bottom=np.min(bin_counts[bin_counts>0])-1, top=np.max(bin_counts)+1)
+ax.set_yscale("log")
+
+pull = calc_pull(bin_counts, fit, bin_counts**0.5, 0)
+
+ax_pull.axhline(0, color="black", alpha=0.5)
+ax_pull.hist(bin_centers, weights=pull, bins=bin_edges, histtype="stepfilled")
+
+ax_pull.set_xlabel("B mass")
+ax_pull.set_ylabel("pull")
+ax.set_ylabel("counts")
+
+ax.legend()
+
+fig.tight_layout()
+fig.savefig(fits_dir/"000_MC_fit.pdf")
+plt.show()
+plt.close()
 
 
 # %%
-# Fit Function
-def do_fit(x, y, start_vals, param_limits):
+# Fit Functions
+def do_fit(x, y, start_vals, param_limits, fixed_params):
     least_squares = LeastSquares(x, y, y**0.5, pdf)
     m = Minuit(least_squares, **start_vals)
     
     for param, limits in param_limits.items():
         m.limits[param] = limits
         
+    for param in fixed_params:
+        m.fixed[param] = True
+        
     m.migrad(ncall=10000)
     m.hesse()
     
     return m
 
- # %%
  # Plot the fit
 def plot_fit(minuit, bin_centers, bin_edges, bin_counts, plot_title, file_path):
     x_min = bin_edges[0]
@@ -395,6 +491,7 @@ def plot_fit(minuit, bin_centers, bin_edges, bin_counts, plot_title, file_path):
     
     fig.tight_layout()
     fig.savefig(file_path)
+    #plt.show()
     plt.close()
     
 def trapezoidal_rule(x, f):
@@ -416,19 +513,23 @@ def calc_yields(minuit, x):
     return yields
 
 # %%
-# Fit parameters:
+# Fit Params
+mc_params = minuit_mc.values
+
 start_vals = {
     "lambda_bkg" : 10**-5,
     "lambda_bkg2" : 10**-3,
     "f_bkg" : 0.5,
-    "mu_Bd" : m_Bd,
+    "mu_Bd" : M_Bd,
     "sigma_Bd" : 20,
-    "sigma_Bd2" : 30,
-    "beta_Bd" : 0.1,
-    "beta_Bd2" : 0.1,
-    "m__Bd" : 1,
-    "m__Bd2" : 5,
-    "f_Bd" : 0.5,
+    "sigma_Bd2" : 20,
+    "sigma_Bd3" : 20,
+    "beta_Bd" : mc_params["beta_Bd"],
+    "beta_Bd2" : mc_params["beta_Bd2"],
+    "m_Bd" : mc_params["m_Bd"],
+    "m_Bd2" : mc_params["m_Bd2"],
+    "f_Bd" : mc_params["f_Bd"],
+    "f_Bd2" : mc_params["f_Bd2"],
     "N_bkg" : 10000,
     "N_Bd" : 1000,
     "N_Bs" : 100
@@ -440,45 +541,21 @@ param_limits = {
     "mu_Bd" : (5275, 5282),
     "sigma_Bd" : (5,50),
     "sigma_Bd2" : (5,50),
-    "beta_Bd" : (0,30),
-    "beta_Bd2" : (0,100),
-    "m__Bd" : (1,1.1),
-    "m__Bd2" : (5,5.1),
+    "sigma_Bd3" : (5,50),
     "f_bkg" : (0,1),
-    "f_Bd" : (0,1),
     "N_bkg" : (1,np.Infinity),
     "N_Bd" : (1,np.Infinity),
     "N_Bs" : (1,np.Infinity)
 }
 
-# %%    
-# set the binning
-x_min = 5170. # MeV
-x_max = 5450. # MeV
-n_bins = 150
-
-bin_edges = np.linspace(x_min, x_max, n_bins+1)
-bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
-bin_widths = np.diff(bin_edges)
-
-# set the file path
-fits_dir = output_dir/"fits"
-if fits_dir.is_dir():
-    shutil.rmtree(fits_dir)
-fits_dir.mkdir(exist_ok=True)
-
-# %%
-# Fit the tails on mc data
-#bin_counts, _ = np.histogram(df_mc["B_M"], bins=bin_edges)
-#minuit = do_fit(bin_centers, bin_counts, start_vals, param_limits)
-#plot_fit(minuit, bin_centers, bin_edges, bin_counts, "Monte Carlo Fit",)
+fixed_params = ["beta_Bd", "beta_Bd2", "m_Bd", "m_Bd2", "f_Bd", "f_Bd2"]
 
 # %%
 # Do multiple fits
 quantiles = np.linspace(0,1,51)
 cuts = np.quantile(df_cut.query(f"(B_M>={x_min})&(B_M<={x_max})")["B_ProbBs"], quantiles)
-cut_queries = [f"B_ProbBs>={cut:.4f}" for cut in cuts[:-1]]
-cut_queries += [f"B_ProbBs<={cut:.4f}" for cut in cuts[1:]]
+cut_queries = [f"B_ProbBs>={cut:.5f}" for cut in cuts[:-1]]
+cut_queries += [f"B_ProbBs<={cut:.5f}" for cut in cuts[1:]]
 
 results = []
 
@@ -490,12 +567,16 @@ for i,cut_query in enumerate(tqdm(cut_queries)):
         print(f"No bin_counts for '{cut_query}'")
         continue
     
-    minuit = do_fit(bin_centers, bin_counts, start_vals, param_limits)
+    if i>0:
+        for key in start_vals.keys():
+            start_vals[key] = minuit.values[key]
+    
+    minuit = do_fit(bin_centers, bin_counts, start_vals, param_limits, fixed_params)
     
     yields = calc_yields(minuit, bin_centers)
 
     plot_fit(minuit, bin_centers, bin_edges, bin_counts, 
-             plot_title=f"Fit of the B mass with '{cut_query}'",
+             plot_title=f"Fit of the B mass with '{cut_query}' (valid: {minuit.valid})",
              file_path=fits_dir/f"{i:03d}.pdf")
     
     results.append({
@@ -504,8 +585,13 @@ for i,cut_query in enumerate(tqdm(cut_queries)):
         "n_Bs" : yields[2],
         "cut_query" : cut_query,
         "is_cut_greater" : ">" in cut_query,
-        "cut" : float(cut_query[10:])
+        "cut" : float(cut_query[10:]),
+        "valid_fit" : minuit.valid
     })
+    
+# %%
+# Merge the fit plots
+merge_pdfs(fits_dir, paths.plots_dir/"fits_test_on_data.pdf")
     
 # %%
 #
@@ -532,11 +618,13 @@ for is_cut_greater in [True, False]:
                  ["n_Bs/n_Bd"],
                  ["n_Bs/all_Bs", "n_Bd/all_Bd"]]):
         temp_df = df_yields.query(f"is_cut_greater=={str(is_cut_greater)}")
+        temp_df_invalid = temp_df.query("valid_fit==False")
         sign = ">" if is_cut_greater else "<"
         fig = plt.figure(figsize=(8,6))
         
         for var in vars:
             plt.plot(temp_df["cut"], temp_df[var], ".", label=f"{var} (ProbBs{sign}=cut)")
+            #plt.plot(temp_df_invalid["cut"], temp_df_invalid[var], ".", label=f"{var} (ProbBs{sign}=cut) invalid", color="red")
             
         plt.xlabel("cut")
         plt.ylabel("yield")
@@ -569,6 +657,8 @@ plt.close()
     
 
 # %%
-#merge_pdfs(output_dir, paths.data_testing_plots_file)
+# Merge the plot pdfs
+merge_pdfs(fits_res_dir, paths.plots_dir/"fit_res_test_on_data.pdf")
+merge_pdfs(output_dir, paths.data_testing_plots_file)
 
 # %%

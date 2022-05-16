@@ -67,7 +67,7 @@ lambda_veto_features = load_feature_keys(["features_Lambda_cut"], file_path=path
 print("Load the MC data...")
 df_mc = load_and_merge_from_root(mc_files, mc_tree_keys, 
                                 features=bdt_features+lambda_veto_features, 
-                                cut="B0_BKGCAT==0",
+                                cut="B_BKGCAT==0",
                                 n_threads=n_threads,
                                 N_entries_max_per_dataset=N_events_per_dataset)
 
