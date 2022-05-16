@@ -294,13 +294,15 @@ print("Fit and Plot...")
 # Get the histogram of B_M with all cuts applied (apart from the Bd/Bs classification)
 x_min = 5150. # MeV
 x_max = 5450. # MeV
-n_bins = 100
+n_bins = 150
 
 bin_edges = np.linspace(x_min, x_max, n_bins+1)
 bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
 
-#bin_counts, _ = np.histogram(df_cut.query("B_ProbBs>=0.5")["B_M"], bins=bin_edges)
-bin_counts, _ = np.histogram(df_cut["B_M"], bins=bin_edges)
+bin_widths = np.diff(bin_edges)
+
+bin_counts, _ = np.histogram(df_cut.query("B_ProbBs>=0.5")["B_M"], bins=bin_edges)
+#bin_counts, _ = np.histogram(df_cut["B_M"], bins=bin_edges)
 
 
 # %%
@@ -322,31 +324,25 @@ def pdf_part(x, sigma_part):
     pdf_part_ = norm.pdf(x, 5100, sigma_part)
     return pdf_part_
 
-def pdf_Bd(x, mu_Bd, sigma_Bd, sigma_Bd2, f_Bd):
-    pdf_Bd1 = norm.pdf(x, mu_Bd, sigma_Bd)
-    pdf_Bd2 = norm.pdf(x, mu_Bd, sigma_Bd2)
-    return f_Bd*pdf_Bd1 + (1-f_Bd)*pdf_Bd2
+def pdf_B(x, mu_B, sigma_B, sigma_B2, f_B):
+    pdf_Bd1 = norm.pdf(x, mu_B, sigma_B)
+    pdf_Bd2 = norm.pdf(x, mu_B, sigma_B2)
+    return f_B*pdf_Bd1 + (1-f_B)*pdf_Bd2
 
-def pdf_Bs(x, mu_Bd, sigma_Bd, sigma_Bd2, f_Bd):
-    mu_Bs = mu_Bd + (m_Bs - m_Bd)
+def pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, sigma_Bd, sigma_Bd2, f_Bd, N_bkg, N_Bd, N_Bs):
+    mu_Bd = m_Bd
+    mu_Bs = m_Bs
     sigma_Bs = sigma_Bd
     sigma_Bs2 = sigma_Bd2
     f_Bs = f_Bd
-    
-    pdf_Bs1 = norm.pdf(x, mu_Bs, sigma_Bs)
-    pdf_Bs2 = norm.pdf(x, mu_Bs, sigma_Bs2)
-    return f_Bs*pdf_Bs1 + (1-f_Bs)*pdf_Bs2
-
-def pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, sigma_part, mu_Bd, sigma_Bd, sigma_Bd2, f_Bd, N_bkg, N_part, N_Bd, N_Bs):
     pdf_bkg_ = pdf_bkg(x, lambda_bkg, lambda_bkg2, f_bkg)
-    pdf_part_ = pdf_part(x, sigma_part)
-    pdf_Bd_ = pdf_Bd(x, mu_Bd, sigma_Bd, sigma_Bd2, f_Bd)
-    pdf_Bs_ = pdf_Bs(x, mu_Bd, sigma_Bd, sigma_Bd2, f_Bd)
+    pdf_Bd_ = pdf_B(x, mu_Bd, sigma_Bd, sigma_Bd2, f_Bd)
+    pdf_Bs_ = pdf_B(x, mu_Bs, sigma_Bs, sigma_Bs2, f_Bs)
     
-    return [N_bkg * pdf_bkg_, N_part * pdf_part_ , N_Bd * pdf_Bd_ , N_Bs * pdf_Bs_]
+    return [N_bkg * pdf_bkg_ , N_Bd * pdf_Bd_ , N_Bs * pdf_Bs_]
 
-def pdf(x, lambda_bkg, lambda_bkg2, f_bkg, sigma_part, mu_Bd, sigma_Bd, sigma_Bd2, f_Bd, N_bkg, N_part, N_Bd, N_Bs):
-    pdfs_ = pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, sigma_part, mu_Bd, sigma_Bd, sigma_Bd2, f_Bd, N_bkg, N_part, N_Bd, N_Bs)
+def pdf(x, lambda_bkg, lambda_bkg2, f_bkg, sigma_Bd, sigma_Bd2, f_Bd, N_bkg, N_Bd, N_Bs):
+    pdfs_ = pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, sigma_Bd, sigma_Bd2, f_Bd, N_bkg, N_Bd, N_Bs)
     return np.sum(pdfs_, axis=0)
 
 least_squares = LeastSquares(bin_centers, 
@@ -359,25 +355,23 @@ m = Minuit(least_squares,
            lambda_bkg = 10**-5,
            lambda_bkg2 = 10**-3,
            f_bkg=0.5,
-           sigma_part=20,
-           mu_Bd=m_Bd,
            sigma_Bd=20,
-           sigma_Bd2=20,
+           sigma_Bd2=30,
            f_Bd=0.5,
            N_bkg=10000,
-           N_part=1000,
            N_Bd=1000,
-           N_Bs=100,)
+           N_Bs=100)
 
-m.limits["lambda_bkg"] = (10**-8, 1)
-m.limits["lambda_bkg2"] = (10**-8, 1)
-m.limits["sigma_part"] = (10,30)
-m.limits["mu_Bd"] = (5250, 5300)
+m.limits["lambda_bkg"] = (10**-7, 0.01)
+m.limits["lambda_bkg2"] = (10**-7, 0.01)
 m.limits["sigma_Bd"] = (5, 30)
-m.limits["sigma_Bd2"] = (5, 30)
+m.limits["sigma_Bd2"] = (5, 50)
 m.limits["f_bkg"] = (0,1)
 m.limits["f_Bd"] = (0,1)
-m.limits["N_Bs"] = (0,1000000)
+m.limits["N_bkg"] = (1,np.Infinity)
+m.limits["N_Bd"] = (1,np.Infinity)
+m.limits["N_Bs"] = (1,np.Infinity)
+
 
 
 # %%
@@ -395,24 +389,24 @@ fit = pdf(x_lin, *m.values)
 
 fits = pdfs(x_lin, *m.values)
 
-fit_labels = ["Fit BKG", "Fit partial", "Fit Bd", "Fit Bs"]
+fit_labels = ["Fit BKG", "Fit Bd", "Fit Bs"]
 
 
 plt.figure(figsize=(8,6))
-plt.errorbar(bin_centers, bin_counts, yerr=bin_counts**0.5, fmt=".", label="Data")
+plt.errorbar(bin_centers, bin_counts, yerr=bin_counts**0.5, xerr=bin_widths/2, fmt="none", color="black", label="Data", elinewidth=1.0)
 plt.plot(x_lin, fit, label="Fit")
 for fit_, fit_label in zip(fits, fit_labels):
     plt.plot(x_lin, fit_, label=fit_label)
 
 plt.xlabel("B mass")
 plt.ylabel("counts")
-#plt.yscale("log")
+plt.yscale("log")
 
-#plt.ylim(bottom=110, top=1500)
+plt.ylim(bottom=np.min(bin_counts[bin_counts>0]), top=np.max(bin_counts))
 
 plt.legend()
 plt.tight_layout()
-#plt.show()
+plt.show()
 plt.savefig(output_dir/"05_fits_B_M.pdf")
 plt.close()
 
