@@ -35,7 +35,7 @@ assert not paths.bkg_bdt_model_file.is_file(), f"The model '{paths.bkg_bdt_model
 mc_files = paths.B2JpsiKS_mc_files
 data_files = paths.B2JpsiKS_data_files
 
-mc_tree_key = "inclusive_Jpsi/DecayTree"
+mc_tree_key = "Bd2JpsiKSDetached/DecayTree"
 data_tree_key = "Bd2JpsiKSDetached/DecayTree"
 
 mc_tree_keys = [mc_tree_key]*len(mc_files)
@@ -65,9 +65,7 @@ params = {
 
 # %%
 # Load all relevant feature keys
-bdt_features_mc = load_feature_keys(["features_BKG_BDT_mc"], file_path=paths.features_data_testing_file)
-
-bdt_features_data = load_feature_keys(["features_BKG_BDT_data"], file_path=paths.features_data_testing_file)
+bdt_features = load_feature_keys(["features_BKG_BDT"], file_path=paths.features_data_testing_file)
 
 lambda_veto_features = load_feature_keys(["features_Lambda_cut"], file_path=paths.features_data_testing_file)
 
@@ -95,14 +93,14 @@ with open(paths.internal_base_dir/"temp"/"data_keys.json", "w") as file:
 # Load the data for the BDT
 print("Load the MC data...")
 df_mc = load_and_merge_from_root(mc_files, mc_tree_keys, 
-                                features=bdt_features_mc+lambda_veto_features, 
-                                cut="B0_BKGCAT==0",
+                                features=bdt_features+lambda_veto_features, 
+                                cut="B_BKGCAT==0",
                                 n_threads=n_threads,
                                 N_entries_max_per_dataset=N_events_per_dataset)
 
 print("Load the Data...")
 df_data = load_and_merge_from_root(data_files, data_tree_keys, 
-                                features=bdt_features_data+lambda_veto_features, 
+                                features=bdt_features+lambda_veto_features, 
                                 cut="B_M>5450", 
                                 n_threads=n_threads,
                                 N_entries_max_per_dataset=N_events_per_dataset)
@@ -111,9 +109,6 @@ print(f"Events in MC: {len(df_mc)}")
 print(f"Events in data: {len(df_data)}")
 
 # %%
-# Rename the MC columns to fit the data
-df_mc.rename(columns={mc:data for mc,data in zip(bdt_features_mc, bdt_features_data)}, inplace=True)
-
 assert set(df_data.columns) == set(df_mc.columns)
 
 # %%
@@ -125,7 +120,7 @@ df_mc[label_key] = 1
 # %%
 # Save the feature keys
 params["label_key"] = label_key
-params["feature_keys"] = bdt_features_data
+params["feature_keys"] = bdt_features
 
 # %%
 # Merge mc and data
@@ -180,10 +175,10 @@ df["lambda_veto"] = df["lambda_veto"].astype(int)
 idxs = df.query("lambda_veto==0").index
 idxs_train, idxs_test = train_test_split(idxs, test_size=0.4, shuffle=True, stratify=df.loc[idxs,label_key])
 
-X_train = df.loc[idxs_train,bdt_features_data]
+X_train = df.loc[idxs_train,bdt_features]
 y_train = df.loc[idxs_train,label_key]
 
-X_test = df.loc[idxs_test,bdt_features_data]
+X_test = df.loc[idxs_test,bdt_features]
 y_test = df.loc[idxs_test,label_key]
 
 # %%

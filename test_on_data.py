@@ -49,7 +49,7 @@ data_tree_keys = [data_tree_key]*len(data_files)
 # Load all relevant feature keys
 print("Load feature keys...")
 # Event features:
-bdt_features_data = load_feature_keys(["features_BKG_BDT_data"], file_path=paths.features_data_testing_file)
+bdt_features = load_feature_keys(["features_BKG_BDT"], file_path=paths.features_data_testing_file)
 
 lambda_veto_features = load_feature_keys(["features_Lambda_cut"], file_path=paths.features_data_testing_file)
 
@@ -61,7 +61,7 @@ main_features = load_feature_keys(["main_features"], file_path=paths.features_da
 
 # Check if all features are in the dataset
 event_features_to_load = []
-event_features_to_load += bdt_features_data 
+event_features_to_load += bdt_features
 event_features_to_load += lambda_veto_features 
 event_features_to_load += features_other_cuts
 event_features_to_load += main_features
@@ -118,7 +118,7 @@ with open(paths.bkg_bdt_model_file, "rb") as file:
     model_BKG_BDT = pickle.load(file)
     
 # Apply the BKG BDT
-df["BKG_BDT"] = model_BKG_BDT.predict_proba(df[bdt_features_data])[:,1]
+df["BKG_BDT"] = model_BKG_BDT.predict_proba(df[bdt_features])[:,1]
 
 # %%
 # Prepare the veto of the Lambda Background
@@ -324,25 +324,22 @@ def pdf_part(x, sigma_part):
     pdf_part_ = norm.pdf(x, 5100, sigma_part)
     return pdf_part_
 
-def pdf_B(x, mu_B, sigma_B, sigma_B2, f_B):
+def pdf_B(x, mu_B, sigma_B, sigma_B2, sigma_B3, f_B, f_B2):
     pdf_Bd1 = norm.pdf(x, mu_B, sigma_B)
     pdf_Bd2 = norm.pdf(x, mu_B, sigma_B2)
-    return f_B*pdf_Bd1 + (1-f_B)*pdf_Bd2
+    pdf_Bd3 = norm.pdf(x, mu_B, sigma_B3)
+    return f_B*pdf_Bd1 + (1-f_B)*(f_B2)*pdf_Bd2 + (1-f_B)*(1-f_B2)*pdf_Bd3
 
-def pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, sigma_Bd, sigma_Bd2, f_Bd, N_bkg, N_Bd, N_Bs):
-    mu_Bd = m_Bd
-    mu_Bs = m_Bs
-    sigma_Bs = sigma_Bd
-    sigma_Bs2 = sigma_Bd2
-    f_Bs = f_Bd
+def pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, f_Bd, f_Bd2, N_bkg, N_Bd, N_Bs):
+    mu_Bs = mu_Bd + (m_Bs-m_Bd)
     pdf_bkg_ = pdf_bkg(x, lambda_bkg, lambda_bkg2, f_bkg)
-    pdf_Bd_ = pdf_B(x, mu_Bd, sigma_Bd, sigma_Bd2, f_Bd)
-    pdf_Bs_ = pdf_B(x, mu_Bs, sigma_Bs, sigma_Bs2, f_Bs)
+    pdf_Bd_ = pdf_B(x, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, f_Bd, f_Bd2)
+    pdf_Bs_ = pdf_B(x, mu_Bs, sigma_Bd, sigma_Bd2, sigma_Bd3, f_Bd, f_Bd2)
     
     return [N_bkg * pdf_bkg_ , N_Bd * pdf_Bd_ , N_Bs * pdf_Bs_]
 
-def pdf(x, lambda_bkg, lambda_bkg2, f_bkg, sigma_Bd, sigma_Bd2, f_Bd, N_bkg, N_Bd, N_Bs):
-    pdfs_ = pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, sigma_Bd, sigma_Bd2, f_Bd, N_bkg, N_Bd, N_Bs)
+def pdf(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, f_Bd, f_Bd2, N_bkg, N_Bd, N_Bs):
+    pdfs_ = pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, f_Bd, f_Bd2, N_bkg, N_Bd, N_Bs)
     return np.sum(pdfs_, axis=0)
 
 least_squares = LeastSquares(bin_centers, 
@@ -355,19 +352,25 @@ m = Minuit(least_squares,
            lambda_bkg = 10**-5,
            lambda_bkg2 = 10**-3,
            f_bkg=0.5,
+           mu_Bd=m_Bd,
            sigma_Bd=20,
            sigma_Bd2=30,
+           sigma_Bd3=40,
            f_Bd=0.5,
+           f_Bd2=0.5,
            N_bkg=10000,
            N_Bd=1000,
            N_Bs=100)
 
 m.limits["lambda_bkg"] = (10**-7, 0.01)
 m.limits["lambda_bkg2"] = (10**-7, 0.01)
+m.limits["mu_Bd"] = (5275, 5282)
 m.limits["sigma_Bd"] = (5, 30)
 m.limits["sigma_Bd2"] = (5, 50)
+m.limits["sigma_Bd3"] = (5, 50)
 m.limits["f_bkg"] = (0,1)
 m.limits["f_Bd"] = (0,1)
+m.limits["f_Bd2"] = (0,1)
 m.limits["N_bkg"] = (1,np.Infinity)
 m.limits["N_Bd"] = (1,np.Infinity)
 m.limits["N_Bs"] = (1,np.Infinity)
@@ -407,7 +410,7 @@ plt.ylim(bottom=np.min(bin_counts[bin_counts>0]), top=np.max(bin_counts))
 plt.legend()
 plt.tight_layout()
 plt.show()
-plt.savefig(output_dir/"05_fits_B_M.pdf")
+#plt.savefig(output_dir/"05_fits_B_M.pdf")
 plt.close()
 
 # %%

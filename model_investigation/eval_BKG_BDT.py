@@ -35,7 +35,7 @@ paths.update_bkg_bdt_name(model_name)
 mc_files = paths.B2JpsiKS_mc_files
 data_files = paths.B2JpsiKS_data_files
 
-mc_tree_key = "inclusive_Jpsi/DecayTree"
+mc_tree_key = "Bd2JpsiKSDetached/DecayTree"
 data_tree_key = "Bd2JpsiKSDetached/DecayTree"
 
 mc_tree_keys = [mc_tree_key]*len(mc_files)
@@ -58,9 +58,7 @@ feature_keys = params["feature_keys"]
 
 # %%
 # Load all relevant feature keys
-bdt_features_mc = load_feature_keys(["features_BKG_BDT_mc"], file_path=paths.features_data_testing_file)
-
-bdt_features_data = load_feature_keys(["features_BKG_BDT_data"], file_path=paths.features_data_testing_file)
+bdt_features = load_feature_keys(["features_BKG_BDT_mc"], file_path=paths.features_data_testing_file)
 
 lambda_veto_features = load_feature_keys(["features_Lambda_cut"], file_path=paths.features_data_testing_file)
 
@@ -68,14 +66,14 @@ lambda_veto_features = load_feature_keys(["features_Lambda_cut"], file_path=path
 # Load the data for the BDT
 print("Load the MC data...")
 df_mc = load_and_merge_from_root(mc_files, mc_tree_keys, 
-                                features=bdt_features_mc+lambda_veto_features, 
+                                features=bdt_features+lambda_veto_features, 
                                 cut="B0_BKGCAT==0",
                                 n_threads=n_threads,
                                 N_entries_max_per_dataset=N_events_per_dataset)
 
 print("Load the Data...")
 df_data = load_and_merge_from_root(data_files, data_tree_keys, 
-                                features=bdt_features_data+lambda_veto_features, 
+                                features=bdt_features+lambda_veto_features, 
                                 cut="B_M>5450", 
                                 n_threads=n_threads,
                                 N_entries_max_per_dataset=N_events_per_dataset)
@@ -84,9 +82,6 @@ print(f"Events in MC: {len(df_mc)}")
 print(f"Events in data: {len(df_data)}")
 
 # %%
-# Rename the MC columns to fit the data
-df_mc.rename(columns={mc:data for mc,data in zip(bdt_features_mc, bdt_features_data)}, inplace=True)
-
 assert set(df_data.columns) == set(df_mc.columns)
 
 # %%
