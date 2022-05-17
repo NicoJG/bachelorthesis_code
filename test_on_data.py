@@ -404,7 +404,7 @@ fit_Bd1 = N*f_Bd*f_Bd2*crystalball.pdf((x-mu_Bd)/sigma_Bd, beta_Bd, m_Bd)
 fit_Bd2 = N*(1-f_Bd)*f_Bd2*crystalball.pdf(-(x-mu_Bd)/sigma_Bd2, beta_Bd2, m_Bd2)
 fit_Bd3 = N*(1-f_Bd)*(1-f_Bd2)*norm.pdf(x, mu_Bd, sigma_Bd3)
 
-fig = plt.figure(figsize=(5, 7))
+fig = plt.figure(figsize=(8, 7))
 fig.suptitle("Fit of the MC B mass")
 
 ax = plt.subplot2grid(shape=(4,1), loc=(0,0), rowspan=3)
@@ -418,6 +418,7 @@ ax.plot(x, fit_Bd2, label="Fit Bd2", alpha=0.4)
 ax.plot(x, fit_Bd3, label="Fit Bd3", alpha=0.4)
     
 ax.set_ylim(bottom=np.min(bin_counts[bin_counts>0])-1, top=np.max(bin_counts)+1)
+ax.set_xlim(bin_edges[0], bin_edges[-1])
 ax.set_yscale("log")
 
 pull = calc_pull(bin_counts, fit, bin_counts**0.5, 0)
@@ -464,7 +465,7 @@ def plot_fit(minuit, bin_centers, bin_edges, bin_counts, plot_title, file_path):
     fits = pdfs(x, *minuit.values)
     fit_labels = ["Fit BKG", "Fit Bd", "Fit Bs"]
     
-    fig = plt.figure(figsize=(5, 7))
+    fig = plt.figure(figsize=(8, 7))
     fig.suptitle(plot_title)
     
     ax = plt.subplot2grid(shape=(4,1), loc=(0,0), rowspan=3)
@@ -599,8 +600,31 @@ df_yields = pd.DataFrame(results)
 print(df_yields)
 
 df_yields["n_Bs/n_Bd"] = df_yields["n_Bs"] / df_yields["n_Bd"]
-df_yields["n_Bs/all_Bs"] = df_yields["n_Bs"] / df_yields.loc[0,"n_Bs"]
+df_yields["n_Bd/n_Bs"] = df_yields["n_Bd"] / df_yields["n_Bs"]
 df_yields["n_Bd/all_Bd"] = df_yields["n_Bd"] / df_yields.loc[0,"n_Bd"]
+df_yields["n_Bs/all_Bs"] = df_yields["n_Bs"] / df_yields.loc[0,"n_Bs"]
+
+# %%
+# Calculate the uncertainties
+df_yields["n_bkg err"] = np.sqrt(df_yields["n_bkg"])
+
+# https://lss.fnal.gov/archive/test-tm/2000/fermilab-tm-2286-cd.pdf 
+# Chapter 2.2
+#df_yields["n_Bd err"] = np.sqrt(df_yields["n_Bd/all_Bd"]*(1-df_yields["n_Bd/all_Bd"])*df_yields.loc[0,"n_Bd"])
+#df_yields["n_Bs err"] = np.sqrt(df_yields["n_Bs/all_Bs"]*(1-df_yields["n_Bs/all_Bs"])*df_yields.loc[0,"n_Bs"])
+
+#df_yields["n_Bd/all_Bd err"] = df_yields["n_Bd err"] / df_yields.loc[0,"n_Bd"]
+#df_yields["n_Bs/all_Bs err"] = df_yields["n_Bs err"] / df_yields.loc[0,"n_Bs"]
+
+df_yields["n_Bd/all_Bd err"] = np.sqrt(df_yields["n_Bd"]*(1-df_yields["n_Bd/all_Bd"]))/df_yields.loc[0,"n_Bd"]
+df_yields["n_Bs/all_Bs err"] = np.sqrt(df_yields["n_Bs"]*(1-df_yields["n_Bs/all_Bs"]))/df_yields.loc[0,"n_Bs"]
+
+df_yields["n_Bd err"] = np.sqrt(df_yields["n_Bd"])
+df_yields["n_Bs err"] = np.sqrt(df_yields["n_Bs"])
+
+# https://www.statisticshowto.com/error-propagation/#multiplication
+df_yields["n_Bs/n_Bd err"] = np.sqrt(df_yields["n_Bs err"]**2/df_yields["n_Bs"]**2 +  df_yields["n_Bd err"]**2/df_yields["n_Bd"]**2) * df_yields["n_Bs/n_Bd"]
+df_yields["n_Bd/n_Bs err"] = np.sqrt(df_yields["n_Bd err"]**2/df_yields["n_Bd"]**2 +  df_yields["n_Bs err"]**2/df_yields["n_Bs"]**2) * df_yields["n_Bd/n_Bs"]
 
 # %%
 df_yields_less = df_yields.query("is_cut_greater==False")
@@ -615,17 +639,19 @@ fits_res_dir.mkdir(exist_ok=True)
 
 for is_cut_greater in [True, False]:
     for i, vars in enumerate([["n_bkg", "n_Bd"],["n_Bs"],
-                 ["n_Bs/n_Bd"],
+                 ["n_Bs/n_Bd"],["n_Bd/n_Bs"],
                  ["n_Bs/all_Bs", "n_Bd/all_Bd"]]):
         temp_df = df_yields.query(f"is_cut_greater=={str(is_cut_greater)}")
         temp_df_invalid = temp_df.query("valid_fit==False")
         sign = ">" if is_cut_greater else "<"
-        fig = plt.figure(figsize=(8,6))
+        fig = plt.figure(figsize=(8,8))
         
         for var in vars:
-            plt.plot(temp_df["cut"], temp_df[var], ".", label=f"{var} (ProbBs{sign}=cut)")
+            plt.errorbar(temp_df["cut"], temp_df[var], yerr=temp_df[var+" err"], fmt=".", elinewidth=1, label=f"{var} (ProbBs{sign}=cut)")
             #plt.plot(temp_df_invalid["cut"], temp_df_invalid[var], ".", label=f"{var} (ProbBs{sign}=cut) invalid", color="red")
             
+        if "n_Bs/all_Bs" in vars:
+            plt.gca().set_aspect('equal', adjustable='box')
         plt.xlabel("cut")
         plt.ylabel("yield")
         #plt.yscale("log")
@@ -640,12 +666,15 @@ for is_cut_greater in [True, False]:
 
 # %%
 # Plot a "ROC-Curve"
-fig = plt.figure(figsize=(8,6))
+fig = plt.figure(figsize=(8,8))
 plt.title("similar to a ROC Curve")
 for is_cut_greater in [True,False]:
     temp_df = df_yields.query(f"is_cut_greater=={str(is_cut_greater)}")
     sign = ">" if is_cut_greater else "<"
-    plt.plot(temp_df["n_Bs/all_Bs"], temp_df["n_Bd/all_Bd"], ".", label=f"ProbBs{sign}=cut")
+    plt.errorbar(temp_df["n_Bs/all_Bs"], temp_df["n_Bd/all_Bd"], xerr=temp_df["n_Bs/all_Bs err"], yerr=temp_df["n_Bd/all_Bd err"], fmt=".", elinewidth=1, label=f"ProbBs{sign}=cut")
+
+
+plt.gca().set_aspect('equal', adjustable='box')
     
 plt.xlabel("n_Bs/all_Bs")
 plt.ylabel("n_Bd/all_Bd")
