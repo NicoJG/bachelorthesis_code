@@ -226,6 +226,29 @@ plt.savefig(output_dir/"01_selected_importances_vertical.pdf")
 plt.close()
 
 # %%
+# Sort the features
+df_fi.sort_values(by="xgb_gain", ascending=False, inplace=True)
+
+# %%
+# Plot the feature importances horizontal
+fig, axs = plt.subplots(2,1, 
+                        figsize=(len(feature_keys)/1.5, 10), 
+                        sharex=True)
+
+for i, (ax, metric) in enumerate(zip(axs, ["xgb_gain", "perm_roc_auc"])):
+    ax.set_title(f"feature importance metric: {metric}")
+    if f"{metric}_std" in df_fi.columns:
+        err = df_fi[f"{metric}_std"]
+    else:
+        err = None
+    ax.bar(df_fi.index, df_fi[metric], yerr=err, color=f"C{i}", alpha=0.8)
+    ax.set_ylabel(metric)
+    ax.tick_params(axis="x", labelbottom=True, labelrotation=60)
+
+plt.tight_layout()
+plt.savefig(output_dir/"02_main_feature_importances.pdf")
+plt.close()
+# %%
 # Merge all PDFs
 merge_pdfs(output_dir,paths.ss_classifier_feature_importance_plots_file)
 

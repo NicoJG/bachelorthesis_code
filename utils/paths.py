@@ -76,7 +76,7 @@ B2JpsiKS_data_dir = Path("/ceph/FlavourTagging/NTuples/ift/data/Nov_2021_wgprodu
 
 B2JpsiKS_mc_files = [B2JpsiKS_mc_dir/"DTT_MC_Bd2JpsiKS_2016_28r2_Sim09h_DST.root",
                      B2JpsiKS_mc_dir/"DTT_MC_Bd2JpsiKS_2017_29r2_Sim09h_DST.root",
-                     B2JpsiKS_mc_dir/"DTT_MC_Bd2JpsiKS_2017_29r2_Sim09h_DST.root",]
+                     B2JpsiKS_mc_dir/"DTT_MC_Bd2JpsiKS_2018_34_Sim09h_DST.root",]
 B2JpsiKS_data_files = [B2JpsiKS_data_dir/"DTT_2016_Reco16Strip28r2_DIMUON_MagDown.root",
                        B2JpsiKS_data_dir/"DTT_2017_Reco17Strip29r2_DIMUON_MagDown.root",
                        B2JpsiKS_data_dir/"DTT_2018_Reco18Strip34_DIMUON_MagDown.root",
