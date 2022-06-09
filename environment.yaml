@@ -1,4 +1,4 @@
-name: ba_nguth
+name: ba_nguth2
 
 channels:
   - defaults
@@ -40,3 +40,4 @@ dependencies:
   # Snakemake
   - bioconda::snakemake=7.6
   - htcondor=9.4
+  - uncertainties

@@ -254,11 +254,12 @@ plt.close()
 
 # Plot B mass distribution after all cuts
 plt.figure(figsize=(8,6))
-plt.title("B mass distribution with all cuts applied (lambda, bkg_bdt, misid)")
-plt.hist(df_cut["B_M"], histtype="step", bins=bin_edges, label="B_M")
+plt.title("B mass distribution with and without all cuts applied (lambda, bkg_bdt, misid)")
+plt.hist(df["B_M"], histtype="step", bins=bin_edges, label="full dataset")
+plt.hist(df_cut["B_M"], histtype="step", bins=bin_edges, label="after background reduction")
 plt.xlabel("B mass")
 plt.ylabel("counts")
-#plt.yscale("log")
+plt.yscale("log")
 
 plt.legend()
 plt.tight_layout()
@@ -304,32 +305,69 @@ from utils.histograms import calc_pull
 from scipy.stats import norm, expon, crystalball
 from iminuit.cost import LeastSquares
 from iminuit import Minuit
+import iminuit
+import uncertainties
+from uncertainties import unumpy as unp
+import scipy.special
 
 print("Fit and Plot...")
+
+# %%
+# Scipy PDFs for uncertainties
+# https://github.com/scipy/scipy/blob/v1.8.1/scipy/stats/_continuous_distns.py#L8913-L9054
+def pdf_crystalball(x,beta,m):
+    # WORKAROUND
+    if hasattr(beta, "nominal_value"):
+        beta_v = beta.nominal_value
+    else:
+        beta_v = beta
+    #if hasattr(m, "nominal_value"):
+    #    m = m.nominal_value
+        
+    N = 1.0 / (m/beta / (m-1) * unp.exp(-beta**2 / 2.0) + np.sqrt(2*np.pi) * scipy.special.ndtr(beta_v))
+    def rhs(x, beta, m):
+            return unp.exp(-x**2 / 2)
+
+    def lhs(x, beta, m):
+        return ((m/beta)**m * unp.exp(-beta**2 / 2.0) * (m/beta - beta - x)**(-m))
+    
+    temp = np.zeros_like(x)
+    temp[x > -beta] = rhs(x[x > -beta], beta, m)
+    temp[x <= -beta] = lhs(x[x <= -beta], beta, m)
+
+    return N * temp
+    
+# https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.norm.html
+def pdf_norm(x, mu, sigma):
+    return unp.exp(-((x-mu)/sigma)**2/2)/(np.sqrt(2)*np.pi*sigma)
 
 # %%
 # Fit PDF Functions
 M_Bd = 5279.65 # MeV
 M_Bs = 5366.88 # MeV
 
+N_ges = 1
+
 def pdf_bkg(x, lambda_bkg, lambda_bkg2, f_bkg):
-    pdf_bkg1 = np.exp(-lambda_bkg * x)
-    pdf_bkg2 = np.exp(-lambda_bkg2 * x)
+    pdf_bkg1 = unp.exp(-lambda_bkg * x)
+    pdf_bkg2 = unp.exp(-lambda_bkg2 * x)
     return f_bkg*pdf_bkg1 + (1-f_bkg)*pdf_bkg2
 
 def pdf_B(x, mu_B, sigma_B, sigma_B2, sigma_B3, beta_B,beta_B2, m_B, m_B2, f_B, f_B2):
-    pdf_B1 = crystalball.pdf((x-mu_B)/sigma_B, beta_B, m_B)
-    pdf_B2 = crystalball.pdf(-(x-mu_B)/sigma_B2, beta_B2, m_B2)
-    pdf_B3 = norm.pdf(x, mu_B, sigma_B3)
+    pdf_B1 = pdf_crystalball((x-mu_B)/sigma_B, beta_B, m_B)
+    pdf_B2 = pdf_crystalball(-(x-mu_B)/sigma_B2, beta_B2, m_B2)
+    pdf_B3 = pdf_norm(x, mu_B, sigma_B3)
     return f_B*f_B2*pdf_B1 + (1-f_B)*f_B2*pdf_B2 + (1-f_B)*(1-f_B2)*pdf_B3
 
 def pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, beta_Bd, beta_Bd2, m_Bd,m_Bd2, f_Bd, f_Bd2, N_bkg, N_Bd, N_Bs):
+    global N_ges
+    N_ges=1
     mu_Bs = mu_Bd + (M_Bs-M_Bd)
     pdf_bkg_ = pdf_bkg(x, lambda_bkg, lambda_bkg2, f_bkg)
     pdf_Bd_ = pdf_B(x, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, beta_Bd,beta_Bd2, m_Bd, m_Bd2, f_Bd, f_Bd2)
     pdf_Bs_ = pdf_B(x, mu_Bs, sigma_Bd, sigma_Bd2, sigma_Bd3, beta_Bd,beta_Bd2, m_Bd, m_Bd2, f_Bd, f_Bd2)
     
-    return [N_bkg * pdf_bkg_ , N_Bd * pdf_Bd_ , N_Bs * pdf_Bs_]
+    return [N_ges*N_bkg* pdf_bkg_ ,N_ges* N_Bd * pdf_Bd_ , N_ges*N_Bs * pdf_Bs_]
 
 def pdf(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, beta_Bd, beta_Bd2, m_Bd,m_Bd2, f_Bd, f_Bd2, N_bkg, N_Bd, N_Bs):
     pdfs_ = pdfs(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, beta_Bd, beta_Bd2, m_Bd,m_Bd2, f_Bd, f_Bd2, N_bkg, N_Bd, N_Bs)
@@ -372,15 +410,15 @@ start_vals_mc = {
 
 param_limits_mc = {
     "mu_Bd" : (5275, 5282),
-    "sigma_Bd" : (5,50),
-    "sigma_Bd2" : (5,50),
-    "sigma_Bd3" : (5,50),
+    "sigma_Bd" : (5,20),
+    "sigma_Bd2" : (5,20),
+    "sigma_Bd3" : (5,9),
     "beta_Bd" : (0,5),
     "beta_Bd2" : (0,5),
     "m_Bd" : (1,4),
     "m_Bd2" : (1,4),
-    "f_Bd" : (0,1),
-    "f_Bd2" : (0,1),
+    "f_Bd" : (0.01,0.5),
+    "f_Bd2" : (0.01,0.5),
     "N" : (1,np.Infinity)
 }
 
@@ -441,16 +479,22 @@ plt.close()
 # %%
 # Fit Functions
 def do_fit(x, y, start_vals, param_limits, fixed_params):
+    global N_ges
+    
+    N_ges = 1#np.sum(y)
+    
     least_squares = LeastSquares(x, y, y**0.5, pdf)
     m = Minuit(least_squares, **start_vals)
+    m.errordef = iminuit.Minuit.LEAST_SQUARES
     
     for param, limits in param_limits.items():
         m.limits[param] = limits
         
     for param in fixed_params:
         m.fixed[param] = True
-        
-    m.migrad(ncall=10000)
+     
+    m.migrad(ncall=10000)   
+    #display(m.migrad(ncall=10000))
     m.hesse()
     
     return m
@@ -471,11 +515,12 @@ def plot_fit(minuit, bin_centers, bin_edges, bin_counts, plot_title, file_path):
     ax = plt.subplot2grid(shape=(4,1), loc=(0,0), rowspan=3)
     ax_pull = plt.subplot2grid(shape=(4,1), loc=(3,0), rowspan=1)
     
-    ax.errorbar(bin_centers, bin_counts, yerr=bin_counts**0.5, xerr=bin_widths/2, fmt="none", color="black", label="Data", elinewidth=1.0)
     ax.plot(x, fit, label="Fit")
     for fit_, fit_label in zip(fits, fit_labels):
         ax.plot(x, fit_, label=fit_label)
         
+    ax.errorbar(bin_centers, bin_counts, yerr=bin_counts**0.5, xerr=bin_widths/2, fmt="none", color="black", label="Data", elinewidth=1.0)
+    
     ax.set_ylim(bottom=np.min(bin_counts[bin_counts>0])-1, top=np.max(bin_counts)+1)
     ax.set_yscale("log")
 
@@ -504,7 +549,15 @@ def trapezoidal_rule(x, f):
     return np.sum((b - a)*(f_a + f_b)/2)
 
 def calc_yields(minuit, x):
-    fits = pdfs(x, *minuit.values)
+    cov = np.array(minuit.covariance)
+    cov_mc = np.array(minuit_mc.covariance)
+    
+    # set the fixed mc params covariance
+    cov[7:13,7:13] = cov_mc[4:10,4:10]
+        
+    params = uncertainties.correlated_values(np.array(minuit.values), cov)
+    #params = minuit.values
+    fits = pdfs(x, *params)
     
     yields = []
     
@@ -516,40 +569,41 @@ def calc_yields(minuit, x):
 # %%
 # Fit Params
 mc_params = minuit_mc.values
+mc_params_err = minuit_mc.errors
 
 start_vals = {
     "lambda_bkg" : 10**-5,
-    "lambda_bkg2" : 10**-3,
-    "f_bkg" : 0.5,
+    "lambda_bkg2" : 0,#10**-3,
+    "f_bkg" : 1,#0.5,
     "mu_Bd" : M_Bd,
-    "sigma_Bd" : 20,
-    "sigma_Bd2" : 20,
-    "sigma_Bd3" : 20,
+    "sigma_Bd" : mc_params["sigma_Bd"],
+    "sigma_Bd2" : mc_params["sigma_Bd2"],
+    "sigma_Bd3" : mc_params["sigma_Bd3"],
     "beta_Bd" : mc_params["beta_Bd"],
     "beta_Bd2" : mc_params["beta_Bd2"],
     "m_Bd" : mc_params["m_Bd"],
     "m_Bd2" : mc_params["m_Bd2"],
     "f_Bd" : mc_params["f_Bd"],
     "f_Bd2" : mc_params["f_Bd2"],
-    "N_bkg" : 10000,
-    "N_Bd" : 1000,
-    "N_Bs" : 100
+    "N_bkg" : 0.4,
+    "N_Bd" : 0.5,
+    "N_Bs" : 0.1
 }
 
 param_limits = {
-    "lambda_bkg" : (10**-7, 0.01),
-    "lambda_bkg2" : (10**-7, 0.01),
+    "lambda_bkg" : (10**-4, 0.01),
+    #"lambda_bkg2" : (10**-7, 0.01),
     "mu_Bd" : (5275, 5282),
-    "sigma_Bd" : (5,50),
-    "sigma_Bd2" : (5,50),
-    "sigma_Bd3" : (5,50),
-    "f_bkg" : (0,1),
-    "N_bkg" : (1,np.Infinity),
-    "N_Bd" : (1,np.Infinity),
-    "N_Bs" : (1,np.Infinity)
+    "sigma_Bd" : (5,15),
+    "sigma_Bd2" : (5,15),
+    "sigma_Bd3" : (5,10),
+    #"f_bkg" : (0,1),
+    "N_bkg" :(100,10**7),
+    "N_Bd" : (10,10**7),
+    "N_Bs" : (1,100000)
 }
 
-fixed_params = ["beta_Bd", "beta_Bd2", "m_Bd", "m_Bd2", "f_Bd", "f_Bd2"]
+fixed_params = ["f_bkg","lambda_bkg2","beta_Bd", "beta_Bd2", "m_Bd", "m_Bd2", "f_Bd", "f_Bd2"]
 
 # %%
 # Do multiple fits
@@ -571,13 +625,20 @@ for i,cut_query in enumerate(tqdm(cut_queries)):
     if i>0:
         for key in start_vals.keys():
             start_vals[key] = minuit.values[key]
+            
+    #start_vals["N_Bd"] = 0.9
+    #start_vals["N_bkg"] = 0.1
     
     minuit = do_fit(bin_centers, bin_counts, start_vals, param_limits, fixed_params)
+    
+    print(f"valid: {minuit.valid} \taccurate: {minuit.accurate}")
+    if not (minuit.valid and minuit.accurate):
+        continue
     
     yields = calc_yields(minuit, bin_centers)
 
     plot_fit(minuit, bin_centers, bin_edges, bin_counts, 
-             plot_title=f"Fit of the B mass with '{cut_query}' (valid: {minuit.valid})",
+             plot_title=f"Fit of the B mass with '{cut_query}' (valid: {minuit.valid}, accurate: {minuit.accurate})",
              file_path=fits_dir/f"{i:03d}.pdf")
     
     results.append({
@@ -606,7 +667,7 @@ df_yields["n_Bs/all_Bs"] = df_yields["n_Bs"] / df_yields.loc[0,"n_Bs"]
 
 # %%
 # Calculate the uncertainties
-df_yields["n_bkg err"] = np.sqrt(df_yields["n_bkg"])
+# df_yields["n_bkg err"] = unp.sqrt(df_yields["n_bkg"])
 
 # https://lss.fnal.gov/archive/test-tm/2000/fermilab-tm-2286-cd.pdf 
 # Chapter 2.2
@@ -616,15 +677,15 @@ df_yields["n_bkg err"] = np.sqrt(df_yields["n_bkg"])
 #df_yields["n_Bd/all_Bd err"] = df_yields["n_Bd err"] / df_yields.loc[0,"n_Bd"]
 #df_yields["n_Bs/all_Bs err"] = df_yields["n_Bs err"] / df_yields.loc[0,"n_Bs"]
 
-df_yields["n_Bd/all_Bd err"] = np.sqrt(df_yields["n_Bd"]*(1-df_yields["n_Bd/all_Bd"]))/df_yields.loc[0,"n_Bd"]
-df_yields["n_Bs/all_Bs err"] = np.sqrt(df_yields["n_Bs"]*(1-df_yields["n_Bs/all_Bs"]))/df_yields.loc[0,"n_Bs"]
+# df_yields["n_Bd/all_Bd err"] = unp.sqrt(df_yields["n_Bd"]*(1-df_yields["n_Bd/all_Bd"]))/df_yields.loc[0,"n_Bd"]
+# df_yields["n_Bs/all_Bs err"] = unp.sqrt(df_yields["n_Bs"]*(1-df_yields["n_Bs/all_Bs"]))/df_yields.loc[0,"n_Bs"]
 
-df_yields["n_Bd err"] = np.sqrt(df_yields["n_Bd"])
-df_yields["n_Bs err"] = np.sqrt(df_yields["n_Bs"])
+# df_yields["n_Bd err"] = unp.sqrt(df_yields["n_Bd"])
+# df_yields["n_Bs err"] = unp.sqrt(df_yields["n_Bs"])
 
 # https://www.statisticshowto.com/error-propagation/#multiplication
-df_yields["n_Bs/n_Bd err"] = np.sqrt(df_yields["n_Bs err"]**2/df_yields["n_Bs"]**2 +  df_yields["n_Bd err"]**2/df_yields["n_Bd"]**2) * df_yields["n_Bs/n_Bd"]
-df_yields["n_Bd/n_Bs err"] = np.sqrt(df_yields["n_Bd err"]**2/df_yields["n_Bd"]**2 +  df_yields["n_Bs err"]**2/df_yields["n_Bs"]**2) * df_yields["n_Bd/n_Bs"]
+# df_yields["n_Bs/n_Bd err"] = unp.sqrt(df_yields["n_Bs err"]**2/df_yields["n_Bs"]**2 +  df_yields["n_Bd err"]**2/df_yields["n_Bd"]**2) * df_yields["n_Bs/n_Bd"]
+# df_yields["n_Bd/n_Bs err"] = unp.sqrt(df_yields["n_Bd err"]**2/df_yields["n_Bd"]**2 +  df_yields["n_Bs err"]**2/df_yields["n_Bs"]**2) * df_yields["n_Bd/n_Bs"]
 
 # %%
 df_yields_less = df_yields.query("is_cut_greater==False")
@@ -647,7 +708,12 @@ for is_cut_greater in [True, False]:
         fig = plt.figure(figsize=(8,8))
         
         for var in vars:
-            plt.errorbar(temp_df["cut"], temp_df[var], yerr=temp_df[var+" err"], fmt=".", elinewidth=1, label=f"{var} (ProbBs{sign}=cut)")
+            plt.errorbar(temp_df["cut"], 
+                         unp.nominal_values(temp_df[var]),
+                         yerr=unp.std_devs(temp_df[var]), 
+                         fmt=".", 
+                         elinewidth=1, 
+                         label=f"{var} (ProbBs{sign}=cut)")
             #plt.plot(temp_df_invalid["cut"], temp_df_invalid[var], ".", label=f"{var} (ProbBs{sign}=cut) invalid", color="red")
             
         if "n_Bs/all_Bs" in vars:
@@ -668,10 +734,16 @@ for is_cut_greater in [True, False]:
 # Plot a "ROC-Curve"
 fig = plt.figure(figsize=(8,8))
 plt.title("similar to a ROC Curve")
+plt.plot([0,1],[0,1], "k--")
 for is_cut_greater in [True,False]:
     temp_df = df_yields.query(f"is_cut_greater=={str(is_cut_greater)}")
     sign = ">" if is_cut_greater else "<"
-    plt.errorbar(temp_df["n_Bs/all_Bs"], temp_df["n_Bd/all_Bd"], xerr=temp_df["n_Bs/all_Bs err"], yerr=temp_df["n_Bd/all_Bd err"], fmt=".", elinewidth=1, label=f"ProbBs{sign}=cut")
+    plt.errorbar(unp.nominal_values(temp_df["n_Bs/all_Bs"]), 
+                 unp.nominal_values(temp_df["n_Bd/all_Bd"]), 
+                 xerr=unp.std_devs(temp_df["n_Bs/all_Bs"]), 
+                 yerr=unp.std_devs(temp_df["n_Bd/all_Bd"]), 
+                 fmt=".", elinewidth=1, 
+                 label=f"ProbBs{sign}=cut")
 
 
 plt.gca().set_aspect('equal', adjustable='box')

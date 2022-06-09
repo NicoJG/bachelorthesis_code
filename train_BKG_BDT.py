@@ -47,7 +47,7 @@ params = {
     "test_size" : 0.4,
     "model_params" : {
         "n_estimators" : 2000,
-        "max_depth" : 4,
+        "max_depth" : 2,
         "learning_rate" : 0.3, # 0.3 is default
         "scale_pos_weight" : "TO BE SET", # sum(negative instances) / sum(positive instances)
         "objective" : "binary:logistic",
