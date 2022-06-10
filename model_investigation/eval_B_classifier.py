@@ -100,8 +100,8 @@ epochs = model.train_history["epochs"]
 
 # Plot the training history of multiple metrics
 for i, metric in enumerate(model.train_history["eval_metrics"]):
-    plt.figure(figsize=(8, 6))
-    plt.title(f"training performance ({metric})")
+    plt.figure(figsize=(4,4))
+    #plt.title(f"training performance ({metric})")
     
     if "best_epoch" in model.train_history.keys():
         plt.axvline(model.train_history["best_epoch"], color="black", alpha=0.5, linestyle="dashed", label=f"best epoch: {model.train_history['best_epoch']}")
@@ -109,15 +109,16 @@ for i, metric in enumerate(model.train_history["eval_metrics"]):
     #if "train_wrong" in model.train_history:
     #    plt.plot(epochs, model.train_history["train_wrong"][metric], label="training data (with dropout)")
         
-    plt.plot(epochs, model.train_history["train"][metric], label="training data")
+    plt.plot(epochs, model.train_history["train"][metric], label="train data")
     
     if "validation" in model.train_history.keys():
         plt.plot(epochs, model.train_history["validation"][metric], label="test data")
         
         
-    plt.xlabel("iteration")
+    plt.xlabel("training iteration")
     plt.ylabel(metric)
     plt.legend()
+    plt.tight_layout()
     plt.savefig(output_dir/f"00_train_performance_{i:02d}_{metric}.pdf")
     plt.close()
 
@@ -174,13 +175,14 @@ fpr_train = fp_train/(tn_train+fp_train)
 # ROC curve
 auc = skmetrics.auc(fpr, tpr)
 auc_train = skmetrics.auc(fpr_train, tpr_train)
-plt.figure(figsize=(8, 6))
-plt.title(f"ROC curve, AUC=(test: {auc:.4f}, train: {auc_train:.4f})")
+plt.figure(figsize=(4,4))
+#plt.title(f"ROC curve, AUC=(test: {auc:.4f}, train: {auc_train:.4f})")
+plt.plot(fpr_train, tpr_train, label="train data")
 plt.plot(fpr, tpr, label="test data")
-plt.plot(fpr_train, tpr_train, alpha=0.5, label="train data")
-plt.xlabel("False positive rate (Bd)")
-plt.ylabel("True positive rate (Bs)")
-plt.legend()
+plt.xlabel(r"False positive rate ($B_d$)")
+plt.ylabel(r"True positive rate ($B_s$)")
+plt.legend(title=f"ROC AUC:\n  test:  {auc:.4f}\n  train: {auc_train:.4f})")
+plt.tight_layout()
 plt.savefig(output_dir/"03_roc.pdf")
 plt.close()
 
@@ -225,10 +227,10 @@ y_pred_probas = [y_pred_proba_train[y_train==0],
                  y_pred_proba_train[y_train==1],
                  y_pred_proba_test[y_test==0],
                  y_pred_proba_test[y_test==1]]
-labels = ["Bd (train data)",
-          "Bs (train data)",
-          "Bd (test data)", 
-          "Bs (test data)"]
+labels = [r"$B_d$ (train data)",
+          r"$B_s$ (train data)",
+          r"$B_d$ (test data)", 
+          r"$B_s$ (test data)"]
 colors = ["C0", "C1", "C0", "C1"]
 plot_types = ["hist", "hist", "errorbar", "errorbar"]
 alphas = [0.5, 0.5, 0.5, 0.5]
@@ -237,6 +239,8 @@ alphas = [0.5, 0.5, 0.5, 0.5]
 plt.figure(figsize=(8,6))
 plt.title(f"distribution of the prediction output of the DeepSet\nwith cut at 0.5: test accuracy = {accuracy_test:.3f} , train accuracy = {accuracy_train:.3f}\nefficiency Bd={tnr:.3f}, efficiency Bs={tpr:.3f}")
 
+plt.axvline(0.5, linestyle="dashed", color="grey")
+
 for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, alphas):
     x, sigma = get_hist(y_pred_proba, bin_edges, normed=True)
     if pt == "hist":
@@ -244,7 +248,6 @@ for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, 
     elif pt == "errorbar":
         plt.errorbar(bin_centers, x, yerr=sigma, xerr=bin_widths/2, ecolor=c, label=l, fmt="none", elinewidth=1.0)
         
-plt.axvline(0.5, linestyle="dashed", color="grey")
 
 plt.yscale("log")
 plt.xlabel("DeepSet output")
@@ -255,8 +258,10 @@ plt.savefig(output_dir/"02_hist_output_logy.pdf")
 plt.close()
 
 # Plot with normal y-axis
-plt.figure(figsize=(8,6))
-plt.title(f"distribution of the prediction output of the DeepSet\nwith cut at 0.5: test accuracy = {accuracy_test:.3f} , train accuracy = {accuracy_train:.3f}\nefficiency Bd={tnr:.3f}, efficiency Bs={tpr:.3f}")
+plt.figure(figsize=(4,4))
+#plt.title(f"distribution of the prediction output of the DeepSet\nwith cut at 0.5: test accuracy = {accuracy_test:.3f} , train accuracy = {accuracy_train:.3f}\nefficiency Bd={tnr:.3f}, efficiency Bs={tpr:.3f}")
+
+plt.axvline(0.5, linestyle="dashed", color="grey")
 
 for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, alphas):
     x, sigma = get_hist(y_pred_proba, bin_edges, normed=True)
@@ -265,11 +270,9 @@ for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, 
     elif pt == "errorbar":
         plt.errorbar(bin_centers, x, yerr=sigma, xerr=bin_widths/2, ecolor=c, label=l, fmt="none", elinewidth=1.0)
 
-plt.axvline(0.5, linestyle="dashed", color="grey")
-
 plt.xlabel("DeepSet output")
 plt.ylabel("density")
-plt.legend()
+plt.legend(loc="upper left")
 plt.tight_layout()
 plt.savefig(output_dir/"02_hist_output_normal.pdf")
 plt.close()
@@ -291,3 +294,4 @@ eval_results = {
 with open(paths.B_classifier_eval_data_file, "w") as file:
     json.dump(eval_results, file, indent=2)
 
+# %%

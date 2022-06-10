@@ -250,18 +250,46 @@ df_fi.sort_values(by="perm_roc_auc", ascending=False, inplace=True)
 
 # %%
 # Plot the feature importances horizontal
-fig, axs = plt.subplots(2,1, 
-                        figsize=(len(feature_keys)/1.5, 10), 
-                        sharex=True)
+# rename the features
+feature_symbols = {
+    "Tr_ProbSS" : r"$\mathrm{Prob}_\mathrm{SS}$",
+    "Tr_diff_z" : r"$\Delta z$",
+    "Tr_p_proj" : r"$p_\mathrm{proj}$",
+    "Tr_diff_pt" : r"$\Delta p_\mathrm{T}$",
+    "Tr_diff_p" : r"$\Delta p$",
+    "Tr_cos_diff_phi" : r"$\mathrm{cos}(\Delta \phi)$",
+    "Tr_diff_eta" : r"$\Delta \eta$",
+    "Tr_T_IPCHI2_trMother" : r"$\chi^2(\mathrm{IP}_\mathrm{SV})$",
+    "Tr_T_IP_trMother" : r"$\mathrm{IP}_\mathrm{SV}$",
+    "Tr_T_IP_trPUS" : r"$\sigma(\mathrm{IP}_\mathrm{pileup\:vtx})$",
+    "Tr_T_MinIP" : r"$\mathrm{IP}_\mathrm{min}$",
+    "Tr_T_MinIPChi2" : r"$\chi^2(\mathrm{IP}_\mathrm{min})$",
+    "Tr_T_PROBNNe" : r"$\mathrm{Prob}_e$",
+    "Tr_T_PROBNNghost" : r"$\mathrm{Prob}_\mathrm{ghost}$",
+    "Tr_T_PROBNNk" : r"$\mathrm{Prob}_K$",
+    "Tr_T_PROBNNmu" : r"$\mathrm{Prob}_\mu$",
+    "Tr_T_PROBNNp" : r"$\mathrm{Prob}_p$",
+    "Tr_T_PROBNNpi" : r"$\mathrm{Prob}_\pi$",
+    "Tr_T_P" : r"$p$",
+    "Tr_T_PT" : r"$p_\mathrm{T}$",
+    "Tr_T_VeloCharge" : r"$Q_\mathrm{VELO}$",
+    "Tr_T_SumBDT_ult" : r"$\mathrm{SumBDT}$",
+    "Tr_T_MinBDT_ult" : r"$\mathrm{MinBDT}$"
+}
 
-for i, (ax, metric) in enumerate(zip(axs, ["perm_roc_auc", "perm_accuracy"])):
-    ax.set_title(f"feature importance metric: {metric}")
+fig, axs = plt.subplots(2,1, 
+                        figsize=(8,6), 
+                        sharex=True)
+features_labels = [feature_symbols[f] if (f in feature_symbols) else f for f in df_fi.index ]
+
+for i, (ax, metric, metric_label) in enumerate(zip(axs, ["perm_roc_auc", "perm_accuracy"],["permutation importance\n(ROC AUC)","permutation importance\n(accuracy)"])):
+    #ax.set_title(f"feature importance metric: {metric}")
     if f"{metric}_std" in df_fi.columns:
         err = df_fi[f"{metric}_std"]
     else:
         err = None
     ax.bar(df_fi.index, df_fi[metric], yerr=err, color=f"C{i}", alpha=0.8)
-    ax.set_ylabel(metric)
+    ax.set_ylabel(metric_label)
     ax.tick_params(axis="x", labelbottom=True, labelrotation=60)
 
 plt.tight_layout()

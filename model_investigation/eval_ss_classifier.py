@@ -84,14 +84,16 @@ with open(paths.ss_classifier_model_file, "rb") as file:
 train_history = model.evals_result()
 for i, metric in enumerate(train_params["eval_metric"]):
     iteration = list(range(len(train_history["validation_0"][metric])))
-    plt.figure(figsize=(8, 6))
-    plt.title(f"training performance ({metric})")
-    plt.plot(iteration, train_history["validation_0"][metric], label="training data")
+    fig = plt.figure(figsize=(4,4))
+    #plt.title(f"training performance ({metric})")
+    plt.plot(iteration, train_history["validation_0"][metric], label="train data")
     plt.plot(iteration, train_history["validation_1"][metric], label="test data")
-    plt.xlabel("iteration")
+    plt.xlabel("training iteration")
     plt.ylabel(metric)
     plt.legend()
-    plt.savefig(output_dir/f"00_train_performance_{i:02d}_{metric}.pdf")
+    plt.tight_layout()
+    fig.savefig(output_dir/f"00_train_performance_{i:02d}_{metric}.pdf")
+    plt.show()
     plt.close()
 
 # %%
@@ -123,8 +125,10 @@ plot_types = ["hist", "hist", "errorbar", "errorbar"]
 alphas = [0.5, 0.5, 0.5, 0.5]
 
 # Plot with log y-axis
-plt.figure(figsize=(8,6))
-plt.title("distribution of the prediction output of the BDT")
+plt.figure(figsize=(4,4))
+#plt.title("distribution of the prediction output of the BDT")
+
+plt.axvline(0.5, linestyle="dashed", color="grey")
 
 for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, alphas):
     x, sigma = get_hist(y_pred_proba, bin_edges, normed=True)
@@ -136,7 +140,8 @@ for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, 
 plt.yscale("log")
 plt.xlabel("BDT output")
 plt.ylabel("density")
-plt.legend()
+plt.legend(loc="lower right")
+plt.tight_layout()
 plt.savefig(output_dir/"02_hist_output_logy.pdf")
 plt.close()
 
@@ -154,6 +159,7 @@ for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, 
 plt.xlabel("BDT output")
 plt.ylabel("density")
 plt.legend()
+plt.tight_layout()
 plt.savefig(output_dir/"02_hist_output_normal.pdf")
 plt.close()
 
@@ -200,13 +206,14 @@ fpr_train = fp_train/(tn_train+fp_train)
 # ROC curve
 auc = skmetrics.auc(fpr, tpr)
 auc_train = skmetrics.auc(fpr_train, tpr_train)
-plt.figure(figsize=(8, 6))
-plt.title(f"ROC curve, AUC=(test: {auc:.4f}, train: {auc_train:.4f})")
+plt.figure(figsize=(4,4))
+#plt.title(f"ROC curve, AUC=(test: {auc:.4f}, train: {auc_train:.4f})")
+plt.plot(fpr_train, tpr_train, label="train data")
 plt.plot(fpr, tpr, label="test data")
-plt.plot(fpr_train, tpr_train, alpha=0.5, label="train data")
-plt.xlabel("False positive rate (background)")
-plt.ylabel("True positive rate (sameside)")
-plt.legend()
+plt.xlabel("False positive rate (other)")
+plt.ylabel("True positive rate (SS)")
+plt.legend(title=f"ROC AUC:\n  test:  {auc:.4f}\n  train: {auc_train:.4f})")
+plt.tight_layout()
 plt.savefig(output_dir/"03_roc.pdf")
 plt.close()
 
@@ -280,3 +287,5 @@ eval_results = {
 
 with open(paths.ss_classifier_eval_data_file, "w") as file:
     json.dump(eval_results, file, indent=2)
+
+# %%

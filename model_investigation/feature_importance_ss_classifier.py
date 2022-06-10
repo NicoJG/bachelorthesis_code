@@ -226,28 +226,56 @@ plt.savefig(output_dir/"01_selected_importances_vertical.pdf")
 plt.close()
 
 # %%
+# For thesis...
 # Sort the features
 df_fi.sort_values(by="xgb_gain", ascending=False, inplace=True)
 
 # %%
 # Plot the feature importances horizontal
-fig, axs = plt.subplots(2,1, 
-                        figsize=(len(feature_keys)/1.5, 10), 
-                        sharex=True)
+# rename the features
+feature_symbols = {
+    "Tr_p_proj" : r"$p_\mathrm{proj}$",
+    "Tr_diff_pt" : r"$\Delta p_\mathrm{T}$",
+    "Tr_diff_z" : r"$\Delta z$",
+    "Tr_diff_eta" : r"$\Delta \eta$",
+    "Tr_cos_diff_phi" : r"$\mathrm{cos}(\Delta \phi)$",
+    "Tr_T_AALLSAMEBPV" : r"same PV",
+    "Tr_T_BPVIP" : r"$\mathrm{IP}_\mathrm{best\:PV}$",
+    "Tr_T_BPVIPCHI2" : r"$\chi^2(\mathrm{IP}_\mathrm{best\:PV})$",
+    "Tr_T_MinIP" : r"$\mathrm{IP}_\mathrm{min}$",
+    "Tr_T_ConIso_p_ult" : r"$\mathrm{cone\:isolation}$",
+    "Tr_T_IPCHI2_trMother" : r"$\chi^2(\mathrm{IP}_\mathrm{SV})$",
+    "Tr_T_IP_trMother" : r"$\mathrm{IP}_\mathrm{SV}$",
+    "Tr_T_IP_trPUS" : r"$\sigma(\mathrm{IP}_\mathrm{pileup\:vtx})$",
+    "Tr_T_MinBDT_ult" : r"$\mathrm{MinBDT}$",
+    "Tr_T_Mother_VtxChi2" : r"$\chi^2(\mathrm{vtx})$",
+    "Tr_T_NbNonIsoTr_ult" : r"$N_\mathrm{non\:iso}$",
+    "Tr_T_PT" : r"$p_\mathrm{T}$",
+    "Tr_T_SumBDT_ult" : r"$\mathrm{SumBDT}$",
+    "Tr_T_SumMinBDT_ult" : r"$\mathrm{SumMinBDT}$",
+    "Tr_T_Sum_of_trackp" : r"$\sum p_\mathrm{in\:cone}$",
+    "Tr_T_TRGHOSTPROB" : r"$\mathrm{Prob}_\mathrm{ghost}$"
+}
 
-for i, (ax, metric) in enumerate(zip(axs, ["xgb_gain", "perm_roc_auc"])):
-    ax.set_title(f"feature importance metric: {metric}")
+fig, axs = plt.subplots(2,1, 
+                        figsize=(8,6), 
+                        sharex=True)
+features_labels = [feature_symbols[f] if (f in feature_symbols) else f for f in df_fi.index ]
+
+for i, (ax, metric, metric_label) in enumerate(zip(axs, ["xgb_gain", "perm_roc_auc"],["gain","permutation importance\n(ROC AUC)"])):
+    #ax.set_title(f"feature importance metric: {metric}")
     if f"{metric}_std" in df_fi.columns:
         err = df_fi[f"{metric}_std"]
     else:
         err = None
-    ax.bar(df_fi.index, df_fi[metric], yerr=err, color=f"C{i}", alpha=0.8)
-    ax.set_ylabel(metric)
+    ax.bar(features_labels, df_fi[metric], yerr=err, color=f"C{i}", alpha=0.8)
+    ax.set_ylabel(metric_label)
     ax.tick_params(axis="x", labelbottom=True, labelrotation=60)
 
 plt.tight_layout()
 plt.savefig(output_dir/"02_main_feature_importances.pdf")
 plt.close()
+
 # %%
 # Merge all PDFs
 merge_pdfs(output_dir,paths.ss_classifier_feature_importance_plots_file)
@@ -255,3 +283,4 @@ merge_pdfs(output_dir,paths.ss_classifier_feature_importance_plots_file)
 # %%
 # Save the feature importance df to csv
 df_fi.to_csv(paths.ss_classifier_feature_importance_data_file)
+# %%

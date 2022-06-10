@@ -253,11 +253,12 @@ plt.savefig(output_dir/"04_B_mass_01_with_bdt_cut.pdf")
 plt.close()
 
 # Plot B mass distribution after all cuts
-plt.figure(figsize=(8,6))
-plt.title("B mass distribution with and without all cuts applied (lambda, bkg_bdt, misid)")
+plt.figure(figsize=(4,4))
+#plt.title("B mass distribution with and without all cuts applied (lambda, bkg_bdt, misid)")
 plt.hist(df["B_M"], histtype="step", bins=bin_edges, label="full dataset")
-plt.hist(df_cut["B_M"], histtype="step", bins=bin_edges, label="after background reduction")
-plt.xlabel("B mass")
+plt.hist(df_cut["B_M"], histtype="step", bins=bin_edges, label="bkg reduced dataset")
+plt.xlim(x_min,x_max)
+plt.xlabel(r"$M_B \:/\: $MeV")
 plt.ylabel("counts")
 plt.yscale("log")
 
@@ -377,6 +378,8 @@ def pdf(x, lambda_bkg, lambda_bkg2, f_bkg, mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3
 # set the binning
 x_min = 5170. # MeV
 x_max = 5450. # MeV
+#x_min = 5150. # MeV
+#x_max = 5550. # MeV
 n_bins = 150
 
 bin_edges = np.linspace(x_min, x_max, n_bins+1)
@@ -438,24 +441,25 @@ minuit_mc.hesse()
 fit = pdf_B_mc(bin_centers, *minuit_mc.values)
 mu_Bd, sigma_Bd, sigma_Bd2, sigma_Bd3, beta_Bd,beta_Bd2, m_Bd, m_Bd2, f_Bd, f_Bd2, N = minuit_mc.values
 
-fit_Bd1 = N*f_Bd*f_Bd2*crystalball.pdf((x-mu_Bd)/sigma_Bd, beta_Bd, m_Bd)
-fit_Bd2 = N*(1-f_Bd)*f_Bd2*crystalball.pdf(-(x-mu_Bd)/sigma_Bd2, beta_Bd2, m_Bd2)
-fit_Bd3 = N*(1-f_Bd)*(1-f_Bd2)*norm.pdf(x, mu_Bd, sigma_Bd3)
+fit_Bd1 = N*f_Bd*f_Bd2*pdf_crystalball((x-mu_Bd)/sigma_Bd, beta_Bd, m_Bd)
+fit_Bd2 = N*(1-f_Bd)*f_Bd2*pdf_crystalball(-(x-mu_Bd)/sigma_Bd2, beta_Bd2, m_Bd2)
+fit_Bd3 = N*(1-f_Bd)*(1-f_Bd2)*pdf_norm(x, mu_Bd, sigma_Bd3)
 
-fig = plt.figure(figsize=(8, 7))
-fig.suptitle("Fit of the MC B mass")
+fig = plt.figure(figsize=(4,4))
+#fig.suptitle("Fit of the MC B mass")
 
 ax = plt.subplot2grid(shape=(4,1), loc=(0,0), rowspan=3)
 ax_pull = plt.subplot2grid(shape=(4,1), loc=(3,0), rowspan=1)
 
-ax.errorbar(bin_centers, bin_counts, yerr=bin_counts**0.5, xerr=bin_widths/2, fmt="none", color="black", label="Data", elinewidth=1.0)
 
-ax.plot(x, fit, label="Fit")
-ax.plot(x, fit_Bd1, label="Fit Bd1", alpha=0.4)
-ax.plot(x, fit_Bd2, label="Fit Bd2", alpha=0.4)
-ax.plot(x, fit_Bd3, label="Fit Bd3", alpha=0.4)
+ax.plot(x, fit, linewidth=1.0, label="Fit Bd")
+ax.plot(x, fit_Bd1, linewidth=1.0, label="Fit CB left")
+ax.plot(x, fit_Bd2, linewidth=1.0, label="Fit CB right")
+ax.plot(x, fit_Bd3, linewidth=1.0, label="Fit gauss")
+
+ax.errorbar(bin_centers, bin_counts, yerr=bin_counts**0.5, xerr=bin_widths/2, fmt="none", color="black", label="Data MC", elinewidth=1.0)
     
-ax.set_ylim(bottom=np.min(bin_counts[bin_counts>0])-1, top=np.max(bin_counts)+1)
+ax.set_ylim(bottom=(np.min(bin_counts[bin_counts>0])-1)/2, top=(np.max(bin_counts)+1)*2)
 ax.set_xlim(bin_edges[0], bin_edges[-1])
 ax.set_yscale("log")
 
@@ -463,14 +467,15 @@ pull = calc_pull(bin_counts, fit, bin_counts**0.5, 0)
 
 ax_pull.axhline(0, color="black", alpha=0.5)
 ax_pull.hist(bin_centers, weights=pull, bins=bin_edges, histtype="stepfilled")
+ax_pull.set_xlim(bin_edges[0], bin_edges[-1])
 
-ax_pull.set_xlabel("B mass")
+ax_pull.set_xlabel(r"$M_B \:/\: $MeV")
 ax_pull.set_ylabel("pull")
 ax.set_ylabel("counts")
 
 ax.legend()
 
-fig.tight_layout()
+plt.tight_layout()
 fig.savefig(fits_dir/"000_MC_fit.pdf")
 plt.show()
 plt.close()
@@ -500,42 +505,49 @@ def do_fit(x, y, start_vals, param_limits, fixed_params):
     return m
 
  # Plot the fit
-def plot_fit(minuit, bin_centers, bin_edges, bin_counts, plot_title, file_path):
+def plot_fit(minuit, bin_centers, bin_edges, bin_counts, plot_title, file_path, cut_query):
     x_min = bin_edges[0]
     x_max = bin_edges[-1]
     x = bin_centers
     
     fit = pdf(x, *minuit.values)
     fits = pdfs(x, *minuit.values)
-    fit_labels = ["Fit BKG", "Fit Bd", "Fit Bs"]
+    fit_labels = ["Fit bkg", "Fit Bd", "Fit Bs"]
     
-    fig = plt.figure(figsize=(8, 7))
-    fig.suptitle(plot_title)
+    fig = plt.figure(figsize=(4,4))
+    #fig.suptitle(plot_title)
     
     ax = plt.subplot2grid(shape=(4,1), loc=(0,0), rowspan=3)
     ax_pull = plt.subplot2grid(shape=(4,1), loc=(3,0), rowspan=1)
     
-    ax.plot(x, fit, label="Fit")
+    ax.plot(x, fit, linewidth=1.0, label="Fit")
     for fit_, fit_label in zip(fits, fit_labels):
-        ax.plot(x, fit_, label=fit_label)
+        ax.plot(x, fit_, linewidth=1.0, label=fit_label)
         
-    ax.errorbar(bin_centers, bin_counts, yerr=bin_counts**0.5, xerr=bin_widths/2, fmt="none", color="black", label="Data", elinewidth=1.0)
+    ax.errorbar(bin_centers, bin_counts, 
+                yerr=bin_counts**0.5, xerr=bin_widths/2, 
+                fmt="none", color="black", 
+                label=f"Data", 
+                elinewidth=1.0)
     
-    ax.set_ylim(bottom=np.min(bin_counts[bin_counts>0])-1, top=np.max(bin_counts)+1)
+    ax.set_xlim(bin_edges[0], bin_edges[-1])
+    ax.set_ylim(bottom=(np.min(bin_counts[bin_counts>0])-1)/1.5, top=(np.max(bin_counts)+1)*1.5)
     ax.set_yscale("log")
 
     pull = calc_pull(bin_counts, fit, bin_counts**0.5, 0)
 
     ax_pull.axhline(0, color="black", alpha=0.5)
     ax_pull.hist(bin_centers, weights=pull, bins=bin_edges, histtype="stepfilled")
+    ax_pull.set_xlim(bin_edges[0], bin_edges[-1])   
     
-    ax_pull.set_xlabel("B mass")
+    ax_pull.set_xlabel(r"$M_B \:/\: $MeV")
     ax_pull.set_ylabel("pull")
-    ax.set_ylabel("counts")
+    ax.set_ylabel(f"counts ({cut_query[2:]})")
 
     ax.legend()
     
     fig.tight_layout()
+    plt.tight_layout()
     fig.savefig(file_path)
     #plt.show()
     plt.close()
@@ -610,7 +622,7 @@ fixed_params = ["f_bkg","lambda_bkg2","beta_Bd", "beta_Bd2", "m_Bd", "m_Bd2", "f
 quantiles = np.linspace(0,1,51)
 cuts = np.quantile(df_cut.query(f"(B_M>={x_min})&(B_M<={x_max})")["B_ProbBs"], quantiles)
 cut_queries = [f"B_ProbBs>={cut:.5f}" for cut in cuts[:-1]]
-cut_queries += [f"B_ProbBs<={cut:.5f}" for cut in cuts[1:]]
+cut_queries += [f"B_ProbBs<={cut:.5f}" for cut in cuts[1:-1]]
 
 results = []
 
@@ -639,12 +651,20 @@ for i,cut_query in enumerate(tqdm(cut_queries)):
 
     plot_fit(minuit, bin_centers, bin_edges, bin_counts, 
              plot_title=f"Fit of the B mass with '{cut_query}' (valid: {minuit.valid}, accurate: {minuit.accurate})",
-             file_path=fits_dir/f"{i:03d}.pdf")
+             file_path=fits_dir/f"{i:03d}.pdf", cut_query=cut_query)
+    
+    if i == 0:
+        all_Bd = yields[1]
+        all_Bs = yields[2]
     
     results.append({
         "n_bkg" : yields[0],
         "n_Bd" : yields[1],
         "n_Bs" : yields[2],
+        "n_Bs/n_Bd" : yields[2]/yields[1],
+        "n_Bd/n_Bs" : yields[1]/yields[2],
+        "n_Bs/all_Bs" : yields[2]/all_Bs,
+        "n_Bd/all_Bd" : yields[1]/all_Bd,
         "cut_query" : cut_query,
         "is_cut_greater" : ">" in cut_query,
         "cut" : float(cut_query[10:]),
@@ -660,10 +680,10 @@ merge_pdfs(fits_dir, paths.plots_dir/"fits_test_on_data.pdf")
 df_yields = pd.DataFrame(results)
 print(df_yields)
 
-df_yields["n_Bs/n_Bd"] = df_yields["n_Bs"] / df_yields["n_Bd"]
-df_yields["n_Bd/n_Bs"] = df_yields["n_Bd"] / df_yields["n_Bs"]
-df_yields["n_Bd/all_Bd"] = df_yields["n_Bd"] / df_yields.loc[0,"n_Bd"]
-df_yields["n_Bs/all_Bs"] = df_yields["n_Bs"] / df_yields.loc[0,"n_Bs"]
+#df_yields["n_Bs/n_Bd"] = df_yields["n_Bs"] / df_yields["n_Bd"]
+#df_yields["n_Bd/n_Bs"] = df_yields["n_Bd"] / df_yields["n_Bs"]
+#df_yields["n_Bd/all_Bd"] = df_yields["n_Bd"] / df_yields.loc[0,"n_Bd"]
+#df_yields["n_Bs/all_Bs"] = df_yields["n_Bs"] / df_yields.loc[0,"n_Bs"]
 
 # %%
 # Calculate the uncertainties
@@ -732,30 +752,76 @@ for is_cut_greater in [True, False]:
 
 # %%
 # Plot a "ROC-Curve"
-fig = plt.figure(figsize=(8,8))
-plt.title("similar to a ROC Curve")
-plt.plot([0,1],[0,1], "k--")
+fig = plt.figure(figsize=(4,4))
+#plt.title("similar to a ROC Curve")
+plt.plot([0,1],[0,1], "k--", label="no separation")
 for is_cut_greater in [True,False]:
     temp_df = df_yields.query(f"is_cut_greater=={str(is_cut_greater)}")
     sign = ">" if is_cut_greater else "<"
-    plt.errorbar(unp.nominal_values(temp_df["n_Bs/all_Bs"]), 
+    markers, caps, bars = plt.errorbar(unp.nominal_values(temp_df["n_Bs/all_Bs"]), 
                  unp.nominal_values(temp_df["n_Bd/all_Bd"]), 
                  xerr=unp.std_devs(temp_df["n_Bs/all_Bs"]), 
                  yerr=unp.std_devs(temp_df["n_Bd/all_Bd"]), 
-                 fmt=".", elinewidth=1, 
+                 fmt="-", elinewidth=1, 
                  label=f"ProbBs{sign}=cut")
+    [bar.set_alpha(0.0) for bar in bars]
 
+plt.xlim(0,1)
+plt.ylim(0,1)
 
 plt.gca().set_aspect('equal', adjustable='box')
     
-plt.xlabel("n_Bs/all_Bs")
-plt.ylabel("n_Bd/all_Bd")
+plt.xlabel("n_Bs / all_Bs")
+plt.ylabel("n_Bd / all_Bd")
 plt.legend()
 plt.tight_layout()
 plt.show()
 fig.savefig(fits_res_dir/"02_roc.pdf")
 plt.close()
     
+# %%
+# Plots for the thesis
+#textwidth = 5.45776 # inches
+# https://jwalton.info/Embed-Publication-Matplotlib-Latex/
+#golden_ratio = (5**.5 - 1) / 2
+#fig_width = 1*textwidth
+#fig_height = 1*fig_width
+
+FS = uncertainties.ufloat(0.2539,0.0079)
+BR_Bd = uncertainties.ufloat(8.73/2,0.32/2)*10**(-4)
+BR_Bs = uncertainties.ufloat(1.88,0.15)*10**(-5)
+
+expected = (BR_Bs/BR_Bd)*FS
+
+
+fig = plt.figure(figsize=(4,4))
+
+plt.axhspan(expected.n-expected.s, expected.n+expected.s,
+            facecolor="black", alpha=0.1)
+plt.axhline(expected.n, color="black", linestyle="--", label=f"expected: {expected}")
+
+for is_cut_greater in [True,False]:
+    temp_df = df_yields.query(f"is_cut_greater=={str(is_cut_greater)}")
+    sign = ">" if is_cut_greater else "<"
+
+    markers, caps, bars = plt.errorbar(temp_df["cut"], 
+                    unp.nominal_values(temp_df["n_Bs/n_Bd"]),
+                    yerr=unp.std_devs(temp_df["n_Bs/n_Bd"]), 
+                    fmt=".", 
+                    elinewidth=1, 
+                    label=f"n_Bs/n_Bd (ProbBs{sign}=cut)")
+    [bar.set_alpha(0.4) for bar in bars]
+        
+plt.ylim(0.0025,0.0175)
+        
+plt.xlabel("cut")
+plt.ylabel("n_Bs / n_Bd")
+#plt.yscale("log")
+plt.legend()
+plt.tight_layout()
+plt.show()
+fig.savefig(fits_res_dir/f"03_B_ratio_by_cut.pdf")
+plt.close()
 
 # %%
 # Merge the plot pdfs
