@@ -37,7 +37,7 @@ args = parser.parse_args()
 if args.model_name is not None:
     paths.update_B_classifier_name(args.model_name)
 else:
-    paths.update_B_classifier_name("B_classifier_all_old")
+    paths.update_B_classifier_name("B_classifier")
     
 output_dir = paths.B_classifier_dir/"feature_importance"
 if output_dir.is_dir():
@@ -288,13 +288,35 @@ for i, (ax, metric, metric_label) in enumerate(zip(axs, ["perm_roc_auc", "perm_a
         err = df_fi[f"{metric}_std"]
     else:
         err = None
-    ax.bar(df_fi.index, df_fi[metric], yerr=err, color=f"C{i}", alpha=0.8)
+    ax.bar(features_labels, df_fi[metric], color=f"C{i}")
     ax.set_ylabel(metric_label)
     ax.tick_params(axis="x", labelbottom=True, labelrotation=60)
 
 plt.tight_layout()
+plt.show()
 plt.savefig(output_dir/"02_main_feature_importances.pdf")
 plt.close()
+
+# compact version
+fig = plt.figure(figsize=(7,3.5))
+
+x = np.arange(len(features_labels))  # the label locations
+width = 0.35  # the width of the bars
+    
+plt.bar(x - width/2, df_fi["perm_roc_auc"]/df_fi["perm_roc_auc"].max(), width, label="permutation importance (ROC AUC)")
+plt.bar(x + width/2, df_fi["perm_accuracy"]/df_fi["perm_accuracy"].max(), width, label="permutation importance (accuracy)")
+
+plt.xlim(x[0]-1,x[-1]+1)
+plt.ylabel("normed feature importance")
+plt.xticks(x, features_labels)
+plt.tick_params(axis="x", labelbottom=True, labelrotation=60)
+
+plt.legend()
+plt.tight_layout()
+plt.savefig(output_dir/"03_compact_main_feature_importances.pdf")
+plt.show()
+plt.close()
+
 # %%
 # Merge all PDFs
 merge_pdfs(output_dir,paths.B_classifier_feature_importance_plots_file)

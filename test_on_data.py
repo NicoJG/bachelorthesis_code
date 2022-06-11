@@ -262,6 +262,7 @@ plt.xlabel(r"$M_B \:/\: $MeV")
 plt.ylabel("counts")
 plt.yscale("log")
 
+plt.gca().set_box_aspect(1)
 plt.legend()
 plt.tight_layout()
 plt.savefig(output_dir/"04_B_mass_02_with_all_cuts.pdf")
@@ -477,7 +478,7 @@ ax.legend()
 
 plt.tight_layout()
 fig.savefig(fits_dir/"000_MC_fit.pdf")
-plt.show()
+#plt.show()
 plt.close()
 
 
@@ -743,7 +744,7 @@ for is_cut_greater in [True, False]:
         #plt.yscale("log")
         plt.legend()
         plt.tight_layout()
-        plt.show()
+        #plt.show()
         if is_cut_greater:
             fig.savefig(fits_res_dir/f"01_greater_{i:02d}.pdf")
         else:
@@ -760,22 +761,21 @@ for is_cut_greater in [True,False]:
     sign = ">" if is_cut_greater else "<"
     markers, caps, bars = plt.errorbar(unp.nominal_values(temp_df["n_Bs/all_Bs"]), 
                  unp.nominal_values(temp_df["n_Bd/all_Bd"]), 
-                 xerr=unp.std_devs(temp_df["n_Bs/all_Bs"]), 
-                 yerr=unp.std_devs(temp_df["n_Bd/all_Bd"]), 
+                 #xerr=unp.std_devs(temp_df["n_Bs/all_Bs"]), 
+                 #yerr=unp.std_devs(temp_df["n_Bd/all_Bd"]), 
                  fmt="-", elinewidth=1, 
                  label=f"ProbBs{sign}=cut")
-    [bar.set_alpha(0.0) for bar in bars]
+    #[bar.set_alpha(0.4) for bar in bars]
 
-plt.xlim(0,1)
-plt.ylim(0,1)
-
+#plt.xlim(0,1)
+#plt.ylim(0,1)
 plt.gca().set_aspect('equal', adjustable='box')
     
 plt.xlabel("n_Bs / all_Bs")
 plt.ylabel("n_Bd / all_Bd")
 plt.legend()
 plt.tight_layout()
-plt.show()
+#plt.show()
 fig.savefig(fits_res_dir/"02_roc.pdf")
 plt.close()
     
@@ -814,12 +814,13 @@ for is_cut_greater in [True,False]:
         
 plt.ylim(0.0025,0.0175)
         
+plt.gca().set_box_aspect(1)
 plt.xlabel("cut")
 plt.ylabel("n_Bs / n_Bd")
 #plt.yscale("log")
 plt.legend()
 plt.tight_layout()
-plt.show()
+#plt.show()
 fig.savefig(fits_res_dir/f"03_B_ratio_by_cut.pdf")
 plt.close()
 

@@ -114,7 +114,7 @@ plt.colorbar(ax_img, cax=cax)
 
 plt.tight_layout()
 plt.savefig(output_dir/"01_feature_correlation.pdf")
-plt.show()
+#plt.show()
 
 # %%
 # List the highest correlations

@@ -113,8 +113,8 @@ for i, metric in enumerate(model.train_history["eval_metrics"]):
     
     if "validation" in model.train_history.keys():
         plt.plot(epochs, model.train_history["validation"][metric], label="test data")
-        
-        
+           
+    plt.gca().set_box_aspect(1)
     plt.xlabel("training iteration")
     plt.ylabel(metric)
     plt.legend()
@@ -177,8 +177,10 @@ auc = skmetrics.auc(fpr, tpr)
 auc_train = skmetrics.auc(fpr_train, tpr_train)
 plt.figure(figsize=(4,4))
 #plt.title(f"ROC curve, AUC=(test: {auc:.4f}, train: {auc_train:.4f})")
+plt.plot([0,1],[0,1], "k--", label="no separation")
 plt.plot(fpr_train, tpr_train, label="train data")
 plt.plot(fpr, tpr, label="test data")
+plt.gca().set_aspect('equal', adjustable='box')
 plt.xlabel(r"False positive rate ($B_d$)")
 plt.ylabel(r"True positive rate ($B_s$)")
 plt.legend(title=f"ROC AUC:\n  test:  {auc:.4f}\n  train: {auc_train:.4f})")
@@ -270,6 +272,7 @@ for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, 
     elif pt == "errorbar":
         plt.errorbar(bin_centers, x, yerr=sigma, xerr=bin_widths/2, ecolor=c, label=l, fmt="none", elinewidth=1.0)
 
+plt.gca().set_box_aspect(1)
 plt.xlabel("DeepSet output")
 plt.ylabel("density")
 plt.legend(loc="upper left")

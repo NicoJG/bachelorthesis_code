@@ -268,12 +268,32 @@ for i, (ax, metric, metric_label) in enumerate(zip(axs, ["xgb_gain", "perm_roc_a
         err = df_fi[f"{metric}_std"]
     else:
         err = None
-    ax.bar(features_labels, df_fi[metric], yerr=err, color=f"C{i}", alpha=0.8)
+    ax.bar(features_labels, df_fi[metric], color=f"C{i}")
     ax.set_ylabel(metric_label)
     ax.tick_params(axis="x", labelbottom=True, labelrotation=60)
 
 plt.tight_layout()
 plt.savefig(output_dir/"02_main_feature_importances.pdf")
+plt.close()
+
+# compact version
+fig = plt.figure(figsize=(7,3.5))
+
+x = np.arange(len(features_labels))  # the label locations
+width = 0.35  # the width of the bars
+    
+plt.bar(x - width/2, df_fi["xgb_gain"]/df_fi["xgb_gain"].max(), width, label="gain")
+plt.bar(x + width/2, df_fi["perm_roc_auc"]/df_fi["perm_roc_auc"].max(), width, label="permutation importance (ROC AUC)")
+
+plt.xlim(x[0]-1,x[-1]+1)
+plt.ylabel("normed feature importance")
+plt.xticks(x, features_labels)
+plt.tick_params(axis="x", labelbottom=True, labelrotation=60)
+
+plt.legend()
+plt.tight_layout()
+plt.savefig(output_dir/"03_compact_main_feature_importances.pdf")
+plt.show()
 plt.close()
 
 # %%
