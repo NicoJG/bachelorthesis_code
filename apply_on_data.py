@@ -54,6 +54,7 @@ track_features_to_load = []
 track_features_to_load += for_feature_extraction
 track_features_to_load += features_SS_classifier
 track_features_to_load += features_B_classifier
+track_features_to_load += ["N","nTracks"]
 track_features_to_load = list(set(track_features_to_load) - set(extracted_features))
 
 for data_file in data_files:
@@ -70,9 +71,12 @@ for i, (data_file, data_tree_key) in enumerate(tqdm(zip(data_files, data_tree_ke
     # Load the tracks data for applying the B classification
     df_tracks = load_data_from_root(data_file, data_tree_key, 
                                     features=track_features_to_load,
+                                    #cut="N!=0", # bug in uproot?
                                     n_threads=n_threads,
                                     N_entries_max=N_events,
                                     batch_size=batch_size_tracks)
+    
+    df_tracks.query("N!=0", inplace=True)
     
     df_tracks.reset_index(drop=False, inplace=True)
     df_tracks.rename(columns={"entry":"event_id", "subentry":"track_id"}, inplace=True)
@@ -110,10 +114,21 @@ for i, (data_file, data_tree_key) in enumerate(tqdm(zip(data_files, data_tree_ke
 
     # Apply the B classifier
     X = df_tracks[["event_id"]+features_B_classifier].to_numpy()
-    event_ids = df_tracks["event_id"].unique()
     B_ProbBs = model_B_classifier.decision_function(X)
     
-    output_dfs.append(pd.DataFrame({"file_id":i, "event_id":event_ids, "B_ProbBs":B_ProbBs}))
+    event_ids = df_tracks.query("track_id==0")["event_id"].reset_index(drop=True)
+    N = df_tracks.query("track_id==0")["N"].reset_index(drop=True)
+    nTracks = df_tracks.query("track_id==0")["nTracks"].reset_index(drop=True)
+    realN = df_tracks["event_id"].value_counts(sort=False,dropna=False).reset_index(drop=True)
+    
+    output_dfs.append(pd.DataFrame({
+        "file_id":i, 
+        "event_id":event_ids, 
+        "B_ProbBs":B_ProbBs,
+        "N":N,
+        "nTracks":nTracks,
+        "realN":realN
+        }))
     
     print("Successfully calculated 'B_ProbBs'")
 

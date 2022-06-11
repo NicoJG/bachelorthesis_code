@@ -35,6 +35,7 @@
     ],
     "features_other_cuts" : [
         "N",
+        "nTracks",
         "KS0_TAU",
         "B_LOKI_DTF_CHI2NDOF",
         "piplus_TRACK_Type",

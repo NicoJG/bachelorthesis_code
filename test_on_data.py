@@ -118,6 +118,12 @@ df_mc = load_and_merge_from_root(mc_files, mc_tree_keys,
 # %%
 # Check if the event ids match the event ids used for the B classification
 assert np.all(df["event_id"]==df_B_ProbBs["event_id"]), "There is a mismatch in the event ids"
+# Further check if the number of tracks matches to make sure those are really the same events
+assert np.all(df["N"]==df_B_ProbBs["N"]), "There is a mismatch in N"
+assert np.all(df["nTracks"]==df_B_ProbBs["nTracks"]), "There is a mismatch in nTracks"
+
+print("N is realN: ", np.all((df["N"]==df_B_ProbBs["realN"])))
+print("nTracks is realN: ", np.all((df["nTracks"]==df_B_ProbBs["realN"])))
 
 # Add the B classification as a feature
 df["B_ProbBs"] = df_B_ProbBs["B_ProbBs"]
