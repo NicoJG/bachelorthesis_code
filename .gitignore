@@ -1,4 +1,6 @@
 plots/
+plots_sim09b/
+temp_sim09b/
 plots_Sim09b/
 plots_Sim10a/
 .snakemake/
