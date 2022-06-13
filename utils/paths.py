@@ -19,14 +19,25 @@ external_base_dir = Path("/ceph/users/nguth")
 logs_dir = external_base_dir / "logs"
 
 # Paths of data used by this project
+B2JpsiKstar_files = [
+    Path("/ceph/FlavourTagging/NTuples/ift/MC/B2JpsiKstar/Mar_2022_wgproduction/DTT_MC_Bd2JpsiKst_2016_28r2_Sim10a_DST.root"),
+    Path("/ceph/FlavourTagging/NTuples/ift/MC/B2JpsiKstar/Mar_2022_wgproduction/DTT_MC_Bd2JpsiKst_2017_29r2_Sim10a_DST.root"),
+    Path("/ceph/FlavourTagging/NTuples/ift/MC/B2JpsiKstar/Mar_2022_wgproduction/DTT_MC_Bd2JpsiKst_2018_34_Sim10a_DST.root")
+]
+Bs2DsPi_files = [
+    Path("/ceph/FlavourTagging/NTuples/ift/MC/Bs2DsPi/Mar_2022_wgproduction/DTT_MC_Bs2Dspi_2016_28r2_Sim10a_DST.root"),
+    Path("/ceph/FlavourTagging/NTuples/ift/MC/Bs2DsPi/Mar_2022_wgproduction/DTT_MC_Bs2Dspi_2017_29r2_Sim10a_DST.root"),
+    Path("/ceph/FlavourTagging/NTuples/ift/MC/Bs2DsPi/Mar_2022_wgproduction/DTT_MC_Bs2Dspi_2018_34_Sim10a_DST.root")
+]
+
 B2JpsiKstar_file = Path("/ceph/FlavourTagging/NTuples/ift/MC/B2JpsiKstar/Nov_2021_wgproduction/DTT_MC_Bd2JpsiKst_2016_26_Sim09b_DST.root")
 Bs2DsPi_file = Path("/ceph/FlavourTagging/NTuples/ift/MC/Bs2DsPi/Mar_2022_wgproduction/DTT_MC_Bs2Dspi_2016_26_Sim09b_DST.root")
 
 # Paths of data created and used by this project
 data_dir = external_base_dir / "data"
 
-preprocessed_data_file = data_dir / "preprocessed_mc_Sim9b.root"
-ss_classified_data_file = data_dir / "SS_classified_mc_Sim9b.root"
+preprocessed_data_file = data_dir / "preprocessed_mc.root"
+ss_classified_data_file = data_dir / "SS_classified_mc.root"
 
 # Paths to models trained by this project
 models_dir = external_base_dir / "models"

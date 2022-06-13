@@ -1,4 +1,4 @@
-name: ba_nguth2
+name: ba_nguth
 
 channels:
   - defaults
@@ -26,7 +26,7 @@ dependencies:
   # machine learning packages
   - scikit-learn=1.0
   - xgboost=1.5 
-  - nvidia::cudatoolkit=11.3
+  - nvidia::cudatoolkit=10.2.89
   - pytorch::pytorch-mutex=1.0=cuda
   - pytorch::pytorch=1.11 
   - pytorch::torchvision=0.12

@@ -78,6 +78,8 @@ for i,mc_file in enumerate(mc_files):
     with uproot.open(mc_file)[mc_tree_key] as tree:
         mc_keys_dict[f"file{i}"] = tree.keys()
         
+(paths.internal_base_dir/"temp").mkdir(exist_ok=True)
+        
 with open(paths.internal_base_dir/"temp"/"mc_keys.json", "w") as file:
     json.dump(mc_keys_dict, file, indent=2)
 

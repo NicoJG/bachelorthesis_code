@@ -1,8 +1,10 @@
 plots/
+plots_sim09b/
 plots_Sim09b/
 plots_Sim10a/
 .snakemake/
 temp/
+temp_sim09b/
 
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python

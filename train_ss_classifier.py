@@ -55,6 +55,7 @@ params = {
     # training parameters
 if args.train_on_gpu:
     params["tree_method"] = "gpu_hist"
+    params["gpu_id"] = 0
     print("Training on GPUs")
 
 # %%

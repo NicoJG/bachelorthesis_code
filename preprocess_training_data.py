@@ -21,9 +21,9 @@ args = parser.parse_args()
 n_threads = args.n_threads
 assert n_threads > 0
 
-input_files = [paths.B2JpsiKstar_file, paths.Bs2DsPi_file]
+input_files = paths.B2JpsiKstar_files + paths.Bs2DsPi_files
 
-input_file_keys = ["DecayTree", "Bs2DspiDetached/DecayTree"]
+input_file_keys = ["Bd2JpsiKstarDetached/DecayTree", "Bd2JpsiKstarDetached/DecayTree", "Bd2JpsiKstarDetached/DecayTree", "Bs2DspiDetached/DecayTree", "Bs2DspiDetached/DecayTree", "Bs2DspiDetached/DecayTree"]
 
 output_file = paths.preprocessed_data_file
 output_file.parent.mkdir(parents=True, exist_ok=True)

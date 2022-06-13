@@ -18,6 +18,8 @@ with open(paths.features_SS_classifier_file, "r") as file:
 with open(paths.features_B_classifier_file, "r") as file:
     B_classifier_names = list(map(lambda x: x.replace("features_",""), json.load(file).keys()))[:]
 
+localrules: train_ss_classifier, apply_on_data, eval_ss_classifier, feature_importance_ss_classifier, apply_ss_classifier, eval_B_classifier, feature_importance_B_classifier, test_on_data
+
 rule master:
     input: expand(str(paths.models_dir / "{model_name}" / paths.ss_classifier_eval_plots_file.name), model_name=SS_classifier_names),
            expand(str(paths.models_dir / "{model_name}" / paths.ss_classifier_feature_importance_plots_file.name), model_name=SS_classifier_names),
@@ -33,7 +35,7 @@ rule preprocess_training_data:
     log: str(paths.logs_dir / "preprocess_training_data.log")
     threads: 20
     resources:
-        MaxRunHours=4,
+        MaxRunHours=10,
         request_memory=100*1024, # in MB
         request_gpus=0
     shell: "python preprocess_training_data.py -t {threads} &> {log}"
@@ -44,9 +46,11 @@ rule train_ss_classifier:
     log: str(paths.logs_dir / "{model_name}" / "train_ss_classifier.log")
     threads: 40
     resources:
-        MaxRunHours=4,
+        MaxRunHours=8,
         request_memory=50*1024, # in MB
-        request_gpus=0
+        request_gpus=0,
+        #Requirements='(machine=="beagle.e5.physik.tu-dortmund.de")||(machine=="heemskerck.e5.physik.tu-dortmund.de")'
+        #Requirements='(machine=="tarek.e5.physik.tu-dortmund.de")'
     shell: "python train_ss_classifier.py -t {threads} -n {wildcards.model_name} &> {log}"
 
 rule eval_ss_classifier:
@@ -55,7 +59,7 @@ rule eval_ss_classifier:
     log: str(paths.logs_dir / "{model_name}" / "eval_ss_classifier.log")
     threads: 20
     resources:
-        MaxRunHours=1,
+        MaxRunHours=4,
         request_memory=50*1024, # in MB
         request_gpus=0
     shell: "python model_investigation/eval_ss_classifier.py -t {threads} -n {wildcards.model_name} &> {log}"
@@ -66,7 +70,7 @@ rule feature_importance_ss_classifier:
     log: str(paths.logs_dir / "{model_name}" / "feature_importance_ss_classifier.log")
     threads: 20
     resources:
-        MaxRunHours=1,
+        MaxRunHours=4,
         request_memory=50*1024, # in MB
         request_gpus=0
     shell: "python model_investigation/feature_importance_ss_classifier.py -t {threads} -n {wildcards.model_name} &> {log}"
@@ -79,7 +83,7 @@ rule apply_ss_classifier:
     params: 
         model_name=f"{SS_classifier_name_main}"
     resources:
-        MaxRunHours=1,
+        MaxRunHours=4,
         request_memory=50*1024, # in MB
         request_gpus=0
     shell: "python apply_ss_classifier.py -t {threads} -n {params.model_name} &> {log}"
@@ -103,7 +107,7 @@ rule eval_B_classifier:
     log: str(paths.logs_dir / "{model_name}" / "eval_B_classifier.log")
     threads: 20
     resources:
-        MaxRunHours=1,
+        MaxRunHours=4,
         request_memory=50*1024, # in MB
         request_gpus=0 
     shell: "python model_investigation/eval_B_classifier.py -t {threads} -n {wildcards.model_name} &> {log}"
@@ -114,7 +118,7 @@ rule feature_importance_B_classifier:
     log: str(paths.logs_dir / "{model_name}" / "feature_importance_B_classifier.log")
     threads: 20
     resources:
-        MaxRunHours=1,
+        MaxRunHours=4,
         request_memory=50*1024, # in MB
         request_gpus=0 
     shell: "python model_investigation/feature_importance_B_classifier.py -t {threads} -n {wildcards.model_name} &> {log}"
@@ -138,7 +142,7 @@ rule eval_BKG_BDT:
     log: str(paths.logs_dir / "{model_name}" / "eval_BKG_BDT.log")
     threads: 20
     resources:
-        MaxRunHours=1,
+        MaxRunHours=4,
         request_memory=50*1024, # in MB
         request_gpus=0 
     shell: "python model_investigation/eval_BKG_BDT.py -t {threads} -n {wildcards.model_name} &> {log}"
@@ -149,7 +153,7 @@ rule apply_on_data:
     log: str(paths.logs_dir / "apply_on_data.log")
     threads: 40
     resources:
-        MaxRunHours=8,
+        MaxRunHours=10,
         request_memory=150*1024, # in MB
         request_gpus=0 
     shell: "python apply_on_data.py -t {threads} &> {log}"
@@ -161,7 +165,7 @@ rule test_on_data:
     log: str(paths.logs_dir / "test_on_data.log")
     threads: 40
     resources:
-        MaxRunHours=3,
+        MaxRunHours=4,
         request_memory=50*1024, # in MB
         request_gpus=0 
     shell: "python test_on_data.py -t {threads} &> {log}"
