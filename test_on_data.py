@@ -539,6 +539,8 @@ def plot_fit(minuit, bin_centers, bin_edges, bin_counts, plot_title, file_path, 
     
     ax.set_xlim(bin_edges[0], bin_edges[-1])
     ax.set_ylim(bottom=(np.min(bin_counts[bin_counts>0])-1)/1.5, top=(np.max(bin_counts)+1)*1.5)
+    if np.min(bin_counts[bin_counts>0]) == 1:
+        ax.set_ylim(bottom=0.6, top=(np.max(bin_counts)+1)*1.5)
     ax.set_yscale("log")
 
     pull = calc_pull(bin_counts, fit, bin_counts**0.5, 0)
@@ -546,10 +548,11 @@ def plot_fit(minuit, bin_centers, bin_edges, bin_counts, plot_title, file_path, 
     ax_pull.axhline(0, color="black", alpha=0.5)
     ax_pull.hist(bin_centers, weights=pull, bins=bin_edges, histtype="stepfilled")
     ax_pull.set_xlim(bin_edges[0], bin_edges[-1])   
+    ax_pull.set_ylim(-3.5,3.5)   
     
-    ax_pull.set_xlabel(r"$M_B \:/\: $MeV")
+    ax_pull.set_xlabel(r"$M_B \:/\: $MeV"+f" ({cut_query[2:]})")
     ax_pull.set_ylabel("pull")
-    ax.set_ylabel(f"counts ({cut_query[2:]})")
+    ax.set_ylabel(f"counts")
 
     ax.legend()
     
@@ -627,7 +630,8 @@ fixed_params = ["f_bkg","lambda_bkg2","beta_Bd", "beta_Bd2", "m_Bd", "m_Bd2", "f
 # %%
 # Do multiple fits
 quantiles = np.linspace(0,1,51)
-cuts = np.quantile(df_cut.query(f"(B_M>={x_min})&(B_M<={x_max})")["B_ProbBs"], quantiles)
+#cuts = np.quantile(df_cut.query(f"(B_M>={x_min})&(B_M<={x_max})")["B_ProbBs"], quantiles)
+cuts = np.linspace(0,0.75,51)
 cut_queries = [f"B_ProbBs>={cut:.5f}" for cut in cuts[:-1]]
 cut_queries += [f"B_ProbBs<={cut:.5f}" for cut in cuts[1:-1]]
 
@@ -818,10 +822,11 @@ for is_cut_greater in [True,False]:
                     label=f"n_Bs/n_Bd (ProbBs{sign}=cut)")
     [bar.set_alpha(0.4) for bar in bars]
         
-plt.ylim(0.0025,0.0175)
+#plt.ylim(0.007,0.017)
+#plt.xlim(0,0.7)
         
 plt.gca().set_box_aspect(1)
-plt.xlabel("cut")
+plt.xlabel("ProbBs cut")
 plt.ylabel("n_Bs / n_Bd")
 #plt.yscale("log")
 plt.legend()
@@ -831,8 +836,47 @@ fig.savefig(fits_res_dir/f"03_B_ratio_by_cut.pdf")
 plt.close()
 
 # %%
+# Plot result 50 times
+fit_ratio_anim_dir = output_dir/"fit_ratio_anim"
+if fit_ratio_anim_dir.is_dir():
+    shutil.rmtree(fit_ratio_anim_dir)
+fit_ratio_anim_dir.mkdir(exist_ok=True)
+
+for i,cut in enumerate(df_yields.query(f"is_cut_greater==False")["cut"].to_numpy()):
+    fig = plt.figure(figsize=(4,4))
+    
+    plt.axvline(cut, color="black", linestyle="--")
+
+    for is_cut_greater in [True,False]:
+        temp_df = df_yields.query(f"is_cut_greater=={str(is_cut_greater)}")
+        sign = ">" if is_cut_greater else "<"
+
+        markers, caps, bars = plt.errorbar(temp_df["cut"], 
+                        unp.nominal_values(temp_df["n_Bs/n_Bd"]),
+                        yerr=unp.std_devs(temp_df["n_Bs/n_Bd"]), 
+                        fmt=".", 
+                        elinewidth=1, 
+                        label=f"n_Bs/n_Bd (ProbBs{sign}=cut)")
+        [bar.set_alpha(0.4) for bar in bars]
+            
+    #plt.ylim(0.007,0.017)
+    #plt.xlim(0,0.7)
+            
+    plt.gca().set_box_aspect(1)
+    plt.xlabel("ProbBs cut")
+    plt.ylabel("n_Bs / n_Bd")
+
+    #plt.yscale("log")
+    plt.legend(loc="upper right")
+    plt.tight_layout()
+    #plt.show()
+    fig.savefig(fit_ratio_anim_dir/f"{i:03d}.pdf")
+    plt.close()
+
+# %%
 # Merge the plot pdfs
 merge_pdfs(fits_res_dir, paths.plots_dir/"fit_res_test_on_data.pdf")
+merge_pdfs(fit_ratio_anim_dir, paths.plots_dir/"fit_ratio_anim_test_on_data.pdf")
 merge_pdfs(output_dir, paths.data_testing_plots_file)
 
 # %%

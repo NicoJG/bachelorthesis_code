@@ -281,6 +281,73 @@ plt.savefig(output_dir/"02_hist_output_normal.pdf")
 plt.close()
 
 # %%
+# Plot the ratio n_Bs/n_Bd like in testing
+print("Plot n_Bs/n_Bd...")
+
+Bd_idxs = np.argwhere(y_test==0).flatten()
+Bs_idxs = np.argwhere(y_test==1).flatten()
+N_Bd = Bd_idxs.shape[0]
+N_Bs = int(0.011 * N_Bd)
+print(f"N_Bs_before = {Bs_idxs.shape[0]}")
+print(f"{N_Bd = }")
+print(f"{N_Bs = }")
+Bs_idxs_reduced = np.random.choice(Bs_idxs, N_Bs)
+
+idxs_ = np.concatenate([Bd_idxs,Bs_idxs_reduced])
+np.random.shuffle(idxs_)
+
+y_test_ratio = y_test[idxs_]
+y_pred_proba_test_ratio = y_pred_proba_test[idxs_]
+
+cuts = np.linspace(0,0.75,100)
+
+ratio_lower = []
+ratio_greater = []
+
+for cut in cuts:
+    idxs_lower = np.argwhere(y_pred_proba_test_ratio <= cut).flatten()
+    idxs_greater = np.argwhere(y_pred_proba_test_ratio >= cut).flatten()
+    if len(idxs_lower) == 0:
+        ratio_lower.append(-1)
+    else:
+        n_Bd_lower = np.sum(y_test_ratio[idxs_lower] == 0)
+        n_Bs_lower = np.sum(y_test_ratio[idxs_lower] == 1)
+        ratio_lower.append(n_Bs_lower/n_Bd_lower)
+        
+    if len(idxs_greater) == 0:
+        ratio_greater.append(-1)
+    else:
+        n_Bd_greater = np.sum(y_test_ratio[idxs_greater] == 0)
+        n_Bs_greater = np.sum(y_test_ratio[idxs_greater] == 1)
+        ratio_greater.append(n_Bs_greater/n_Bd_greater)
+
+ratio_lower = np.array(ratio_lower)
+ratio_greater = np.array(ratio_greater)
+
+
+
+# plotting
+fig = plt.figure(figsize=(4,4))
+
+plt.axhline(0.011, color="black", linestyle="--", label=f"expected: 0.011")
+
+plt.plot(cuts[ratio_greater>=0], ratio_greater[ratio_greater>=0], "-" , label=f"n_Bs/n_Bd (ProbBs>=cut)")
+plt.plot(cuts[ratio_lower>=0], ratio_lower[ratio_lower>=0], "-" , label=f"n_Bs/n_Bd (ProbBs<=cut)")
+        
+plt.gca().set_box_aspect(1)
+plt.xlabel("ProbBs cut")
+plt.ylabel("n_Bs / n_Bd")
+#plt.xlim(0,0.7)
+#plt.yscale("log")
+plt.legend()
+plt.tight_layout()
+#plt.show()
+fig.savefig(output_dir/f"03_B_ratio_by_cut.pdf")
+plt.close()
+
+
+
+# %%
 # Merge all evaluation plots
 merge_pdfs(output_dir, paths.B_classifier_eval_plots_file)
 
