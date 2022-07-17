@@ -29,7 +29,7 @@ output_file = paths.plots_dir/"feature_correlation.pdf"
 
 # %%
 # Read in the feature keys
-feature_keys = load_feature_keys(["direct_mc","extracted_mc","direct","extracted","output_ss_classifier"])
+feature_keys = load_feature_keys(["direct","extracted"])
 
 # Read in the feature properties
 fprops = load_feature_properties()
@@ -172,7 +172,7 @@ for i, (corr, f0, f1) in tqdm(df_highest_corr.iterrows(), total=df_highest_corr.
     if is_logx[1]:
         data1 = np.log10(data1)
     
-    plt.figure(figsize=(8,8))
+    plt.figure(figsize=(12,10))
     plt.title(f"Hist2d Plot ('{f0}' vs '{f1}')\ncorrelation: {corr:.5f}")
     
     hist = plt.hist2d(data0, data1, 
@@ -207,6 +207,7 @@ for i, (corr, f0, f1) in tqdm(df_highest_corr.iterrows(), total=df_highest_corr.
     
     plt.tight_layout()
     plt.savefig(output_dir/f"02_pair_plot_{i:03d}_{f0}_{f1}.pdf")
+    plt.savefig(output_dir/f"pngs_02_pair_plot_{i:03d}_{f0}_{f1}.png")
     #plt.show()
     plt.close()
     
