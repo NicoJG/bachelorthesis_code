@@ -148,8 +148,11 @@ plt.savefig(output_dir/"02_hist_output_logy.pdf")
 plt.close()
 
 # Plot with normal y-axis
-plt.figure(figsize=(8,6))
-plt.title("distribution of the prediction output of the BDT")
+
+plt.figure(figsize=(4,4))
+#plt.title("distribution of the prediction output of the BDT")
+
+plt.axvline(0.5, linestyle="dashed", color="grey")
 
 for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, alphas):
     x, sigma = get_hist(y_pred_proba, bin_edges, normed=True)
@@ -158,9 +161,10 @@ for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, 
     elif pt == "errorbar":
         plt.errorbar(bin_centers, x, yerr=sigma, xerr=bin_widths/2, ecolor=c, label=l, fmt="none", elinewidth=1.0)
 
+plt.gca().set_box_aspect(1)
 plt.xlabel("BDT output")
 plt.ylabel("density")
-plt.legend()
+plt.legend(loc="upper right")
 plt.tight_layout()
 plt.savefig(output_dir/"02_hist_output_normal.pdf")
 plt.close()

@@ -211,15 +211,25 @@ df_cut = df.query(cut_query)
 # %%
 # Plot the B classification output 
 print("Plot the B classifier output...")
-plt.figure(figsize=(8,6))
-plt.title("B classifier output distribution on the data (with all cuts)")
+plt.figure(figsize=(4,4))
 plt.hist(df_cut["B_ProbBs"], histtype="step", bins=200, range=(0. , 1.))
-plt.xlabel("B classifier output")
+plt.xlabel("DeepSet output (on bkg reduced data)")
 plt.ylabel("counts")
-#plt.yscale("log")
 
 plt.tight_layout()
 plt.savefig(output_dir/"03_B_classifier_output.pdf")
+plt.close()
+
+# Plot the B classification output 
+print("Plot the B classifier output...")
+plt.figure(figsize=(4,4))
+plt.hist(df_cut["B_ProbBs"], histtype="step", bins=200, range=(0. , 1.))
+plt.yscale("log")
+plt.xlabel("DeepSet output (on bkg reduced data)")
+plt.ylabel("counts")
+
+plt.tight_layout()
+plt.savefig(output_dir/"03_B_classifier_output_logy.pdf")
 plt.close()
 
 # %%
@@ -288,9 +298,7 @@ labels = [f"B_ProbBs<={ProbBs_Bd_max}",
           f"B_ProbBs>={ProbBd_Bs_min}",
           "baseline with bkg cuts"]
 
-plt.figure(figsize=(8,6))
-plt.title(r"""B mass distribution of real data ($B^0_{d/s} \rightarrow J/\Psi + K^0_S$)
-with cuts and B classification""")
+plt.figure(figsize=(5,5))
 plt.axvline(M_Bd, linestyle="dashed", color="grey", label="Bd mass")
 plt.axvline(M_Bs, linestyle="dotted", color="grey", label="Bs mass")
 plt.hist(x, histtype="step", density=False, bins=bin_edges, label=labels)
@@ -495,7 +503,10 @@ def do_fit(x, y, start_vals, param_limits, fixed_params):
     
     N_ges = 1#np.sum(y)
     
-    least_squares = LeastSquares(x, y, y**0.5, pdf)
+    y_err = y**0.5
+    y_err[y_err<1] = 1
+    
+    least_squares = LeastSquares(x, y, y_err, pdf)
     m = Minuit(least_squares, **start_vals)
     m.errordef = iminuit.Minuit.LEAST_SQUARES
     
@@ -531,8 +542,11 @@ def plot_fit(minuit, bin_centers, bin_edges, bin_counts, plot_title, file_path, 
     for fit_, fit_label in zip(fits, fit_labels):
         ax.plot(x, fit_, linewidth=1.0, label=fit_label)
         
+    y_err = bin_counts**0.5
+    y_err[y_err<1] = 1
+        
     ax.errorbar(bin_centers, bin_counts, 
-                yerr=bin_counts**0.5, xerr=bin_widths/2, 
+                yerr=y_err, xerr=bin_widths/2, 
                 fmt="none", color="black", 
                 label=f"Data", 
                 elinewidth=1.0)
@@ -655,11 +669,15 @@ for i,cut_query in enumerate(tqdm(cut_queries)):
     minuit = do_fit(bin_centers, bin_counts, start_vals, param_limits, fixed_params)
     
     print(f"valid: {minuit.valid} \taccurate: {minuit.accurate}")
+    
     if not (minuit.valid and minuit.accurate):
+        plot_fit(minuit, bin_centers, bin_edges, bin_counts, 
+                plot_title=f"Fit of the B mass with '{cut_query}' (valid: {minuit.valid}, accurate: {minuit.accurate})",
+                file_path=fits_dir/f"{i:03d}_invalid.pdf", cut_query=cut_query)
         continue
     
     yields = calc_yields(minuit, bin_centers)
-
+    
     plot_fit(minuit, bin_centers, bin_edges, bin_counts, 
              plot_title=f"Fit of the B mass with '{cut_query}' (valid: {minuit.valid}, accurate: {minuit.accurate})",
              file_path=fits_dir/f"{i:03d}.pdf", cut_query=cut_query)

@@ -256,6 +256,28 @@ plt.xlabel("DeepSet output")
 plt.ylabel("density")
 plt.legend()
 plt.tight_layout()
+plt.savefig(output_dir/"02_hist_output_logy_old.pdf")
+plt.close()
+
+# Plot with log y-axis
+plt.figure(figsize=(4,4))
+#plt.title(f"distribution of the prediction output of the DeepSet\nwith cut at 0.5: test accuracy = {accuracy_test:.3f} , train accuracy = {accuracy_train:.3f}\nefficiency Bd={tnr:.3f}, efficiency Bs={tpr:.3f}")
+
+plt.axvline(0.5, linestyle="dashed", color="grey")
+
+for y_pred_proba, l, c, pt, a in zip(y_pred_probas, labels, colors, plot_types, alphas):
+    x, sigma = get_hist(y_pred_proba, bin_edges, normed=True)
+    if pt == "hist":
+        plt.hist(bin_centers, weights=x, bins=bin_edges, histtype="stepfilled", color=c, alpha=a, label=l)
+    elif pt == "errorbar":
+        plt.errorbar(bin_centers, x, yerr=sigma, xerr=bin_widths/2, ecolor=c, label=l, fmt="none", elinewidth=1.0)
+
+plt.yscale("log")
+plt.gca().set_box_aspect(1)
+plt.xlabel("DeepSet output")
+plt.ylabel("density")
+plt.legend(loc="lower left")
+plt.tight_layout()
 plt.savefig(output_dir/"02_hist_output_logy.pdf")
 plt.close()
 
@@ -299,7 +321,7 @@ np.random.shuffle(idxs_)
 y_test_ratio = y_test[idxs_]
 y_pred_proba_test_ratio = y_pred_proba_test[idxs_]
 
-cuts = np.linspace(0,0.75,100)
+cuts = np.linspace(0,0.85,200)
 
 ratio_lower = []
 ratio_greater = []
@@ -343,6 +365,27 @@ plt.legend()
 plt.tight_layout()
 #plt.show()
 fig.savefig(output_dir/f"03_B_ratio_by_cut.pdf")
+plt.close()
+
+# plot only to 0.75
+fig = plt.figure(figsize=(4,4))
+
+plt.axhline(0.011, color="black", linestyle="--", label=f"expected: 0.011")
+
+mask_greater = (cuts <= 0.75) & (ratio_greater>=0)
+mask_lower = (cuts <= 0.75) & (ratio_lower>=0)
+plt.plot(cuts[mask_greater], ratio_greater[mask_greater], "-" , label=f"n_Bs/n_Bd (ProbBs>=cut)")
+plt.plot(cuts[mask_lower], ratio_lower[mask_lower], "-" , label=f"n_Bs/n_Bd (ProbBs<=cut)")
+        
+plt.gca().set_box_aspect(1)
+plt.xlabel("ProbBs cut")
+plt.ylabel("n_Bs / n_Bd")
+#plt.xlim(0,0.7)
+#plt.yscale("log")
+plt.legend()
+plt.tight_layout()
+#plt.show()
+fig.savefig(output_dir/f"03_B_ratio_by_cut_for_comparison.pdf")
 plt.close()
 
 
