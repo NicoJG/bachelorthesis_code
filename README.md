@@ -1,6 +1,6 @@
 # Bachelor_Project_Nico_Guth
 
-All the code for my bachelor project at E5a (TU Dortmund). It's about the classification of B_0 and B_s mesons based on the data of the associated tracks.
+All the code for my bachelor project at E5a (TU Dortmund). It's about the classification of B_0 and B_s mesons based on the data of the associated tracks without data of the signal decay.
 
 
 
@@ -12,8 +12,7 @@ As of 06.05.2022 there is no easy way of using GPUs for PyTorch in the E5 cluste
 - `heemskerck` and `beagle` have too new GPUs for the PyTorc/CUDA version in `root_forge` (see below for the fix with conda) 
 - `tarek` is compatible with the `root_forge` environment  
 
-The fix for using Snakemake to submit to specific machines is to create a new profile, for this you need to unpack the `inclft.zip` to `~/.config/snakemake/inclft`.  
-Then you can use `snakemake --profile inclft` and you can specify `Requirements` in your rule. Example:   
+The fix for using Snakemake to submit to specific machines requies you to create a new profile to specify `Requirements` in your rule. Example:   
 ```
 rule train:
     input: "<input_path>"
